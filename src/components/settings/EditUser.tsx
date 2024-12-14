@@ -21,7 +21,7 @@ import { toast } from 'react-toastify';
 export interface User {
   id: string;
   username: string;
-  role: 'OPERATOR' | 'SUPERVISOR' | 'ADMIN';
+  role: 'OPERATOR' | 'SUPERVISOR' | 'ADMIN' | 'RENTAL_MANAGER';
 }
 
 const EditUser = () => {
@@ -31,9 +31,9 @@ const EditUser = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [password, setPassword] = useState<string | null>(null);
-  const [role, setRole] = useState<'OPERATOR' | 'SUPERVISOR' | 'ADMIN' | null>(
-    null,
-  );
+  const [role, setRole] = useState<
+    'OPERATOR' | 'SUPERVISOR' | 'ADMIN' | null | 'RENTAL_MANAGER'
+  >(null);
   const theme = useTheme();
 
   useEffect(() => {
@@ -121,6 +121,12 @@ const EditUser = () => {
         if (params.value === 'ADMIN') {
           return 'Admin';
         }
+
+        if (params.value === 'RENTAL_MANAGER') {
+          return 'Gestionnaire de location';
+        }
+
+        return params.value;
       },
     },
     {
@@ -206,11 +212,20 @@ const EditUser = () => {
               value={role}
               required
               onChange={(e) =>
-                setRole(e.target.value as 'OPERATOR' | 'SUPERVISOR' | 'ADMIN')
+                setRole(
+                  e.target.value as
+                    | 'OPERATOR'
+                    | 'SUPERVISOR'
+                    | 'ADMIN'
+                    | 'RENTAL_MANAGER',
+                )
               }
             >
               <MenuItem value="OPERATOR">Opérateur</MenuItem>
               <MenuItem value="SUPERVISOR">Superviseur</MenuItem>
+              <MenuItem value="RENTAL_MANAGER">
+                Gestionnaire de location
+              </MenuItem>
               <MenuItem value="ADMIN">Admin</MenuItem>
             </TextField>
           </DialogContent>
