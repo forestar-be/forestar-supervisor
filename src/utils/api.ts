@@ -182,3 +182,14 @@ export const deleteImage = (token: string, id: string, imageIndex: number) =>
     'DELETE',
     token,
   );
+  
+
+export const fetchRobotTypes = (token: string) =>
+  apiRequest('/supervisor/robot-types', 'GET', token);
+
+
+  export const addRobotType = (token: string, type: string) =>
+    apiRequest('/supervisor/robot-types', 'PUT', token, { name: type });
+
+  export const deleteRobotType = (token: string, type: string) =>
+    apiRequest(`/supervisor/robot-types/${type}`, 'DELETE', token);

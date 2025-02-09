@@ -16,6 +16,7 @@ import {
 } from '../utils/api';
 import EditConfig from '../components/settings/EditConfig';
 import { useAuth } from '../hooks/AuthProvider';
+import EditRobotType from '../components/settings/EditRobotType';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -70,8 +71,9 @@ const Settings = (): JSX.Element => {
           <Tab label="Réparateur" {...a11yProps(1)} />
           <Tab label="Marques" {...a11yProps(2)} />
           <Tab label="Type de machine" {...a11yProps(3)} />
-          <Tab label="Autre" {...a11yProps(4)} />
-          {isAdmin && <Tab label="Utilisateurs" {...a11yProps(5)} />}
+          <Tab label="Types de robot" {...a11yProps(4)} />
+          <Tab label="Autre" {...a11yProps(5)} />
+          {isAdmin && <Tab label="Utilisateurs" {...a11yProps(6)} />}
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
@@ -102,10 +104,13 @@ const Settings = (): JSX.Element => {
         />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={4}>
+        <EditRobotType />
+      </CustomTabPanel>
+      <CustomTabPanel value={value} index={5}>
         <EditConfig />
       </CustomTabPanel>
       {isAdmin && (
-        <CustomTabPanel value={value} index={5}>
+        <CustomTabPanel value={value} index={6}>
           <EditUser />
         </CustomTabPanel>
       )}

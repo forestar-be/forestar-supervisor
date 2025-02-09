@@ -169,6 +169,7 @@ const SingleRepair = () => {
   const [priceDevis, setPriceDevis] = useState(0);
   const [priceHivernage, setPriceHivernage] = useState(0);
   const [machineTypes, setMachineTypes] = useState<string[]>([]);
+  const [robotTypes, setRobotTypes] = useState<string[]>([]);
   const [conditions, setConditions] = useState<string>('');
   const [adresse, setAdresse] = useState<string>('');
   const [telephone, setTelephone] = useState<string>('');
@@ -211,6 +212,7 @@ const SingleRepair = () => {
             États: stateColorsStr,
           },
           machineType,
+          robotType,
         } = await fetchAllConfig(auth.token);
         setBrands(brands);
         setRepairers(repairerNames);
@@ -219,14 +221,18 @@ const SingleRepair = () => {
         setPriceDevis(Number(priceDevis));
         setPriceHivernage(Number(priceHivernage));
         setMachineTypes(machineType);
+        setRobotTypes(robotType);
         setConditions(conditions);
         setAdresse(address);
         setTelephone(phone);
         setEmail(email);
         setSiteWeb(website);
         setTitreBonPdf(pdfTitle);
-        setColorByState(JSON.parse(stateColorsStr));
-      } catch (error) {
+        try {
+          setColorByState(JSON.parse(stateColorsStr));
+        } catch {
+          setColorByState({});
+        }      } catch (error) {
         console.error('Error fetching config:', error);
         alert(
           `Une erreur s'est produite lors de la récupération des données ${error}`,
@@ -586,8 +592,9 @@ const SingleRepair = () => {
     name: string,
     value: boolean,
     suffix = '',
+    sxCheckbox?: SxProps<Theme>
   ) => (
-    <Grid item xs={6}>
+    <Grid item xs={6} sx={sxCheckbox}>
       {editableFields[name] ? (
         <FormControlLabel
           label={label}
@@ -718,9 +725,10 @@ const SingleRepair = () => {
               toggleEditableSection('repairDetails', [
                 'machine_type_name',
                 'repair_or_maintenance',
-                'fault_description',
-                'robot_code',
                 'brand_name',
+                'robot_code',
+                'robot_type_name',
+                'fault_description',
                 'warranty',
                 'devis',
                 'hivernage',
@@ -753,22 +761,34 @@ const SingleRepair = () => {
               'robot_code',
               repair.robot_code || '',
             )}
-            element4={renderCheckbox(
-              'Garantie',
-              'warranty',
-              repair.warranty ?? false,
+            element4={renderSelect(
+              'Type de robot',
+              'robot_type_name',
+              repair.robot_type_name || '',
+              robotTypes,
+              { width: '100%', margin: '5px 0' },
+              6,
             )}
             element5={renderCheckbox(
+              'Garantie',
+              'warranty',
+              repair.warranty ?? false, 
+              undefined,
+              { width: '100%', margin: '5px 0' },
+            )}
+            element51={renderCheckbox(
               'Devis',
               'devis',
               repair.devis,
               getSuffixPrice(repair.devis, priceDevis),
+              { width: '100%', margin: '5px 0' },
             )}
-            element51={renderCheckbox(
+            element52={renderCheckbox(
               `Hivernage`,
               'hivernage',
               repair.hivernage,
               getSuffixPrice(repair.hivernage, priceHivernage),
+              { width: '100%', margin: '5px 0' },
             )}
             element6={renderField(
               'Description',

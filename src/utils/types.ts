@@ -8,6 +8,7 @@ export interface MachineRepair {
   phone: string;
   email: string;
   machine_type_name: string;
+  robot_type_name: string | null;
   repair_or_maintenance: string;
   robot_code: string;
   fault_description: string;
@@ -38,4 +39,6 @@ export type MachineRepairFromApi = Omit<
 > & {
   start_timer: string | null;
   client_call_times: string[];
+  machine_type_name: string;
+  robot_type_name: string | null;
 };
