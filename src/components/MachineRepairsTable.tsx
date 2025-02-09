@@ -97,7 +97,11 @@ const MachineRepairsTable: React.FC = () => {
       const {
         config: { États: stateColorsStr },
       } = await fetchAllConfig(auth.token);
-      setColorByState(JSON.parse(stateColorsStr));
+      try {
+        setColorByState(JSON.parse(stateColorsStr));
+      } catch {
+        setColorByState({});
+      }
     } catch (error) {
       console.error('Error fetching config:', error);
       alert(
@@ -217,12 +221,18 @@ const MachineRepairsTable: React.FC = () => {
       filter: true,
     },
     {
+      headerName: 'Type de robot',
+      field: 'robot_type_name' as keyof MachineRepair,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params: any) => params.value || '-',
+    },
+    {
       headerName: 'Réparateur',
       field: 'repairer_name' as keyof MachineRepair,
       sortable: true,
       filter: true,
       valueFormatter: (params: any) => params.value || 'Non affecté',
-      //  width: 130,
     },
     {
       headerName: 'Prénom',

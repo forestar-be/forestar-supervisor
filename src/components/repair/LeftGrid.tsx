@@ -15,24 +15,25 @@ import ReplacedPartSelect from './ReplacedPartSelect';
 import { ReplacedPart } from '../../pages/SingleRepair';
 import { MachineRepair } from '../../utils/types';
 
-export const LeftGrid = (props: {
+interface LeftGridProps {
   onClick: () => void;
-  editableSections: { [p: string]: boolean };
-  element: React.JSX.Element;
-  element1: React.JSX.Element;
-  element2: React.JSX.Element;
-  element3: React.JSX.Element;
-  element4: React.JSX.Element;
-  element5: React.JSX.Element;
-  element51: React.JSX.Element;
-  element6: React.JSX.Element;
   onClick1: () => void;
-  element7: React.JSX.Element;
-  element8: React.JSX.Element;
-  element9: React.JSX.Element;
-  element10: React.JSX.Element;
+  editableSections: { [key: string]: boolean };
+  element: JSX.Element;
+  element1: JSX.Element;
+  element2: JSX.Element;
+  element3: JSX.Element;
+  element4: JSX.Element;
+  element5: JSX.Element;
+  element51: JSX.Element;
+  element52: JSX.Element;
+  element6: JSX.Element;
+  element7: JSX.Element;
+  element8: JSX.Element;
+  element9: JSX.Element;
+  element10: JSX.Element;
   repair: MachineRepair;
-  editableFields: { [p: string]: boolean };
+  editableFields: { [key: string]: boolean };
   running: boolean;
   hours: number;
   days: number;
@@ -43,6 +44,7 @@ export const LeftGrid = (props: {
   stopTimer: () => void;
   resetTimer: () => void;
   hourlyRate: number;
+  priceHivernage: number;
   possibleValues: ReplacedPart[];
   handleReplacedPartSelectChange: (event: SelectChangeEvent<String[]>) => void;
   updateQuantityOfReplacedPart: (
@@ -50,8 +52,9 @@ export const LeftGrid = (props: {
     replacedPart: MachineRepair['replaced_part_list'][0],
   ) => void;
   handleDeleteReplacedPart: (replacedPartName: string) => void;
-  priceHivernage: number;
-}) => (
+}
+
+export const LeftGrid = (props: LeftGridProps) => (
   <Grid item xs={6}>
     <Grid item xs={12}>
       <Box display="flex" alignItems="center">
@@ -79,6 +82,7 @@ export const LeftGrid = (props: {
     </Grid>
     <Grid item xs={12} display={'flex'} gap={'10px'}>
       {props.element51}
+      {props.element52}
     </Grid>
     <Grid item xs={12} display={'flex'}>
       {props.element6}
