@@ -301,6 +301,7 @@ const MachineRepairsTable: React.FC = () => {
             label="Rechercher un client"
             variant="outlined"
             sx={{ minWidth: 450, margin: 2 }}
+            size="small"
             value={customerFilterText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setCustomerFilterText(e.target.value)

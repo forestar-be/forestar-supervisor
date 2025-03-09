@@ -9,6 +9,7 @@ const apiRequest = async (
   body?: any,
   additionalHeaders: HeadersInit = { 'Content-Type': 'application/json' },
   stringifyBody: boolean = true,
+  throwError: boolean = true,
 ) => {
   const headers: HeadersInit = {
     Authorization: `Bearer ${token}`,
@@ -24,13 +25,31 @@ const apiRequest = async (
     options.body = stringifyBody ? JSON.stringify(body) : body;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, options);
+  const response: Response = await fetch(`${API_URL}${endpoint}`, options);
 
-  if (!response.ok) {
+  let data;
+
+  try {
+    data = await response.json();
+  } catch (error) {
+    console.warn('Error parsing JSON of response', response, error);
+  }
+
+  if (
+    response.status === 403 &&
+    data?.message &&
+    data?.message === 'jwt expired'
+  ) {
+    window.location.href = `/login?redirect=${window.location.pathname}`;
+    return;
+  }
+
+  if (throwError && !response.ok) {
+    console.error(`${response.statusText} ${response.status}`, data);
     throw new Error(`${response.statusText} ${response.status}`);
   }
 
-  return await response.json();
+  return data;
 };
 
 export const getAllMachineRepairs = async (token: string) => {
@@ -182,14 +201,90 @@ export const deleteImage = (token: string, id: string, imageIndex: number) =>
     'DELETE',
     token,
   );
-  
 
 export const fetchRobotTypes = (token: string) =>
   apiRequest('/supervisor/robot-types', 'GET', token);
 
+export const addRobotType = (token: string, type: string) =>
+  apiRequest('/supervisor/robot-types', 'PUT', token, { name: type });
 
-  export const addRobotType = (token: string, type: string) =>
-    apiRequest('/supervisor/robot-types', 'PUT', token, { name: type });
+export const deleteRobotType = (token: string, type: string) =>
+  apiRequest(`/supervisor/robot-types/${type}`, 'DELETE', token);
 
-  export const deleteRobotType = (token: string, type: string) =>
-    apiRequest(`/supervisor/robot-types/${type}`, 'DELETE', token);
+// Types pour les rappels téléphoniques
+export interface PhoneCallback {
+  id: number;
+  phoneNumber: string;
+  clientName: string;
+  reason: string;
+  description: string;
+  responsiblePerson: string;
+  createdAt: string;
+  completed: boolean;
+  eventId?: string;
+}
+
+export interface PhoneCallbackFormData {
+  phoneNumber: string;
+  clientName: string;
+  reason: string;
+  description: string;
+  responsiblePerson: string;
+}
+
+export interface PhoneCallbacksResponse {
+  data: PhoneCallback[];
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    currentPage: number;
+    itemsPerPage: number;
+  };
+}
+
+// Fonctions API pour les rappels téléphoniques
+export const fetchPhoneCallbacks = (
+  token: string,
+  page: number,
+  itemsPerPage: number,
+  completed?: boolean,
+  sortBy: string = 'createdAt',
+  sortOrder: string = 'desc',
+): Promise<PhoneCallbacksResponse> => {
+  let endpoint = `/supervisor/phone-callbacks?page=${page}&itemsPerPage=${itemsPerPage}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+
+  if (completed !== undefined) {
+    endpoint += `&completed=${completed}`;
+  }
+
+  return apiRequest(endpoint, 'GET', token);
+};
+
+export const createPhoneCallback = (
+  token: string,
+  callbackData: PhoneCallbackFormData,
+): Promise<PhoneCallback> =>
+  apiRequest('/supervisor/phone-callbacks', 'POST', token, callbackData);
+
+export const updatePhoneCallback = (
+  token: string,
+  id: number,
+  callbackData: PhoneCallbackFormData,
+): Promise<PhoneCallback> =>
+  apiRequest(`/supervisor/phone-callbacks/${id}`, 'PUT', token, callbackData);
+
+export const deletePhoneCallback = (token: string, id: number): Promise<void> =>
+  apiRequest(`/supervisor/phone-callbacks/${id}`, 'DELETE', token);
+
+export const togglePhoneCallbackStatus = (
+  token: string,
+  callback: PhoneCallback,
+): Promise<PhoneCallback> => {
+  const updatedCallback = { ...callback, completed: !callback.completed };
+  return apiRequest(
+    `/supervisor/phone-callbacks/${callback.id}`,
+    'PUT',
+    token,
+    updatedCallback,
+  );
+};
