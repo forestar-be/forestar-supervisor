@@ -767,7 +767,7 @@ const PhoneCallbacks: React.FC = () => {
                 >
                   <MenuItem value="Jowel">Jowel</MenuItem>
                   <MenuItem value="Julien">Julien</MenuItem>
-                  <MenuItem value="Miroko">Miroko</MenuItem>
+                  <MenuItem value="Mirko">Mirko</MenuItem>
                 </Select>
                 {formErrors.responsiblePerson && (
                   <FormHelperText>
