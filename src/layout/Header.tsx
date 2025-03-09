@@ -17,6 +17,9 @@ import headerData from '../config/header.json';
 import { Logo } from '../components/Logo';
 import { useAuth } from '../hooks/AuthProvider';
 import { useNavigate } from 'react-router-dom';
+import Button from '@mui/material/Button';
+import CallIcon from '@mui/icons-material/Call';
+import HomeIcon from '@mui/icons-material/Home';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -83,6 +86,34 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
           ></Box>
           {auth.token && (
             <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                component="a"
+                href={`/`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/`);
+                }}
+                aria-label="Accueil"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<HomeIcon fontSize="medium" />}
+                variant="contained"
+              >
+                Accueil
+              </Button>
+              <Button
+                component="a"
+                href={`/appels`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/appels`);
+                }}
+                aria-label="Gestion des appels"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<CallIcon fontSize="medium" />}
+                variant="contained"
+              >
+                Gestion des appels
+              </Button>
               <IconButton
                 component="a"
                 href={`/parametres`}

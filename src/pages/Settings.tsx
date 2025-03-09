@@ -28,7 +28,7 @@ function a11yProps(index: number) {
   return {
     id: `tab-${index}`,
     'aria-controls': `tabpanel-${index}`,
-  };
+  } as const;
 }
 
 function CustomTabPanel(props: TabPanelProps) {

@@ -16,6 +16,7 @@ import SingleRepair from './pages/SingleRepair';
 import Settings from './pages/Settings';
 import { PDFViewer } from '@react-pdf/renderer';
 import MyDocument from './components/repair/Document';
+import PhoneCallbacks from './pages/PhoneCallbacks';
 
 const defaultTheme = 'light';
 //
@@ -84,6 +85,7 @@ const App = (): JSX.Element => {
                     <Route path="/" element={<Home />} />
                     <Route path="/reparation/:id" element={<SingleRepair />} />
                     <Route path="/parametres" element={<Settings />} />
+                    <Route path="/appels" element={<PhoneCallbacks />} />
                   </Route>
                 </Routes>
               </Layout>
