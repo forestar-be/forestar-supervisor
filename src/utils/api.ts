@@ -260,6 +260,13 @@ export const fetchPhoneCallbacks = (
   return apiRequest(endpoint, 'GET', token);
 };
 
+// New function to fetch all callbacks without pagination or filters
+export const fetchAllPhoneCallbacks = (
+  token: string,
+): Promise<{ data: PhoneCallback[] }> => {
+  return apiRequest('/supervisor/phone-callbacks/all', 'GET', token);
+};
+
 export const createPhoneCallback = (
   token: string,
   callbackData: PhoneCallbackFormData,
