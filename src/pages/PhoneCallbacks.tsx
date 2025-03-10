@@ -54,6 +54,7 @@ import {
   togglePhoneCallbackStatus,
   PhoneCallback,
   PhoneCallbackFormData,
+  fetchAllPhoneCallbacks,
 } from '../utils/api';
 import {
   notifySuccess,
@@ -219,6 +220,7 @@ const PhoneCallbacks: React.FC = () => {
   const auth = useAuth();
   const theme = useTheme();
   const gridRef = useRef<AgGridReact>(null);
+  const [allCallbacks, setAllCallbacks] = useState<PhoneCallback[]>([]);
   const [callbacks, setCallbacks] = useState<PhoneCallback[]>([]);
   const [formData, setFormData] =
     useState<PhoneCallbackFormData>(initialFormData);
@@ -244,16 +246,10 @@ const PhoneCallbacks: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await fetchPhoneCallbacks(
-        auth.token,
-        page + 1,
-        rowsPerPage,
-        filterCompleted,
-      );
+      const response = await fetchAllPhoneCallbacks(auth.token);
 
       if (response && response.data) {
-        setCallbacks(response.data);
-        setTotalCount(response.pagination.totalItems);
+        setAllCallbacks(response.data);
       } else {
         notifyWarning('Aucun rappel téléphonique trouvé');
       }
@@ -266,12 +262,28 @@ const PhoneCallbacks: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [auth.token, filterCompleted, page, rowsPerPage]);
+  }, [auth.token]);
 
-  // Chargement initial des données
+  // Filtrer les données et gérer la pagination côté client
   useEffect(() => {
-    fetchCallbacks();
-  }, []);
+    if (allCallbacks.length === 0) return;
+
+    // Appliquer le filtre si nécessaire
+    let filtered = [...allCallbacks];
+    if (filterCompleted !== undefined) {
+      filtered = filtered.filter(
+        (callback) => callback.completed === filterCompleted,
+      );
+    }
+
+    // Mettre à jour le nombre total d'éléments
+    setTotalCount(filtered.length);
+
+    // Appliquer la pagination
+    const start = page * rowsPerPage;
+    const end = start + rowsPerPage;
+    setCallbacks(filtered.slice(start, end));
+  }, [allCallbacks, filterCompleted, page, rowsPerPage]);
 
   // Validation du formulaire
   const validateForm = (): boolean => {
@@ -334,37 +346,95 @@ const PhoneCallbacks: React.FC = () => {
       return;
     }
 
-    const operation = editingId ? 'Mise à jour' : 'Création';
-    const notification = notifyLoading(
-      `${operation} du rappel téléphonique en cours...`,
-    );
+    setLoading(true);
 
     try {
       if (editingId) {
-        await updatePhoneCallback(auth.token, editingId, formData);
-        notification.success(`Rappel téléphonique mis à jour avec succès`);
+        const updatedCallback = await updatePhoneCallback(
+          auth.token,
+          editingId,
+          formData,
+        );
+        // Mettre à jour l'état local
+        setAllCallbacks((prevCallbacks) =>
+          prevCallbacks.map((cb) =>
+            cb.id === editingId ? updatedCallback : cb,
+          ),
+        );
+        notifySuccess(`Rappel téléphonique mis à jour avec succès`);
       } else {
-        await createPhoneCallback(auth.token, formData);
-        notification.success(`Rappel téléphonique créé avec succès`);
+        const newCallback = await createPhoneCallback(auth.token, formData);
+        // Ajouter le nouveau rappel à la liste
+        setAllCallbacks((prevCallbacks) => [newCallback, ...prevCallbacks]);
+        notifySuccess(`Rappel téléphonique créé avec succès`);
       }
 
       setDialogOpen(false);
       setFormData(initialFormData);
       setEditingId(null);
-      fetchCallbacks();
     } catch (error) {
       console.error(
         "Erreur lors de l'enregistrement du rappel téléphonique",
         error,
       );
-      notification.error(
-        `Erreur lors de l'${operation.toLowerCase()} du rappel téléphonique`,
-      );
+      notifyError("Erreur lors de l'enregistrement du rappel téléphonique");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Modification du statut d'un rappel
+  const handleToggleComplete = (callback: PhoneCallback) => {
+    setLoading(true);
+
+    togglePhoneCallbackStatus(auth.token, callback)
+      .then((updatedCallback) => {
+        // Mettre à jour l'état local
+        setAllCallbacks((prevCallbacks) =>
+          prevCallbacks.map((cb) =>
+            cb.id === updatedCallback.id ? updatedCallback : cb,
+          ),
+        );
+        notifySuccess(
+          `Rappel marqué comme ${
+            updatedCallback.completed ? 'terminé' : 'à faire'
+          }`,
+        );
+      })
+      .catch((error) => {
+        console.error('Erreur lors de la modification du statut', error);
+        notifyError('Erreur lors de la modification du statut');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  // Suppression d'un rappel
+  const handleDelete = (id: number) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce rappel ?')) {
+      setLoading(true);
+
+      deletePhoneCallback(auth.token, id)
+        .then(() => {
+          // Mettre à jour l'état local
+          setAllCallbacks((prevCallbacks) =>
+            prevCallbacks.filter((cb) => cb.id !== id),
+          );
+          notifySuccess('Rappel supprimé avec succès');
+        })
+        .catch((error) => {
+          console.error('Erreur lors de la suppression du rappel', error);
+          notifyError('Erreur lors de la suppression du rappel');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   };
 
   // Édition d'un rappel
-  const handleEdit = useCallback((callback: PhoneCallback) => {
+  const handleEdit = (callback: PhoneCallback) => {
     setFormData({
       phoneNumber: callback.phoneNumber,
       clientName: callback.clientName,
@@ -374,60 +444,7 @@ const PhoneCallbacks: React.FC = () => {
     });
     setEditingId(callback.id);
     setDialogOpen(true);
-  }, []);
-
-  // Suppression d'un rappel
-  const handleDelete = useCallback(
-    async (id: number) => {
-      if (
-        window.confirm(
-          'Êtes-vous sûr de vouloir supprimer ce rappel téléphonique ?',
-        )
-      ) {
-        const notification = notifyLoading(
-          'Suppression du rappel téléphonique en cours...',
-        );
-
-        try {
-          await deletePhoneCallback(auth.token, id);
-          fetchCallbacks();
-          notification.success('Rappel téléphonique supprimé avec succès');
-        } catch (error) {
-          console.error(
-            'Erreur lors de la suppression du rappel téléphonique',
-            error,
-          );
-          notification.error(
-            'Erreur lors de la suppression du rappel téléphonique',
-          );
-        }
-      }
-    },
-    [auth.token, fetchCallbacks],
-  );
-
-  // Basculement de l'état d'un rappel
-  const handleToggleComplete = useCallback(
-    async (callback: PhoneCallback) => {
-      const action = callback.completed ? 'non terminé' : 'terminé';
-      const notification = notifyLoading(
-        `Changement du statut du rappel en cours...`,
-      );
-
-      try {
-        await togglePhoneCallbackStatus(auth.token, callback);
-        fetchCallbacks();
-        notification.success(`Rappel marqué comme ${action}`);
-      } catch (error) {
-        console.error(
-          'Erreur lors de la mise à jour du statut du rappel',
-          error,
-        );
-        notification.error('Erreur lors de la mise à jour du statut du rappel');
-      }
-    },
-    [auth.token, fetchCallbacks],
-  );
+  };
 
   // Filtrage des rappels par statut
   const handleFilterChange = (value: boolean | undefined) => {
@@ -460,6 +477,17 @@ const PhoneCallbacks: React.FC = () => {
   useEffect(() => {
     calculatePageSize();
   }, [callbacks, calculatePageSize]);
+
+  useEffect(() => {
+    console.debug('useEffect filterCompleted', filterCompleted);
+    // Ne pas appeler fetchCallbacks ici car nous avons déjà toutes les données
+    // et l'effet ci-dessus s'occupera de filtrer
+  }, [filterCompleted]);
+
+  // Charger toutes les données au premier rendu
+  useEffect(() => {
+    fetchCallbacks();
+  }, [fetchCallbacks]);
 
   // Ajouter un écouteur pour le redimensionnement de la fenêtre
   useEffect(() => {
@@ -576,7 +604,6 @@ const PhoneCallbacks: React.FC = () => {
         flexDirection: 'column',
       }}
     >
-      {/* En-tête compact avec titre, filtres et bouton d'ajout sur la même ligne */}
       <Box
         sx={{
           display: 'flex',
