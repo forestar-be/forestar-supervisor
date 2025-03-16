@@ -226,6 +226,7 @@ const EditUser = () => {
               <MenuItem value="RENTAL_MANAGER">
                 Gestionnaire de location
               </MenuItem>
+              <MenuItem value="RENTAL_OPERATOR">Opérateur de location</MenuItem>
               <MenuItem value="ADMIN">Admin</MenuItem>
             </TextField>
           </DialogContent>
