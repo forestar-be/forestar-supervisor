@@ -11,12 +11,26 @@ import Layout from './layout/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import AuthRoute from './components/AuthRoute';
-import AuthProvider from './hooks/AuthProvider';
+import AuthProvider, { useAuth } from './hooks/AuthProvider';
 import SingleRepair from './pages/SingleRepair';
 import Settings from './pages/Settings';
 import { PDFViewer } from '@react-pdf/renderer';
 import MyDocument from './components/repair/Document';
 import PhoneCallbacks from './pages/PhoneCallbacks';
+import RobotInventory from './pages/RobotInventory';
+import PurchaseOrders from './pages/PurchaseOrders';
+import PurchaseOrderForm from './pages/PurchaseOrderForm';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import { useAppDispatch } from './store/hooks';
+import { fetchConfigAsync } from './store/configSlice';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const defaultTheme = 'light';
 //
@@ -41,6 +55,20 @@ const defaultTheme = 'light';
 //     />
 //   </PDFViewer>
 // );
+
+// Configuration loader component
+const ConfigLoader = () => {
+  const auth = useAuth();
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (auth.token) {
+      dispatch(fetchConfigAsync(auth.token));
+    }
+  }, [auth.token, dispatch]);
+
+  return null;
+};
 
 const App = (): JSX.Element => {
   const [mode, setMode] = useState('dark');
@@ -77,18 +105,44 @@ const App = (): JSX.Element => {
           <CssBaseline />
           <BrowserRouter>
             <AuthProvider>
-              <Layout>
-                <ToastContainer />
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route element={<AuthRoute />}>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/reparation/:id" element={<SingleRepair />} />
-                    <Route path="/parametres" element={<Settings />} />
-                    <Route path="/appels" element={<PhoneCallbacks />} />
-                  </Route>
-                </Routes>
-              </Layout>
+              <ConfigLoader />
+              <LocalizationProvider
+                dateAdapter={AdapterDayjs}
+                adapterLocale={'fr'}
+              >
+                <Layout>
+                  <ToastContainer />
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                    <Route element={<AuthRoute />}>
+                      <Route path="/" element={<Home />} />
+                      <Route
+                        path="/reparation/:id"
+                        element={<SingleRepair />}
+                      />
+                      <Route path="/parametres" element={<Settings />} />
+                      <Route path="/appels" element={<PhoneCallbacks />} />
+                      <Route
+                        path="/inventaire-robots"
+                        element={<RobotInventory />}
+                      />
+                      <Route
+                        path="/purchase-orders"
+                        element={<PurchaseOrders />}
+                      />
+                      <Route
+                        path="/purchase-orders/create"
+                        element={<PurchaseOrderForm />}
+                      />
+                      <Route
+                        path="/purchase-orders/edit/:id"
+                        element={<PurchaseOrderForm />}
+                      />
+                    </Route>
+                  </Routes>
+                </Layout>
+              </LocalizationProvider>
             </AuthProvider>
           </BrowserRouter>
         </ThemeProvider>

@@ -1,4 +1,11 @@
 import { ConfigElement } from '../components/settings/EditConfig';
+import {
+  InventoryPlan,
+  InventorySummary,
+  PurchaseOrder,
+  PurchaseOrderFormData,
+  RobotInventory,
+} from './types';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -30,9 +37,17 @@ const apiRequest = async (
   let data;
 
   try {
-    data = await response.json();
+    // Check if the response is a binary type
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else if (contentType && contentType.includes('text/html')) {
+      data = await response.text();
+    } else {
+      data = await response.blob();
+    }
   } catch (error) {
-    console.warn('Error parsing JSON of response', response, error);
+    console.warn('Error parsing response', response, error);
   }
 
   if (
@@ -46,7 +61,12 @@ const apiRequest = async (
 
   if (throwError && !response.ok) {
     console.error(`${response.statusText} ${response.status}`, data);
-    throw new Error(`${response.statusText} ${response.status}`);
+    if (typeof data === 'string' && data) {
+      throw new Error(data);
+    }
+    throw new Error(
+      data?.message || `${response.statusText} ${response.status}`,
+    );
   }
 
   return data;
@@ -295,3 +315,155 @@ export const togglePhoneCallbackStatus = (
     updatedCallback,
   );
 };
+
+// Robot Inventory API functions
+export const fetchRobotInventory = (
+  token: string,
+): Promise<{ data: RobotInventory[] }> =>
+  apiRequest('/supervisor/robot-inventory', 'GET', token);
+
+export const createRobotInventory = (
+  token: string,
+  robotData: Partial<RobotInventory>,
+): Promise<RobotInventory> =>
+  apiRequest('/supervisor/robot-inventory', 'POST', token, robotData);
+
+export const fetchRobotInventoryById = (
+  token: string,
+  id: number,
+): Promise<RobotInventory> =>
+  apiRequest(`/supervisor/robot-inventory/${id}`, 'GET', token);
+
+export const updateRobotInventory = (
+  token: string,
+  id: number,
+  robotData: Partial<RobotInventory>,
+): Promise<RobotInventory> =>
+  apiRequest(`/supervisor/robot-inventory/${id}`, 'PUT', token, robotData);
+
+export const deleteRobotInventory = (
+  token: string,
+  id: number,
+): Promise<void> =>
+  apiRequest(`/supervisor/robot-inventory/${id}`, 'DELETE', token);
+
+export const fetchInventoryPlans = (
+  token: string,
+  year?: number,
+  month?: number,
+): Promise<{ data: InventoryPlan[] }> => {
+  let endpoint = '/supervisor/inventory-plans';
+
+  if (year || month) {
+    endpoint += '?';
+    if (year) endpoint += `year=${year}`;
+    if (year && month) endpoint += '&';
+    if (month) endpoint += `month=${month}`;
+  }
+
+  return apiRequest(endpoint, 'GET', token);
+};
+
+export const fetchInventorySummary = (
+  token: string,
+): Promise<InventorySummary> =>
+  apiRequest('/supervisor/inventory-summary', 'GET', token);
+
+export const createOrUpdateInventoryPlan = (
+  token: string,
+  planData: Partial<InventoryPlan>,
+): Promise<InventoryPlan> =>
+  apiRequest('/supervisor/inventory-plans', 'POST', token, planData);
+
+export const deleteInventoryPlan = (token: string, id: number): Promise<void> =>
+  apiRequest(`/supervisor/inventory-plans/${id}`, 'DELETE', token);
+
+export const updateInventoryPlans = (
+  token: string,
+  plans: Partial<InventoryPlan>[],
+): Promise<{ message: string; count: number }> =>
+  apiRequest('/supervisor/inventory-plans/batch', 'POST', token, { plans });
+
+// Purchase Orders API functions
+export const fetchPurchaseOrders = (
+  token: string,
+): Promise<{ data: PurchaseOrder[] }> =>
+  apiRequest('/supervisor/purchase-orders', 'GET', token);
+
+export const fetchPurchaseOrderById = (
+  token: string,
+  id: number,
+): Promise<PurchaseOrder> =>
+  apiRequest(`/supervisor/purchase-orders/${id}`, 'GET', token);
+
+export const createPurchaseOrder = async (
+  token: string,
+  orderData: PurchaseOrderFormData,
+  pdfBlob?: Blob,
+): Promise<PurchaseOrder> => {
+  if (pdfBlob) {
+    // If we have a PDF blob, use FormData
+    const formData = new FormData();
+    // Add all order data as JSON
+    formData.append('orderData', JSON.stringify(orderData));
+    // Add PDF file
+    formData.append(
+      'pdf',
+      new File([pdfBlob], 'purchase_order.pdf', { type: 'application/pdf' }),
+    );
+
+    return apiRequest(
+      '/supervisor/purchase-orders',
+      'POST',
+      token,
+      formData,
+      {}, // No content-type header, browser will set it with boundary
+      false, // Don't stringify the body
+    );
+  } else {
+    // Standard JSON request without PDF
+    return apiRequest('/supervisor/purchase-orders', 'POST', token, orderData);
+  }
+};
+
+export const updatePurchaseOrder = (
+  token: string,
+  id: number,
+  orderData: Partial<PurchaseOrderFormData>,
+  pdfBlob?: Blob,
+): Promise<PurchaseOrder> => {
+  if (pdfBlob) {
+    // If we have a PDF blob, use FormData
+    const formData = new FormData();
+    // Add all order data as JSON
+    formData.append('orderData', JSON.stringify(orderData));
+    // Add PDF file
+    formData.append(
+      'pdf',
+      new File([pdfBlob], 'purchase_order.pdf', { type: 'application/pdf' }),
+    );
+
+    return apiRequest(
+      `/supervisor/purchase-orders/${id}`,
+      'PUT',
+      token,
+      formData,
+      {}, // No content-type header, browser will set it with boundary
+      false, // Don't stringify the body
+    );
+  } else {
+    // Standard JSON request without PDF
+    return apiRequest(
+      `/supervisor/purchase-orders/${id}`,
+      'PUT',
+      token,
+      orderData,
+    );
+  }
+};
+
+export const deletePurchaseOrder = (token: string, id: number): Promise<void> =>
+  apiRequest(`/supervisor/purchase-orders/${id}`, 'DELETE', token);
+
+export const getPurchaseOrderPdf = (token: string, id: number): Promise<Blob> =>
+  apiRequest(`/supervisor/purchase-orders/${id}/pdf`, 'GET', token);

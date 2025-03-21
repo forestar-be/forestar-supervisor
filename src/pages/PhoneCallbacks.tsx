@@ -596,7 +596,7 @@ const PhoneCallbacks: React.FC = () => {
   );
 
   return (
-    <Paper
+    (<Paper
       sx={{
         position: 'relative',
         height: '100%',
@@ -681,7 +681,6 @@ const PhoneCallbacks: React.FC = () => {
           </Button>
         </Tooltip>
       </Box>
-
       {/* Tableau AG Grid */}
       <Box
         id="phone-callbacks-table"
@@ -700,7 +699,6 @@ const PhoneCallbacks: React.FC = () => {
           paginationPageSize={rowsPerPage}
           onGridReady={onGridReady}
           onPaginationChanged={onPaginationChanged}
-          rowSelection="single"
           animateRows={true}
           suppressCellFocus={true}
           enableCellTextSelection={true}
@@ -718,7 +716,6 @@ const PhoneCallbacks: React.FC = () => {
           paginationPageSizeSelector={false}
         />
       </Box>
-
       <Dialog
         open={dialogOpen}
         onClose={() => !loading && setDialogOpen(false)}
@@ -837,7 +834,7 @@ const PhoneCallbacks: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </Paper>)
   );
 };
 
