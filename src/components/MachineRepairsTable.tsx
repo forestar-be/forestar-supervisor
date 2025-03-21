@@ -12,17 +12,19 @@ import {
 } from '@mui/material';
 import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
-import type { ColDef } from 'ag-grid-community/dist/types/core/entities/colDef';
+import type { ColDef } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import '../styles/MachineRepairsTable.css';
-import { fetchAllConfig, getAllMachineRepairs } from '../utils/api';
+import { getAllMachineRepairs } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { MachineRepair, MachineRepairFromApi } from '../utils/types';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SearchIcon from '@mui/icons-material/Search';
 import { IRowNode } from 'ag-grid-community';
+import { useAppSelector } from '../store/hooks';
+import { RootState } from '../store/index';
 
 const rowHeight = 40;
 
@@ -35,9 +37,16 @@ const MachineRepairsTable: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
   const [paginationPageSize, setPaginationPageSize] = useState(10);
-  const [colorByState, setColorByState] = useState<{ [key: string]: string }>(
-    {},
-  );
+  
+  // Get colorByState from Redux store
+  const { config } = useAppSelector((state: RootState) => state.config);
+  const colorByState = React.useMemo(() => {
+    try {
+      return JSON.parse(config['États'] || '{}');
+    } catch {
+      return {};
+    }
+  }, [config]);
 
   const isExternalFilterPresent = useCallback((): boolean => {
     return Boolean(customerFilterText);
@@ -92,26 +101,7 @@ const MachineRepairsTable: React.FC = () => {
     }
   };
 
-  const fetchAllConfigData = async () => {
-    try {
-      const {
-        config: { États: stateColorsStr },
-      } = await fetchAllConfig(auth.token);
-      try {
-        setColorByState(JSON.parse(stateColorsStr));
-      } catch {
-        setColorByState({});
-      }
-    } catch (error) {
-      console.error('Error fetching config:', error);
-      alert(
-        `Une erreur s'est produite lors de la récupération des données ${error}`,
-      );
-    }
-  };
-
   useEffect(() => {
-    fetchAllConfigData();
     fetchData();
   }, []);
 

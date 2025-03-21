@@ -15,7 +15,6 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
-import type { ColDef } from '@ag-grid-community/core/dist/types/src/entities/colDef';
 import { toast } from 'react-toastify';
 
 export interface User {

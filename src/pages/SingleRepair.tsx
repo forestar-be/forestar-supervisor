@@ -22,7 +22,6 @@ import {
   addImage,
   deleteImage,
   deleteRepair,
-  fetchAllConfig,
   fetchRepairById,
 } from '../utils/api';
 import { useAuth } from '../hooks/AuthProvider';
@@ -54,6 +53,8 @@ import { RepairSelect } from '../components/repair/RepairSelect';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { SingleRepairDocument } from '../components/repair/SingleRepairDocument';
 import { MachineRepair, MachineRepairFromApi } from '../utils/types';
+import { useAppSelector } from '../store/hooks';
+import { RootState } from '../store/index';
 
 export type ReplacedPart = { name: string; price: number };
 
@@ -157,29 +158,38 @@ const SingleRepair = () => {
   }>({});
   const [openModal, setOpenModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [possibleReplacedParts, setPossibleReplacedParts] = useState<
-    ReplacedPart[]
-  >([]);
-  const [brands, setBrands] = useState<string[]>([]);
-  const [repairers, setRepairers] = useState<string[]>([]);
   const [instance, updateInstance] = ReactPDF.usePDF({
     document: undefined,
   });
-  const [hourlyRate, setHourlyRate] = useState(0);
-  const [priceDevis, setPriceDevis] = useState(0);
-  const [priceHivernage, setPriceHivernage] = useState(0);
-  const [machineTypes, setMachineTypes] = useState<string[]>([]);
-  const [robotTypes, setRobotTypes] = useState<string[]>([]);
-  const [conditions, setConditions] = useState<string>('');
-  const [adresse, setAdresse] = useState<string>('');
-  const [telephone, setTelephone] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [siteWeb, setSiteWeb] = useState<string>('');
-  const [titreBonPdf, setTitreBonPdf] = useState<string>('');
   const [isCallTimesModalOpen, setIsCallTimesModalOpen] = useState(false);
-  const [colorByState, setColorByState] = useState<{ [key: string]: string }>(
-    {},
-  );
+  
+  // Get configurations from Redux store
+  const { 
+    brands, 
+    repairerNames, 
+    replacedParts, 
+    machineType, 
+    robotType, 
+    config 
+  } = useAppSelector((state: RootState) => state.config);
+  
+  // Parse required values from config
+  const hourlyRate = Number(config['Taux horaire'] || '0');
+  const priceDevis = Number(config['Prix devis'] || '0');
+  const priceHivernage = Number(config['Prix hivernage'] || '0');
+  const conditions = config['Conditions générales de réparation'] || '';
+  const adresse = config['Adresse'] || '';
+  const telephone = config['Téléphone'] || '';
+  const email = config['Email'] || '';
+  const siteWeb = config['Site web'] || '';
+  const titreBonPdf = config['Titre bon pdf'] || '';
+  const colorByState = React.useMemo(() => {
+    try {
+      return JSON.parse(config['États'] || '{}') as Record<string, string>;
+    } catch {
+      return {} as Record<string, string>;
+    }
+  }, [config]);
 
   const {
     totalSeconds,
@@ -191,57 +201,6 @@ const SingleRepair = () => {
     pause,
     reset,
   } = useStopwatch({ autoStart: false });
-
-  useEffect(() => {
-    const fetchAllConfigData = async () => {
-      try {
-        const {
-          brands,
-          repairerNames,
-          replacedParts,
-          config: {
-            'Taux horaire': hourlyRate,
-            'Prix devis': priceDevis,
-            'Conditions générales de réparation': conditions,
-            Adresse: address,
-            Téléphone: phone,
-            Email: email,
-            'Site web': website,
-            'Titre bon pdf': pdfTitle,
-            'Prix hivernage': priceHivernage,
-            États: stateColorsStr,
-          },
-          machineType,
-          robotType,
-        } = await fetchAllConfig(auth.token);
-        setBrands(brands);
-        setRepairers(repairerNames);
-        setPossibleReplacedParts(replacedParts);
-        setHourlyRate(Number(hourlyRate));
-        setPriceDevis(Number(priceDevis));
-        setPriceHivernage(Number(priceHivernage));
-        setMachineTypes(machineType);
-        setRobotTypes(robotType);
-        setConditions(conditions);
-        setAdresse(address);
-        setTelephone(phone);
-        setEmail(email);
-        setSiteWeb(website);
-        setTitreBonPdf(pdfTitle);
-        try {
-          setColorByState(JSON.parse(stateColorsStr));
-        } catch {
-          setColorByState({});
-        }      } catch (error) {
-        console.error('Error fetching config:', error);
-        alert(
-          `Une erreur s'est produite lors de la récupération des données ${error}`,
-        );
-      }
-    };
-
-    fetchAllConfigData();
-  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -294,7 +253,7 @@ const SingleRepair = () => {
         ),
       );
     }
-  }, [repair]);
+  }, [repair, hourlyRate, priceDevis, priceHivernage, conditions, adresse, telephone, email, siteWeb, titreBonPdf]);
 
   useEffect(() => {
     if (!repair || !initialRepair) {
@@ -411,7 +370,7 @@ const SingleRepair = () => {
   ) => {
     const newReplacedParts = Array.isArray(event.target.value)
       ? event.target.value.map((partName) => {
-          const part = possibleReplacedParts.find((p) => p.name === partName);
+          const part = replacedParts.find((p) => p.name === partName);
           if (!part) {
             toast.error(`Pièce ${partName} non trouvée`);
             throw new Error(`Pièce ${partName} non trouvée`);
@@ -645,7 +604,7 @@ const SingleRepair = () => {
     possibleValues: string[],
     sxFormControl: SxProps<Theme>,
     gridSize: 6 | 12,
-    colorByValue: { [p: string]: string } = {},
+    colorByValue: Record<string, string> = {},
   ) => {
     return (
       <RepairSelect
@@ -739,7 +698,7 @@ const SingleRepair = () => {
               'Type de machine',
               'machine_type_name',
               repair.machine_type_name,
-              machineTypes,
+              machineType,
               { width: '100%', margin: '5px 0' },
               6,
             )}
@@ -765,7 +724,7 @@ const SingleRepair = () => {
               'Type de robot',
               'robot_type_name',
               repair.robot_type_name || '',
-              robotTypes,
+              robotType,
               { width: '100%', margin: '5px 0' },
               6,
             )}
@@ -834,7 +793,7 @@ const SingleRepair = () => {
               'Réparateur',
               'repairer_name',
               repair.repairer_name || 'Non attribué',
-              repairers,
+              repairerNames,
               { marginTop: 2, marginBottom: 1, width: '80%' },
               12,
             )}
@@ -859,7 +818,7 @@ const SingleRepair = () => {
             resetTimer={() => resetTimer(repair, setRepair)}
             hourlyRate={hourlyRate}
             priceHivernage={priceHivernage}
-            possibleValues={possibleReplacedParts}
+            possibleValues={replacedParts}
             handleReplacedPartSelectChange={handleReplacedPartSelectChange}
             updateQuantityOfReplacedPart={updateQuantityOfReplacedPart}
             handleDeleteReplacedPart={handleDeleteReplacedPart}

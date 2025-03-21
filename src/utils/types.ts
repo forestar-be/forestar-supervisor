@@ -42,3 +42,80 @@ export type MachineRepairFromApi = Omit<
   machine_type_name: string;
   robot_type_name: string | null;
 };
+
+// Types for Purchase Orders
+export interface PurchaseOrder {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+
+  clientFirstName: string;
+  clientLastName: string;
+  clientAddress: string;
+  clientCity: string;
+  clientPhone: string;
+  deposit: number;
+
+  robotInventoryId: number;
+  robotInventory?: RobotInventory;
+
+  pluginType: string | null;
+  antennaType: string | null;
+  hasWire: boolean;
+  wireLength: number | null;
+  shelterPrice: number | null;
+
+  installationDate: string | null;
+  needsInstaller: boolean;
+
+  orderPdfId: string | null;
+}
+
+export interface PurchaseOrderFormData {
+  clientFirstName: string;
+  clientLastName: string;
+  clientAddress: string;
+  clientCity: string;
+  clientPhone: string;
+  deposit: number;
+
+  robotInventoryId: number;
+
+  pluginType?: string;
+  antennaType?: string;
+  hasWire: boolean;
+  wireLength?: number;
+  shelterPrice?: number;
+
+  installationDate?: string;
+  needsInstaller: boolean;
+}
+
+// Types for Robot Inventory
+export interface RobotInventory {
+  id: number;
+  reference?: string;
+  name: string;
+  category?: string;
+  sellingPrice?: number;
+  purchasePrice?: number;
+  createdAt: string;
+  updatedAt: string;
+  inventoryPlans: InventoryPlan[];
+}
+
+export interface InventoryPlan {
+  id: number;
+  robotInventoryId: number;
+  year: number;
+  month: number;
+  quantity: number;
+  createdAt: string;
+  updatedAt: string;
+  robotInventory?: RobotInventory;
+}
+
+export interface InventorySummary {
+  robots: RobotInventory[];
+  periods: { year: number; month: number }[];
+}

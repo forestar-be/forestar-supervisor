@@ -20,6 +20,8 @@ import { useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import CallIcon from '@mui/icons-material/Call';
 import HomeIcon from '@mui/icons-material/Home';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -113,6 +115,34 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 variant="contained"
               >
                 Gestion des appels
+              </Button>
+              <Button
+                component="a"
+                href={`/inventaire-robots`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/inventaire-robots`);
+                }}
+                aria-label="Inventaire des robots"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<InventoryIcon fontSize="medium" />}
+                variant="contained"
+              >
+                Inventaire robots
+              </Button>
+              <Button
+                component="a"
+                href={`/purchase-orders`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/purchase-orders`);
+                }}
+                aria-label="Bons de commande"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<ShoppingCartIcon fontSize="medium" />}
+                variant="contained"
+              >
+                Bons de commande
               </Button>
               <IconButton
                 component="a"
