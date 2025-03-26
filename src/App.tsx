@@ -28,6 +28,10 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import { Provider } from 'react-redux';
+import { store } from './store';
+import LoginGoogle from './pages/LoginGoogle';
+import NotFoundPage from './pages/NotFoundPage';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -105,7 +109,6 @@ const App = (): JSX.Element => {
           <CssBaseline />
           <BrowserRouter>
             <AuthProvider>
-              <ConfigLoader />
               <LocalizationProvider
                 dateAdapter={AdapterDayjs}
                 adapterLocale={'fr'}
@@ -116,30 +119,51 @@ const App = (): JSX.Element => {
                     <Route path="/login" element={<Login />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                     <Route element={<AuthRoute />}>
-                      <Route path="/" element={<Home />} />
                       <Route
-                        path="/reparation/:id"
-                        element={<SingleRepair />}
-                      />
-                      <Route path="/parametres" element={<Settings />} />
-                      <Route path="/appels" element={<PhoneCallbacks />} />
-                      <Route
-                        path="/inventaire-robots"
-                        element={<RobotInventory />}
+                        path="/connection-google"
+                        element={<LoginGoogle />}
                       />
                       <Route
-                        path="/purchase-orders"
-                        element={<PurchaseOrders />}
-                      />
-                      <Route
-                        path="/purchase-orders/create"
-                        element={<PurchaseOrderForm />}
-                      />
-                      <Route
-                        path="/purchase-orders/edit/:id"
-                        element={<PurchaseOrderForm />}
+                        path="/*"
+                        element={
+                          <Provider store={store}>
+                            <ConfigLoader />
+                            <Routes>
+                              <Route path="/" element={<Home />} />
+                              <Route
+                                path="/reparation/:id"
+                                element={<SingleRepair />}
+                              />
+                              <Route
+                                path="/parametres"
+                                element={<Settings />}
+                              />
+                              <Route
+                                path="/appels"
+                                element={<PhoneCallbacks />}
+                              />
+                              <Route
+                                path="/inventaire-robots"
+                                element={<RobotInventory />}
+                              />
+                              <Route
+                                path="/purchase-orders"
+                                element={<PurchaseOrders />}
+                              />
+                              <Route
+                                path="/purchase-orders/create"
+                                element={<PurchaseOrderForm />}
+                              />
+                              <Route
+                                path="/purchase-orders/edit/:id"
+                                element={<PurchaseOrderForm />}
+                              />
+                            </Routes>
+                          </Provider>
+                        }
                       />
                     </Route>
+                    <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Layout>
               </LocalizationProvider>

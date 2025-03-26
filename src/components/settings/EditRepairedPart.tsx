@@ -21,6 +21,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
+import { notifyError } from '../../utils/notifications';
 
 export interface ReplacedPart {
   name: string;
@@ -46,7 +47,7 @@ const EditRepairedPart = () => {
       setInitialReplacedParts(newReplacedParts);
     } catch (error) {
       console.error('Error fetching replacedParts:', error);
-      alert(
+      notifyError(
         `Une erreur s'est produite lors de la récupération des données ${error}`,
       );
     }
