@@ -26,6 +26,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useAuth } from '../hooks/AuthProvider';
 import { toast } from 'react-toastify';
 import {
@@ -46,7 +47,11 @@ import {
 } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import { StyledAgGridWrapper } from '../components/styles/AgGridStyles';
-import { saveGridState, loadGridState } from '../utils/agGridSettingsHelper';
+import {
+  onFirstDataRendered,
+  setupGridStateEvents,
+  clearGridState,
+} from '../utils/agGridSettingsHelper';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/index';
 import {
@@ -91,7 +96,7 @@ const RobotInventory: React.FC = () => {
     [key: string]: number;
   }>({});
   const [paginationPageSize, setPaginationPageSize] = useState(10);
-  const [hideZeroQuantity, setHideZeroQuantity] = useState(true);
+  const [hideZeroQuantity, setHideZeroQuantity] = useState(false);
   const gridRef = React.createRef<AgGridReact>();
 
   // Get categories from config
@@ -321,10 +326,7 @@ const RobotInventory: React.FC = () => {
         const key = `${robot.id}-${selectedYear}-${selectedMonth}`;
         const currentQuantity =
           key in prev ? prev[key] : getInventoryPlan(robot)?.quantity || 0;
-        if (currentQuantity > 0) {
-          return { ...prev, [key]: currentQuantity - 1 };
-        }
-        return prev;
+        return { ...prev, [key]: currentQuantity - 1 };
       });
     },
     [selectedYear, selectedMonth, getInventoryPlan],
@@ -403,7 +405,6 @@ const RobotInventory: React.FC = () => {
               handleQuantityChange(robotId, Number(e.target.value))
             }
             InputProps={{
-              inputProps: { min: 0 },
               sx: { height: '32px' },
             }}
             sx={{
@@ -591,32 +592,37 @@ const RobotInventory: React.FC = () => {
       calculatePageSize();
 
       const gridApi = params.api;
-      // Load saved grid state on grid ready
-      loadGridState(gridApi, 'robotInventoryAgGridState');
-
-      // Attach event listeners to save grid state on changes
-      gridApi.addEventListener('columnMoved', () =>
-        saveGridState(gridApi, 'robotInventoryAgGridState'),
-      );
-      gridApi.addEventListener('columnResized', () =>
-        saveGridState(gridApi, 'robotInventoryAgGridState'),
-      );
-      gridApi.addEventListener('sortChanged', () =>
-        saveGridState(gridApi, 'robotInventoryAgGridState'),
-      );
-      gridApi.addEventListener('filterChanged', () =>
-        saveGridState(gridApi, 'robotInventoryAgGridState'),
-      );
+      // Setup event listeners to save grid state on changes
+      setupGridStateEvents(gridApi, 'robotInventoryAgGridState');
     },
     [loading, calculatePageSize],
   );
+
+  // Handle first data rendered - load saved column state
+  const handleFirstDataRendered = useCallback((params: any) => {
+    onFirstDataRendered(params, 'robotInventoryAgGridState');
+  }, []);
 
   // Update the grid when year or month changes
   useEffect(() => {
     if (gridRef.current && gridRef.current.api) {
       gridRef.current.api.refreshHeader();
     }
-  }, [selectedYear, selectedMonth]);
+  }, [selectedYear, selectedMonth, gridRef]);
+
+  // Handle reset grid state
+  const handleResetGrid = useCallback(() => {
+    if (
+      window.confirm(
+        'Réinitialiser tous les paramètres du tableau (colonnes, filtres) ?',
+      )
+    ) {
+      // Clear the saved state
+      clearGridState('robotInventoryAgGridState');
+      // Reload the page to apply the reset
+      window.location.reload();
+    }
+  }, []);
 
   if (loading) {
     return <Typography>Chargement...</Typography>;
@@ -705,6 +711,19 @@ const RobotInventory: React.FC = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Tooltip
+            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+            arrow
+          >
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<RestartAltIcon />}
+              onClick={handleResetGrid}
+            >
+              Réinitialiser
+            </Button>
+          </Tooltip>
           <Tooltip title="Ajouter un robot" arrow>
             <Button
               variant="contained"
@@ -733,6 +752,7 @@ const RobotInventory: React.FC = () => {
           localeText={AG_GRID_LOCALE_FR}
           autoSizeStrategy={{ type: 'fitGridWidth' }}
           onGridReady={onGridReady}
+          onFirstDataRendered={handleFirstDataRendered}
           overlayLoadingTemplate='<span class="ag-overlay-loading-center">Chargement...</span>'
           paginationPageSizeSelector={false}
           loadingOverlayComponentParams={{ loading }}

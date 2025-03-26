@@ -4,6 +4,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 import {
   Box,
+  Button,
   IconButton,
   Paper,
   TextField,
@@ -16,6 +17,7 @@ import type { ColDef } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import '../styles/MachineRepairsTable.css';
 import { getAllMachineRepairs } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -26,6 +28,7 @@ import { IRowNode } from 'ag-grid-community';
 import { useAppSelector } from '../store/hooks';
 import { RootState } from '../store/index';
 import { notifyError } from '../utils/notifications';
+import { toast } from 'react-toastify';
 
 const rowHeight = 40;
 
@@ -38,7 +41,7 @@ const MachineRepairsTable: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
   const [paginationPageSize, setPaginationPageSize] = useState(10);
-  
+
   // Get colorByState from Redux store
   const { config } = useAppSelector((state: RootState) => state.config);
   const colorByState = React.useMemo(() => {
@@ -46,6 +49,15 @@ const MachineRepairsTable: React.FC = () => {
       return JSON.parse(config['États'] || '{}');
     } catch {
       return {};
+    }
+  }, [config]);
+
+  // Handle opening Google Drive folder
+  const handleOpenGoogleDrive = useCallback(() => {
+    if (config && config['URL drive réparations/entretiens']) {
+      window.open(config['URL drive réparations/entretiens'], '_blank');
+    } else {
+      toast.error('Lien vers Google Drive non configuré');
     }
   }, [config]);
 
@@ -96,7 +108,9 @@ const MachineRepairsTable: React.FC = () => {
       setMachineRepairs(repairsDataWithDate);
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      notifyError("Une erreur s'est produite lors de la récupération des données");
+      notifyError(
+        "Une erreur s'est produite lors de la récupération des données",
+      );
     } finally {
       setLoading(false);
     }
@@ -286,7 +300,17 @@ const MachineRepairsTable: React.FC = () => {
         <div style={{ padding: 16 }}>
           <Typography variant="h6">Réparations/Entretiens</Typography>
         </div>
-        <Box>
+        <Box display="flex" gap={2} alignItems="center">
+          <Tooltip title="Ouvrir le dossier Google Drive" arrow>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<FolderOpenIcon />}
+              onClick={handleOpenGoogleDrive}
+            >
+              Google Drive
+            </Button>
+          </Tooltip>
           <TextField
             id="search-client"
             label="Rechercher un client"

@@ -16,6 +16,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -24,7 +25,6 @@ import {
   ColDef,
   GridReadyEvent,
   ValueFormatterParams,
-  GridApi,
 } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import { StyledAgGridWrapper } from '../components/styles/AgGridStyles';
@@ -35,7 +35,11 @@ import {
   fetchPurchaseOrders,
   getPurchaseOrderPdf,
 } from '../utils/api';
-import { saveGridState, loadGridState } from '../utils/agGridSettingsHelper';
+import {
+  onFirstDataRendered,
+  setupGridStateEvents,
+  clearGridState,
+} from '../utils/agGridSettingsHelper';
 import { PurchaseOrder } from '../utils/types';
 import { RootState } from '../store';
 import { useSelector } from 'react-redux';
@@ -388,28 +392,6 @@ const PurchaseOrders: React.FC = () => {
     [formatDate, formatPrice, actionCellRenderer],
   );
 
-  // Save grid state helper
-  const saveGridEvents = (gridApi: GridApi) => {
-    type GridEventType =
-      | 'columnMoved'
-      | 'columnResized'
-      | 'sortChanged'
-      | 'filterChanged';
-
-    const events: GridEventType[] = [
-      'columnMoved',
-      'columnResized',
-      'sortChanged',
-      'filterChanged',
-    ];
-
-    events.forEach((event) => {
-      gridApi.addEventListener(event, () =>
-        saveGridState(gridApi, 'purchaseOrdersAgGridState'),
-      );
-    });
-  };
-
   const onGridReady = useCallback(
     (params: GridReadyEvent<PurchaseOrder>) => {
       if (loading) {
@@ -420,14 +402,16 @@ const PurchaseOrders: React.FC = () => {
       calculatePageSize();
 
       const gridApi = params.api;
-      // Load saved grid state on grid ready
-      loadGridState(gridApi, 'purchaseOrdersAgGridState');
-
-      // Attach event listeners to save grid state on changes
-      saveGridEvents(gridApi);
+      // Setup event listeners to save grid state on changes
+      setupGridStateEvents(gridApi, 'purchaseOrdersAgGridState');
     },
     [loading, calculatePageSize],
   );
+
+  // Handle first data rendered - load saved column state
+  const handleFirstDataRendered = useCallback((params: any) => {
+    onFirstDataRendered(params, 'purchaseOrdersAgGridState');
+  }, []);
 
   // Handle opening Google Drive folder
   const handleOpenGoogleDrive = useCallback(() => {
@@ -437,6 +421,20 @@ const PurchaseOrders: React.FC = () => {
       toast.error('Lien vers Google Drive non configuré');
     }
   }, [config]);
+
+  // Handle reset grid state
+  const handleResetGrid = useCallback(() => {
+    if (
+      window.confirm(
+        'Réinitialiser tous les paramètres du tableau (colonnes, filtres) ?',
+      )
+    ) {
+      // Clear the saved state
+      clearGridState('purchaseOrdersAgGridState');
+      // Reload the page to apply the reset
+      window.location.reload();
+    }
+  }, []);
 
   if (loading) {
     return <Typography>Chargement...</Typography>;
@@ -459,6 +457,20 @@ const PurchaseOrders: React.FC = () => {
           Bons de commande
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip
+            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+            arrow
+          >
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<RestartAltIcon />}
+              onClick={handleResetGrid}
+              size="small"
+            >
+              Réinitialiser
+            </Button>
+          </Tooltip>
           <Tooltip title="Ouvrir le dossier Google Drive" arrow>
             <Button
               variant="outlined"
@@ -497,15 +509,11 @@ const PurchaseOrders: React.FC = () => {
           localeText={AG_GRID_LOCALE_FR}
           autoSizeStrategy={{ type: 'fitGridWidth' }}
           onGridReady={onGridReady}
+          onFirstDataRendered={handleFirstDataRendered}
           overlayLoadingTemplate='<span class="ag-overlay-loading-center">Chargement...</span>'
           paginationPageSizeSelector={false}
           loadingOverlayComponentParams={{ loading }}
           overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Aucun bon de commande trouvé</span>'
-          defaultColDef={{
-            resizable: true,
-            sortable: true,
-            filter: true,
-          }}
         />
       </StyledAgGridWrapper>
     </Paper>
