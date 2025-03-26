@@ -63,12 +63,16 @@ export interface PurchaseOrder {
   antennaType: string | null;
   hasWire: boolean;
   wireLength: number | null;
+  shelterType: string | null;
   shelterPrice: number | null;
+  hasAntennaSupport: boolean;
 
   installationDate: string | null;
   needsInstaller: boolean;
+  installationNotes: string | null;
 
   orderPdfId: string | null;
+  eventId?: string | null;
 }
 
 export interface PurchaseOrderFormData {
@@ -81,14 +85,17 @@ export interface PurchaseOrderFormData {
 
   robotInventoryId: number;
 
-  pluginType?: string;
-  antennaType?: string;
+  pluginType: string;
+  antennaType: string;
   hasWire: boolean;
-  wireLength?: number;
-  shelterPrice?: number;
+  wireLength: number;
+  shelterType: string;
+  shelterPrice: number;
+  hasAntennaSupport: boolean;
 
-  installationDate?: string;
+  installationDate: string;
   needsInstaller: boolean;
+  installationNotes: string;
 }
 
 // Types for Robot Inventory

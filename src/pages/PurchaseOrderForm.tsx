@@ -189,9 +189,12 @@ const PurchaseOrderForm: React.FC = () => {
     antennaType: '',
     hasWire: false,
     wireLength: 0,
+    shelterType: '',
     shelterPrice: 0,
+    hasAntennaSupport: false,
     installationDate: '',
     needsInstaller: false,
+    installationNotes: '',
   });
   const [selectedInvoice, setSelectedInvoice] = useState<File | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -235,9 +238,12 @@ const PurchaseOrderForm: React.FC = () => {
           antennaType: data.antennaType || '',
           hasWire: data.hasWire,
           wireLength: data.wireLength || 0,
+          shelterType: data.shelterType || '',
           shelterPrice: data.shelterPrice || 0,
+          hasAntennaSupport: data.hasAntennaSupport || false,
           installationDate: data.installationDate || '',
           needsInstaller: data.needsInstaller,
+          installationNotes: data.installationNotes || '',
         });
       } catch (error) {
         console.error('Error fetching purchase order:', error);
@@ -351,13 +357,6 @@ const PurchaseOrderForm: React.FC = () => {
       return;
     }
 
-    // Check if invoice is selected
-    if (!selectedInvoice) {
-      setInvoiceError('La facture est obligatoire');
-      toast.error('Veuillez ajouter une facture');
-      return;
-    }
-
     try {
       setSaving(true);
 
@@ -377,9 +376,12 @@ const PurchaseOrderForm: React.FC = () => {
         antennaType: formData.antennaType || null,
         hasWire: formData.hasWire,
         wireLength: formData.wireLength || null,
+        shelterType: formData.shelterType || null,
         shelterPrice: formData.shelterPrice || null,
+        hasAntennaSupport: formData.hasAntennaSupport,
         installationDate: formData.installationDate || null,
         needsInstaller: formData.needsInstaller,
+        installationNotes: formData.installationNotes || null,
         orderPdfId: purchaseOrder?.orderPdfId || null,
         robotInventory: robots.find((r) => r.id === formData.robotInventoryId),
       };
@@ -387,16 +389,16 @@ const PurchaseOrderForm: React.FC = () => {
       // Generate PDF with updated data
       const pdfBlob = await generatePDF(updatedOrder);
 
-      // Merge with invoice if available
-      const mergedPdfBlob = await mergePDFs(pdfBlob);
+      // Only merge with invoice if one is selected
+      const finalPdfBlob = selectedInvoice ? await mergePDFs(pdfBlob) : pdfBlob;
 
       if (isEditing && id) {
         // Update existing purchase order
-        await updatePurchaseOrder(token, parseInt(id), formData, mergedPdfBlob);
+        await updatePurchaseOrder(token, parseInt(id), formData, finalPdfBlob);
         toast.success('Bon de commande mis à jour avec succès');
       } else {
         // Create new purchase order
-        await createPurchaseOrder(token, formData, mergedPdfBlob);
+        await createPurchaseOrder(token, formData, finalPdfBlob);
         toast.success('Bon de commande créé avec succès');
       }
 
@@ -434,221 +436,261 @@ const PurchaseOrderForm: React.FC = () => {
   }));
 
   return (
-    <Paper sx={{ p: 3 }}>
-      <Backdrop
-        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
-        open={saving}
-      >
-        <CircularProgress color="inherit" />
-      </Backdrop>
-
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/purchase-orders')}
-          sx={{ mr: 2 }}
+    <Box sx={{ maxWidth: 1200, mx: 'auto', py: 2 }}>
+      <Paper sx={{ p: 3 }}>
+        <Backdrop
+          sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+          open={saving}
         >
-          Retour
-        </Button>
-        <Typography variant="h5" component="h1">
-          {isEditing
-            ? 'Modifier le bon de commande'
-            : 'Créer un bon de commande'}
-        </Typography>
-      </Box>
+          <CircularProgress color="inherit" />
+        </Backdrop>
 
-      <Box component="form" onSubmit={handleSubmit}>
-        <FormSection title="Informations du client">
-          <FormTextField
-            name="clientFirstName"
-            label="Prénom"
-            value={formData.clientFirstName}
-            onChange={handleChange}
-            required
-          />
-          <FormTextField
-            name="clientLastName"
-            label="Nom"
-            value={formData.clientLastName}
-            onChange={handleChange}
-            required
-          />
-          <FormTextField
-            name="clientAddress"
-            label="Adresse"
-            value={formData.clientAddress}
-            onChange={handleChange}
-            xs={12}
-            sm={12}
-          />
-          <FormTextField
-            name="clientCity"
-            label="Ville"
-            value={formData.clientCity}
-            onChange={handleChange}
-          />
-          <FormTextField
-            name="clientPhone"
-            label="Téléphone"
-            value={formData.clientPhone}
-            onChange={handleChange}
-          />
-          <FormTextField
-            name="deposit"
-            label="Acompte"
-            type="number"
-            value={formData.deposit}
-            onChange={handleChange}
-            startAdornment="€"
-          />
-        </FormSection>
-
-        <FormSection title="Détails du robot et accessoires">
-          <FormSelectField
-            name="robotInventoryId"
-            label="Type de robot"
-            value={formData.robotInventoryId}
-            onChange={handleChange}
-            options={robotOptions}
-            required
-          />
-          <FormSelectField
-            name="pluginType"
-            label="Plugin"
-            value={formData.pluginType}
-            onChange={handleChange}
-            options={[
-              { value: '', label: 'Aucun' },
-              { value: 'Type 1', label: 'Type 1' },
-              { value: 'Type 2', label: 'Type 2' },
-            ]}
-          />
-          <FormSelectField
-            name="antennaType"
-            label="Antenne"
-            value={formData.antennaType}
-            onChange={handleChange}
-            options={[
-              { value: '', label: 'Aucune' },
-              { value: 'RS1', label: 'RS1' },
-              { value: 'RS5', label: 'RS5' },
-            ]}
-          />
-          <Grid item xs={12} sm={6}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formData.hasWire}
-                  onChange={() => handleCheckboxChange('hasWire')}
-                />
-              }
-              label="Filaire"
-            />
-            {formData.hasWire && (
-              <TextField
-                label="Longueur (mètres)"
-                type="number"
-                value={formData.wireLength || ''}
-                onChange={(e) =>
-                  handleChange('wireLength', Number(e.target.value))
-                }
-                size="small"
-                sx={{ ml: 2, width: '200px' }}
-              />
-            )}
-          </Grid>
-          <FormTextField
-            name="shelterPrice"
-            label="Prix abri"
-            type="number"
-            value={formData.shelterPrice || ''}
-            onChange={handleChange}
-            startAdornment="€"
-          />
-        </FormSection>
-
-        <FormSection title="Installation">
-          <Grid item xs={12} sm={6}>
-            <DatePicker
-              label="Date d'installation"
-              value={
-                formData.installationDate
-                  ? dayjs(formData.installationDate)
-                  : null
-              }
-              onChange={(newValue) =>
-                handleChange(
-                  'installationDate',
-                  newValue ? newValue.toISOString() : '',
-                )
-              }
-              slotProps={{ textField: { fullWidth: true } }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formData.needsInstaller}
-                  onChange={() => handleCheckboxChange('needsInstaller')}
-                />
-              }
-              label="Installateur requis"
-            />
-          </Grid>
-        </FormSection>
-
-        <FormSection title="Facturation">
-          <Grid item xs={12}>
-            <Button
-              component="label"
-              variant="outlined"
-              startIcon={<CloudUploadIcon />}
-              color={invoiceError ? 'error' : 'primary'}
-            >
-              {selectedInvoice ? selectedInvoice.name : 'Ajouter une facture*'}
-              <VisuallyHiddenInput
-                type="file"
-                onChange={handleInvoiceChange}
-                accept="application/pdf"
-              />
-            </Button>
-            {selectedInvoice && (
-              <Typography
-                variant="body2"
-                sx={{ mt: 1, color: 'text.secondary' }}
-              >
-                La facture sera fusionnée avec le bon de commande
-              </Typography>
-            )}
-            {invoiceError && (
-              <Typography variant="body2" sx={{ mt: 1, color: 'error.main' }}>
-                {invoiceError}
-              </Typography>
-            )}
-          </Grid>
-        </FormSection>
-
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
           <Button
-            variant="outlined"
+            startIcon={<ArrowBackIcon />}
             onClick={() => navigate('/purchase-orders')}
+            sx={{ mr: 2 }}
           >
-            Annuler
+            Retour
           </Button>
-          <Box>
+          <Typography variant="h5" component="h1">
+            {isEditing
+              ? 'Modifier le bon de commande'
+              : 'Créer un bon de commande'}
+          </Typography>
+        </Box>
+
+        <Box component="form" onSubmit={handleSubmit}>
+          <FormSection title="Informations du client">
+            <FormTextField
+              name="clientFirstName"
+              label="Prénom"
+              value={formData.clientFirstName}
+              onChange={handleChange}
+              required
+            />
+            <FormTextField
+              name="clientLastName"
+              label="Nom"
+              value={formData.clientLastName}
+              onChange={handleChange}
+              required
+            />
+            <FormTextField
+              name="clientAddress"
+              label="Adresse"
+              value={formData.clientAddress}
+              onChange={handleChange}
+              xs={12}
+              sm={12}
+            />
+            <FormTextField
+              name="clientCity"
+              label="Ville"
+              value={formData.clientCity}
+              onChange={handleChange}
+            />
+            <FormTextField
+              name="clientPhone"
+              label="Téléphone"
+              value={formData.clientPhone}
+              onChange={handleChange}
+            />
+            <FormTextField
+              name="deposit"
+              label="Acompte"
+              type="number"
+              value={formData.deposit}
+              onChange={handleChange}
+              startAdornment="€"
+            />
+          </FormSection>
+
+          <FormSection title="Détails du robot et accessoires">
+            <FormSelectField
+              name="robotInventoryId"
+              label="Type de robot"
+              value={formData.robotInventoryId}
+              onChange={handleChange}
+              options={robotOptions}
+              required
+            />
+            <FormSelectField
+              name="pluginType"
+              label="Plugin"
+              value={formData.pluginType}
+              onChange={handleChange}
+              options={[
+                { value: '', label: 'Aucun' },
+                { value: 'Type 1', label: 'Type 1' },
+                { value: 'Type 2', label: 'Type 2' },
+              ]}
+            />
+            <FormSelectField
+              name="antennaType"
+              label="Antenne"
+              value={formData.antennaType}
+              onChange={handleChange}
+              options={[
+                { value: '', label: 'Aucune' },
+                { value: 'RS1', label: 'RS1' },
+                { value: 'RS5', label: 'RS5' },
+              ]}
+            />
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.hasAntennaSupport}
+                    onChange={() => handleCheckboxChange('hasAntennaSupport')}
+                  />
+                }
+                label="Support antenne (+50€)"
+              />
+            </Grid>
+            <FormSelectField
+              name="shelterType"
+              label="Type d'abri"
+              value={formData.shelterType}
+              onChange={handleChange}
+              options={[
+                { value: '', label: 'Aucun' },
+                { value: 'Standard', label: 'Standard' },
+                { value: 'Premium', label: 'Premium' },
+                { value: 'Deluxe', label: 'Deluxe' },
+              ]}
+            />
+            <FormTextField
+              name="shelterPrice"
+              label="Prix abri"
+              type="number"
+              value={formData.shelterPrice || ''}
+              onChange={handleChange}
+              startAdornment="€"
+            />
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.hasWire}
+                    onChange={() => handleCheckboxChange('hasWire')}
+                  />
+                }
+                label="Filaire"
+              />
+              {formData.hasWire && (
+                <TextField
+                  label="Longueur (mètres)"
+                  type="number"
+                  value={formData.wireLength || ''}
+                  onChange={(e) =>
+                    handleChange('wireLength', Number(e.target.value))
+                  }
+                  size="small"
+                  sx={{ ml: 2, width: '200px' }}
+                />
+              )}
+            </Grid>
+          </FormSection>
+
+          <FormSection title="Installation">
+            <Grid item xs={12} sm={6}>
+              <DatePicker
+                label="Date d'installation"
+                value={
+                  formData.installationDate
+                    ? dayjs(formData.installationDate)
+                    : null
+                }
+                onChange={(newValue) =>
+                  handleChange(
+                    'installationDate',
+                    newValue ? newValue.toISOString() : '',
+                  )
+                }
+                slotProps={{ textField: { fullWidth: true } }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.needsInstaller}
+                    onChange={() => handleCheckboxChange('needsInstaller')}
+                  />
+                }
+                label="Installateur requis"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Notes d'installation (pré-requis, choses à prévoir, etc.)"
+                multiline
+                rows={4}
+                fullWidth
+                value={formData.installationNotes || ''}
+                onChange={(e) =>
+                  handleChange('installationNotes', e.target.value)
+                }
+                placeholder="Décrivez les pré-requis et les choses à prévoir pour l'installation..."
+              />
+            </Grid>
+          </FormSection>
+
+          <FormSection title="Facturation">
+            <Grid item xs={12}>
+              <Button
+                component="label"
+                variant="outlined"
+                startIcon={<CloudUploadIcon />}
+                color={invoiceError ? 'error' : 'primary'}
+              >
+                {selectedInvoice
+                  ? selectedInvoice.name
+                  : 'Ajouter une facture (optionnel)'}
+                <VisuallyHiddenInput
+                  type="file"
+                  onChange={handleInvoiceChange}
+                  accept="application/pdf"
+                />
+              </Button>
+              {selectedInvoice && (
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 1, color: 'text.secondary' }}
+                >
+                  La facture sera fusionnée avec le bon de commande
+                </Typography>
+              )}
+              {invoiceError && (
+                <Typography variant="body2" sx={{ mt: 1, color: 'error.main' }}>
+                  {invoiceError}
+                </Typography>
+              )}
+            </Grid>
+          </FormSection>
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
             <Button
-              type="submit"
-              variant="contained"
-              startIcon={<SaveIcon />}
-              disabled={saving}
+              variant="outlined"
+              onClick={() => navigate('/purchase-orders')}
             >
-              {saving ? 'Enregistrement...' : 'Enregistrer'}
+              Annuler
             </Button>
+            <Box>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<SaveIcon />}
+                disabled={saving}
+              >
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </Box>
           </Box>
         </Box>
-      </Box>
-    </Paper>
+      </Paper>
+    </Box>
   );
 };
 

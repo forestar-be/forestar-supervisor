@@ -81,6 +81,8 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
     borderWidth: 1,
     borderColor: '#000000',
+    breakInside: 'avoid',
+    breakAfter: 'avoid',
   },
   tableRow: {
     flexDirection: 'row',
@@ -136,6 +138,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 70,
   },
+  noteText: {
+    fontSize: 12,
+    marginTop: 10,
+    marginBottom: 10,
+    lineHeight: 1.5,
+  },
 });
 
 // Format price to display Euros
@@ -169,6 +177,9 @@ export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
 export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
   purchaseOrder,
 }) => {
+  // Check if we need a second page for installation notes
+  const hasInstallationNotes = !!purchaseOrder.installationNotes;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -181,10 +192,7 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
 
         {/* Title */}
         <Text style={styles.title}>BON DE COMMANDE</Text>
-        <Text>
-          Référence: BC-{purchaseOrder.id} - Date:{' '}
-          {formatDate(purchaseOrder.createdAt)}
-        </Text>
+        <Text>Date: {formatDate(purchaseOrder.createdAt)}</Text>
 
         {/* Client Information */}
         <View style={styles.sectionTitle}>
@@ -254,15 +262,26 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
               </Text>
             </View>
           )}
-          {purchaseOrder.shelterPrice !== null &&
-            purchaseOrder.shelterPrice > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.label}>Abri:</Text>
-                <Text style={styles.value}>
-                  {formatPrice(purchaseOrder.shelterPrice)}
-                </Text>
-              </View>
-            )}
+          {purchaseOrder.hasAntennaSupport && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Support antenne:</Text>
+              <Text style={styles.value}>Oui (+50€)</Text>
+            </View>
+          )}
+          {purchaseOrder.shelterType && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Type d'abri:</Text>
+              <Text style={styles.value}>{purchaseOrder.shelterType}</Text>
+            </View>
+          )}
+          {purchaseOrder.shelterPrice && purchaseOrder.shelterPrice > 0 && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Prix abri:</Text>
+              <Text style={styles.value}>
+                {formatPrice(purchaseOrder.shelterPrice)}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Installation */}
@@ -282,6 +301,12 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
               {purchaseOrder.needsInstaller ? 'Oui' : 'Non'}
             </Text>
           </View>
+          {hasInstallationNotes && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Notes:</Text>
+              <Text style={styles.value}>Voir page suivante</Text>
+            </View>
+          )}
         </View>
 
         {/* Summary */}
@@ -363,28 +388,53 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
               </View>
             </View>
           )}
-          {purchaseOrder.shelterPrice !== null &&
-            purchaseOrder.shelterPrice > 0 && (
-              <View style={styles.tableRow}>
-                <View style={styles.tableCol}>
-                  <Text style={styles.tableCell}>Abri</Text>
-                </View>
-                <View style={styles.tableCol}>
-                  <Text style={styles.tableCell}>1</Text>
-                </View>
-                <View style={styles.tableCol}>
-                  <Text style={styles.tableCell}>
-                    {formatPrice(purchaseOrder.shelterPrice)}
-                  </Text>
-                </View>
+          {purchaseOrder.hasAntennaSupport && (
+            <View style={styles.tableRow}>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>Support antenne</Text>
               </View>
-            )}
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>1</Text>
+              </View>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>50 €</Text>
+              </View>
+            </View>
+          )}
+          {purchaseOrder.shelterPrice && purchaseOrder.shelterPrice > 0 && (
+            <View style={styles.tableRow}>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>
+                  Abri{' '}
+                  {purchaseOrder.shelterType &&
+                    `(${purchaseOrder.shelterType})`}
+                </Text>
+              </View>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>1</Text>
+              </View>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>
+                  {formatPrice(purchaseOrder.shelterPrice)}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text>FORESTAR - Bon de commande - Page 1</Text>
-        </View>
+        {/* Second page for installation notes if they exist */}
+        {hasInstallationNotes && (
+          <>
+            <View style={styles.sectionTitle}>
+              <Text>NOTES D'INSTALLATION</Text>
+            </View>
+            <View style={styles.column}>
+              <Text style={styles.noteText}>
+                {purchaseOrder.installationNotes}
+              </Text>
+            </View>
+          </>
+        )}
       </Page>
     </Document>
   );
