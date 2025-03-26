@@ -25,6 +25,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { IRowNode } from 'ag-grid-community';
 import { useAppSelector } from '../store/hooks';
 import { RootState } from '../store/index';
+import { notifyError } from '../utils/notifications';
 
 const rowHeight = 40;
 
@@ -95,7 +96,7 @@ const MachineRepairsTable: React.FC = () => {
       setMachineRepairs(repairsDataWithDate);
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      alert("Une erreur s'est produite lors de la récupération des données");
+      notifyError("Une erreur s'est produite lors de la récupération des données");
     } finally {
       setLoading(false);
     }

@@ -55,6 +55,7 @@ import { SingleRepairDocument } from '../components/repair/SingleRepairDocument'
 import { MachineRepair, MachineRepairFromApi } from '../utils/types';
 import { useAppSelector } from '../store/hooks';
 import { RootState } from '../store/index';
+import { notifyError } from '../utils/notifications';
 
 export type ReplacedPart = { name: string; price: number };
 
@@ -162,17 +163,17 @@ const SingleRepair = () => {
     document: undefined,
   });
   const [isCallTimesModalOpen, setIsCallTimesModalOpen] = useState(false);
-  
+
   // Get configurations from Redux store
-  const { 
-    brands, 
-    repairerNames, 
-    replacedParts, 
-    machineType, 
-    robotType, 
-    config 
+  const {
+    brands,
+    repairerNames,
+    replacedParts,
+    machineType,
+    robotType,
+    config,
   } = useAppSelector((state: RootState) => state.config);
-  
+
   // Parse required values from config
   const hourlyRate = Number(config['Taux horaire'] || '0');
   const priceDevis = Number(config['Prix devis'] || '0');
@@ -204,7 +205,7 @@ const SingleRepair = () => {
 
   useEffect(() => {
     if (!id) {
-      alert('ID invalide');
+      notifyError('ID invalide');
       return;
     }
     const fetchData = async () => {
@@ -226,7 +227,7 @@ const SingleRepair = () => {
         setRepair(repairDataWithDate);
       } catch (error) {
         console.error('Error fetching repair:', error);
-        alert(
+        notifyError(
           `Une erreur s'est produite lors de la récupération des données ${error}`,
         );
       } finally {
@@ -253,7 +254,18 @@ const SingleRepair = () => {
         ),
       );
     }
-  }, [repair, hourlyRate, priceDevis, priceHivernage, conditions, adresse, telephone, email, siteWeb, titreBonPdf]);
+  }, [
+    repair,
+    hourlyRate,
+    priceDevis,
+    priceHivernage,
+    conditions,
+    adresse,
+    telephone,
+    email,
+    siteWeb,
+    titreBonPdf,
+  ]);
 
   useEffect(() => {
     if (!repair || !initialRepair) {
@@ -551,7 +563,7 @@ const SingleRepair = () => {
     name: string,
     value: boolean,
     suffix = '',
-    sxCheckbox?: SxProps<Theme>
+    sxCheckbox?: SxProps<Theme>,
   ) => (
     <Grid item xs={6} sx={sxCheckbox}>
       {editableFields[name] ? (
@@ -731,7 +743,7 @@ const SingleRepair = () => {
             element5={renderCheckbox(
               'Garantie',
               'warranty',
-              repair.warranty ?? false, 
+              repair.warranty ?? false,
               undefined,
               { width: '100%', margin: '5px 0' },
             )}

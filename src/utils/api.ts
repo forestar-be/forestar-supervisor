@@ -16,7 +16,6 @@ const apiRequest = async (
   body?: any,
   additionalHeaders: HeadersInit = { 'Content-Type': 'application/json' },
   stringifyBody: boolean = true,
-  throwError: boolean = true,
 ) => {
   const headers: HeadersInit = {
     Authorization: `Bearer ${token}`,
@@ -56,10 +55,17 @@ const apiRequest = async (
     data?.message === 'jwt expired'
   ) {
     window.location.href = `/login?redirect=${window.location.pathname}`;
-    return;
   }
 
-  if (throwError && !response.ok) {
+  if (
+    response.status === 403 &&
+    data?.message &&
+    data?.message === 're_auth_gg_required'
+  ) {
+    window.location.href = `/connection-google?redirect=${window.location.pathname}`;
+  }
+
+  if (!response.ok) {
     console.error(`${response.statusText} ${response.status}`, data);
     if (typeof data === 'string' && data) {
       throw new Error(data);
@@ -467,3 +473,20 @@ export const deletePurchaseOrder = (token: string, id: number): Promise<void> =>
 
 export const getPurchaseOrderPdf = (token: string, id: number): Promise<Blob> =>
   apiRequest(`/supervisor/purchase-orders/${id}/pdf`, 'GET', token);
+
+export const isAuthenticatedGg = async (
+  token: string,
+): Promise<{ isAuthenticated: boolean }> => {
+  return await apiRequest('/auth-google/is-authenticated', 'GET', token);
+};
+
+export const getAuthUrlGg = async (
+  token: string,
+  redirectUrl: string,
+): Promise<{ url: string; email: string }> => {
+  return await apiRequest(
+    `/auth-google/url?redirect=${redirectUrl}`,
+    'GET',
+    token,
+  );
+};
