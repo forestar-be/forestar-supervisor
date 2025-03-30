@@ -24,7 +24,6 @@ import dayjs from 'dayjs';
 import {
   createPurchaseOrder,
   fetchPurchaseOrderById,
-  fetchRobotInventory,
   updatePurchaseOrder,
 } from '../utils/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -39,7 +38,13 @@ import {
   PurchaseOrderFormData,
   PurchaseOrder,
   RobotInventory,
+  InventoryCategory,
 } from '../utils/types';
+import { formatPriceNumberToFrenchFormatStr } from '../utils/common.utils';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
+import { useAppDispatch } from '../store/hooks';
+import { fetchInventorySummaryAsync } from '../store/robotInventorySlice';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -137,6 +142,7 @@ interface FormSelectFieldProps {
   required?: boolean;
   xs?: number;
   sm?: number;
+  disabled?: boolean;
 }
 
 const FormSelectField: React.FC<FormSelectFieldProps> = ({
@@ -148,18 +154,25 @@ const FormSelectField: React.FC<FormSelectFieldProps> = ({
   required = false,
   xs = 12,
   sm = 6,
+  disabled = false,
 }) => (
   <Grid item xs={xs} sm={sm}>
     <FormControl fullWidth required={required}>
       <InputLabel id={`${name}-select-label`}>{label}</InputLabel>
       <Select
         labelId={`${name}-select-label`}
-        value={value || ''}
+        value={value !== null ? value : ''}
         label={label}
-        onChange={(e) => onChange(name, e.target.value)}
+        onChange={(e) =>
+          onChange(name, e.target.value === '' ? null : e.target.value)
+        }
+        disabled={disabled}
       >
         {options.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
+          <MenuItem
+            key={String(option.value || 'empty')}
+            value={option.value !== null ? option.value : ''}
+          >
             {option.label}
           </MenuItem>
         ))}
@@ -173,10 +186,10 @@ const PurchaseOrderForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditing = !!id;
+  const dispatch = useAppDispatch();
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [robots, setRobots] = useState<RobotInventory[]>([]);
   const [formData, setFormData] = useState<PurchaseOrderFormData>({
     clientFirstName: '',
     clientLastName: '',
@@ -185,8 +198,8 @@ const PurchaseOrderForm: React.FC = () => {
     clientPhone: '',
     deposit: 0,
     robotInventoryId: 0,
-    pluginType: '',
-    antennaType: '',
+    pluginInventoryId: null,
+    antennaInventoryId: null,
     hasWire: false,
     wireLength: 0,
     shelterType: '',
@@ -195,6 +208,8 @@ const PurchaseOrderForm: React.FC = () => {
     installationDate: '',
     needsInstaller: false,
     installationNotes: '',
+    hasAppointment: false,
+    isInstalled: false,
   });
   const [selectedInvoice, setSelectedInvoice] = useState<File | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -202,20 +217,28 @@ const PurchaseOrderForm: React.FC = () => {
     null,
   );
 
-  // Fetch robots
+  const configData = useSelector((state: RootState) => state.config.config);
+  const { items: inventoryItems, loading: inventoryLoading } = useSelector(
+    (state: RootState) => state.robotInventory,
+  );
+
+  // Filter items by category
+  const robots = inventoryItems.filter(
+    (item) => item.category === InventoryCategory.ROBOT,
+  );
+  const antennas = inventoryItems.filter(
+    (item) => item.category === InventoryCategory.ANTENNA,
+  );
+  const plugins = inventoryItems.filter(
+    (item) => item.category === InventoryCategory.PLUGIN,
+  );
+
+  // Fetch inventory data if needed
   useEffect(() => {
-    const fetchRobots = async () => {
-      if (!token) return;
-      try {
-        const response = await fetchRobotInventory(token);
-        setRobots(response.data || []);
-      } catch (error) {
-        console.error('Error fetching robots:', error);
-        toast.error('Erreur lors du chargement des robots');
-      }
-    };
-    fetchRobots();
-  }, [token]);
+    if (token && inventoryItems.length === 0 && !inventoryLoading) {
+      dispatch(fetchInventorySummaryAsync(token));
+    }
+  }, [token, inventoryItems.length, inventoryLoading, dispatch]);
 
   // Fetch purchase order if editing
   useEffect(() => {
@@ -224,7 +247,12 @@ const PurchaseOrderForm: React.FC = () => {
       try {
         setLoading(true);
         const data = await fetchPurchaseOrderById(token, parseInt(id));
-        setPurchaseOrder(data);
+        // Ensure all properties are set with defaults for missing values
+        setPurchaseOrder({
+          ...data,
+          pluginInventoryId: data.pluginInventoryId || null,
+          antennaInventoryId: data.antennaInventoryId || null,
+        });
 
         setFormData({
           clientFirstName: data.clientFirstName,
@@ -234,8 +262,8 @@ const PurchaseOrderForm: React.FC = () => {
           clientPhone: data.clientPhone,
           deposit: data.deposit,
           robotInventoryId: data.robotInventoryId,
-          pluginType: data.pluginType || '',
-          antennaType: data.antennaType || '',
+          pluginInventoryId: data.pluginInventoryId || null,
+          antennaInventoryId: data.antennaInventoryId || null,
           hasWire: data.hasWire,
           wireLength: data.wireLength || 0,
           shelterType: data.shelterType || '',
@@ -244,6 +272,8 @@ const PurchaseOrderForm: React.FC = () => {
           installationDate: data.installationDate || '',
           needsInstaller: data.needsInstaller,
           installationNotes: data.installationNotes || '',
+          hasAppointment: data.hasAppointment || false,
+          isInstalled: data.isInstalled || false,
         });
       } catch (error) {
         console.error('Error fetching purchase order:', error);
@@ -283,9 +313,15 @@ const PurchaseOrderForm: React.FC = () => {
   // Generate the PDF and return the blob
   const generatePDF = async (order: PurchaseOrder) => {
     try {
+      console.log('order', order);
       // Create the PDF document
       const pdfBlob = await pdf(
-        <PurchaseOrderPdfDocument purchaseOrder={order} />,
+        <PurchaseOrderPdfDocument
+          purchaseOrder={order}
+          installationText={
+            configData['Texte préparation installation bon de commande']
+          }
+        />,
       ).toBlob();
 
       return pdfBlob;
@@ -372,8 +408,8 @@ const PurchaseOrderForm: React.FC = () => {
         clientPhone: formData.clientPhone,
         deposit: formData.deposit,
         robotInventoryId: formData.robotInventoryId,
-        pluginType: formData.pluginType || null,
-        antennaType: formData.antennaType || null,
+        pluginInventoryId: formData.pluginInventoryId,
+        antennaInventoryId: formData.antennaInventoryId,
         hasWire: formData.hasWire,
         wireLength: formData.wireLength || null,
         shelterType: formData.shelterType || null,
@@ -382,8 +418,18 @@ const PurchaseOrderForm: React.FC = () => {
         installationDate: formData.installationDate || null,
         needsInstaller: formData.needsInstaller,
         installationNotes: formData.installationNotes || null,
+        hasAppointment:
+          formData.hasAppointment || purchaseOrder?.hasAppointment || false,
+        isInstalled:
+          formData.isInstalled || purchaseOrder?.isInstalled || false,
         orderPdfId: purchaseOrder?.orderPdfId || null,
         robotInventory: robots.find((r) => r.id === formData.robotInventoryId),
+        plugin: formData.pluginInventoryId
+          ? plugins.find((p) => p.id === formData.pluginInventoryId)
+          : undefined,
+        antenna: formData.antennaInventoryId
+          ? antennas.find((a) => a.id === formData.antennaInventoryId)
+          : undefined,
       };
 
       // Generate PDF with updated data
@@ -425,15 +471,31 @@ const PurchaseOrderForm: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading || inventoryLoading) {
     return <Typography>Chargement...</Typography>;
   }
 
-  // Prepare robot options for select
+  // Prepare options for select fields
   const robotOptions = robots.map((robot) => ({
     value: robot.id,
-    label: `${robot.name} ${robot.reference ? `(${robot.reference})` : ''}`,
+    label: `${robot.name} ${robot.reference ? `(réf. ${robot.reference})` : ''} - ${robot.sellingPrice ? formatPriceNumberToFrenchFormatStr(robot.sellingPrice) : 'Aucun prix'}`,
   }));
+
+  const antennaOptions = [
+    { value: null, label: 'Aucune' },
+    ...antennas.map((antenna) => ({
+      value: antenna.id,
+      label: `${antenna.name} ${antenna.reference ? `(réf. ${antenna.reference})` : ''} - ${antenna.sellingPrice ? formatPriceNumberToFrenchFormatStr(antenna.sellingPrice) : 'Aucun prix'}`,
+    })),
+  ];
+
+  const pluginOptions = [
+    { value: null, label: 'Aucun' },
+    ...plugins.map((plugin) => ({
+      value: plugin.id,
+      label: `${plugin.name} ${plugin.reference ? `(réf. ${plugin.reference})` : ''} - ${plugin.sellingPrice ? formatPriceNumberToFrenchFormatStr(plugin.sellingPrice) : 'Aucun prix'}`,
+    })),
+  ];
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', py: 2 }}>
@@ -514,28 +576,31 @@ const PurchaseOrderForm: React.FC = () => {
               onChange={handleChange}
               options={robotOptions}
               required
+              disabled={isEditing}
             />
             <FormSelectField
-              name="pluginType"
-              label="Plugin"
-              value={formData.pluginType}
+              name="pluginInventoryId"
+              label={
+                isEditing && !formData.pluginInventoryId
+                  ? 'Aucun plugin'
+                  : 'Plugin'
+              }
+              value={formData.pluginInventoryId}
               onChange={handleChange}
-              options={[
-                { value: '', label: 'Aucun' },
-                { value: 'Type 1', label: 'Type 1' },
-                { value: 'Type 2', label: 'Type 2' },
-              ]}
+              options={pluginOptions}
+              disabled={isEditing}
             />
             <FormSelectField
-              name="antennaType"
-              label="Antenne"
-              value={formData.antennaType}
+              name="antennaInventoryId"
+              label={
+                isEditing && !formData.antennaInventoryId
+                  ? 'Aucune antenne'
+                  : 'Antenne'
+              }
+              value={formData.antennaInventoryId}
               onChange={handleChange}
-              options={[
-                { value: '', label: 'Aucune' },
-                { value: 'RS1', label: 'RS1' },
-                { value: 'RS5', label: 'RS5' },
-              ]}
+              options={antennaOptions}
+              disabled={isEditing}
             />
             <Grid item xs={12} sm={6}>
               <FormControlLabel

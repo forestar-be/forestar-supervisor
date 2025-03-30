@@ -14,12 +14,14 @@ import {
 import { useAuth } from '../../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
 import { toast } from 'react-toastify';
+import { useDispatch, useSelector } from 'react-redux';
 import {
-  addConfig,
-  deleteConfig,
-  fetchConfig,
-  updateConfig,
-} from '../../utils/api';
+  fetchConfigAsync,
+  addConfigAsync,
+  updateConfigAsync,
+  deleteConfigAsync,
+} from '../../store/configSlice';
+import { RootState, AppDispatch } from '../../store';
 
 export type ConfigElement = {
   key: string;
@@ -32,7 +34,10 @@ interface EditConfigProps {}
 
 const EditConfig: React.FC<EditConfigProps> = ({}) => {
   const auth = useAuth();
-  const [config, setConfig] = useState<Config>([]);
+  const dispatch = useDispatch<AppDispatch>();
+  const { config: storeConfig, loading } = useSelector(
+    (state: RootState) => state.config,
+  );
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [configElement, setConfigElement] = useState<ConfigElement>({
@@ -41,13 +46,17 @@ const EditConfig: React.FC<EditConfigProps> = ({}) => {
   });
   const theme = useTheme();
 
+  // Convert storeConfig object to array of ConfigElement
+  const config: Config = Object.entries(storeConfig || {}).map(
+    ([key, value]) => ({
+      key,
+      value,
+    }),
+  );
+
   useEffect(() => {
-    const fetchData = async () => {
-      const result: Config = await fetchConfig(auth.token);
-      setConfig(result);
-    };
-    fetchData();
-  }, [auth.token]);
+    dispatch(fetchConfigAsync(auth.token));
+  }, [auth.token, dispatch]);
 
   const handleAddConfigElement = () => {
     setConfigElement({ key: '', value: '' });
@@ -65,7 +74,7 @@ const EditConfig: React.FC<EditConfigProps> = ({}) => {
     const answer = window.confirm(`Êtes-vous sûr de vouloir supprimer ${key}?`);
     if (answer) {
       try {
-        await deleteConfig(auth.token, key);
+        await dispatch(deleteConfigAsync({ token: auth.token, key })).unwrap();
         toast.success(`${key} supprimé`);
       } catch (error) {
         console.error(`Failed to delete ${key}:`, error);
@@ -73,8 +82,6 @@ const EditConfig: React.FC<EditConfigProps> = ({}) => {
           `Une erreur s'est produite lors de la suppression du ${key}`,
         );
       }
-      const result = await fetchConfig(auth.token);
-      setConfig(result);
     }
   };
 
@@ -87,21 +94,23 @@ const EditConfig: React.FC<EditConfigProps> = ({}) => {
 
     try {
       if (isEditing) {
-        await updateConfig(auth.token, configElement);
+        await dispatch(
+          updateConfigAsync({ token: auth.token, configElement }),
+        ).unwrap();
         toast.success(`${configElement.key} mis à jour`);
       } else {
-        await addConfig(auth.token, configElement);
+        await dispatch(
+          addConfigAsync({ token: auth.token, configElement }),
+        ).unwrap();
         toast.success(`${configElement.key} sauvegardé`);
       }
+      setOpen(false);
     } catch (error) {
       console.error(`Failed to save ${configElement.key}:`, error);
       toast.error(
         `Une erreur s'est produite lors de la sauvegarde de ${configElement.key}`,
       );
     }
-    const result = await fetchConfig(auth.token);
-    setConfig(result);
-    setOpen(false);
   };
 
   const columns: any = [

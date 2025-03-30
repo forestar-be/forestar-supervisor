@@ -17,12 +17,13 @@ import Settings from './pages/Settings';
 import { PDFViewer } from '@react-pdf/renderer';
 import MyDocument from './components/repair/Document';
 import PhoneCallbacks from './pages/PhoneCallbacks';
-import RobotInventory from './pages/RobotInventory';
+import Inventory from './pages/Inventory';
 import PurchaseOrders from './pages/PurchaseOrders';
 import PurchaseOrderForm from './pages/PurchaseOrderForm';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
+import { fetchInventorySummaryAsync } from './store/robotInventorySlice';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
@@ -68,6 +69,7 @@ const ConfigLoader = () => {
   useEffect(() => {
     if (auth.token) {
       dispatch(fetchConfigAsync(auth.token));
+      dispatch(fetchInventorySummaryAsync(auth.token));
     }
   }, [auth.token, dispatch]);
 
@@ -144,7 +146,7 @@ const App = (): JSX.Element => {
                               />
                               <Route
                                 path="/inventaire-robots"
-                                element={<RobotInventory />}
+                                element={<Inventory />}
                               />
                               <Route
                                 path="/purchase-orders"

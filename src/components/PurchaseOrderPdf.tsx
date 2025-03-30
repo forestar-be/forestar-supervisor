@@ -8,6 +8,8 @@ import {
   PDFViewer,
 } from '@react-pdf/renderer';
 import { PurchaseOrder } from '../utils/types';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 
 // Register fonts if needed
 // Font.register({
@@ -146,17 +148,25 @@ const styles = StyleSheet.create({
   },
 });
 
-// Format price to display Euros
-const formatPrice = (price: number | null | undefined): string => {
-  if (price === null || price === undefined) return '-';
-  return `${price.toLocaleString('fr-FR')} €`;
-};
-
 // Format date to display in French format
 const formatDate = (date: string | null | undefined): string => {
   if (!date) return '-';
   return new Date(date).toLocaleDateString('fr-FR');
 };
+
+// Custom formatter for PDF prices to avoid issues with non-breaking spaces
+const formatPriceForPdf = (price: number | null | undefined): string => {
+  if (price === null || price === undefined) return '-';
+  // Format with standard method but replace non-breaking spaces with regular spaces
+  const formatted = price.toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return formatted.replace(/\s/g, ' ') + ' €';
+};
+
+// Define constant for antenna support price
+const ANTENNA_SUPPORT_PRICE = 50;
 
 interface PurchaseOrderPdfProps {
   purchaseOrder: PurchaseOrder;
@@ -166,19 +176,48 @@ interface PurchaseOrderPdfProps {
 export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
   purchaseOrder,
 }) => {
+  const configData = useSelector((state: RootState) => state.config.config);
+
   return (
     <PDFViewer style={{ width: '100%', height: '100vh' }}>
-      <PurchaseOrderPdfDocument purchaseOrder={purchaseOrder} />
+      <PurchaseOrderPdfDocument
+        purchaseOrder={purchaseOrder}
+        installationText={
+          configData['Texte préparation installation bon de commande']
+        }
+      />
     </PDFViewer>
   );
 };
 
 // Document component for the PDF
-export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
-  purchaseOrder,
-}) => {
+export const PurchaseOrderPdfDocument: React.FC<{
+  purchaseOrder: PurchaseOrder;
+  installationText?: string;
+}> = ({ purchaseOrder, installationText }) => {
   // Check if we need a second page for installation notes
   const hasInstallationNotes = !!purchaseOrder.installationNotes;
+
+  // Calculate total price
+  const calculateTotalPrice = () => {
+    let total = purchaseOrder.robotInventory?.sellingPrice || 0;
+
+    if (purchaseOrder.plugin?.sellingPrice) {
+      total += purchaseOrder.plugin?.sellingPrice;
+    }
+
+    if (purchaseOrder.antenna?.sellingPrice) {
+      total += purchaseOrder.antenna?.sellingPrice;
+    }
+
+    if (purchaseOrder.hasAntennaSupport) {
+      total += ANTENNA_SUPPORT_PRICE;
+    }
+    if (purchaseOrder.shelterPrice) {
+      total += purchaseOrder.shelterPrice;
+    }
+    return total;
+  };
 
   return (
     <Document>
@@ -220,7 +259,7 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
           <View style={styles.row}>
             <Text style={styles.label}>Acompte:</Text>
             <Text style={styles.value}>
-              {formatPrice(purchaseOrder.deposit)}
+              {formatPriceForPdf(purchaseOrder.deposit)}
             </Text>
           </View>
         </View>
@@ -239,16 +278,16 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
                 : ''}
             </Text>
           </View>
-          {purchaseOrder.pluginType && (
+          {purchaseOrder.plugin && (
             <View style={styles.row}>
               <Text style={styles.label}>Plugin:</Text>
-              <Text style={styles.value}>{purchaseOrder.pluginType}</Text>
+              <Text style={styles.value}>{purchaseOrder.plugin.name}</Text>
             </View>
           )}
-          {purchaseOrder.antennaType && (
+          {purchaseOrder.antenna && (
             <View style={styles.row}>
               <Text style={styles.label}>Antenne:</Text>
-              <Text style={styles.value}>{purchaseOrder.antennaType}</Text>
+              <Text style={styles.value}>{purchaseOrder.antenna.name}</Text>
             </View>
           )}
           {purchaseOrder.hasWire && (
@@ -278,7 +317,7 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
             <View style={styles.row}>
               <Text style={styles.label}>Prix abri:</Text>
               <Text style={styles.value}>
-                {formatPrice(purchaseOrder.shelterPrice)}
+                {formatPriceForPdf(purchaseOrder.shelterPrice)}
               </Text>
             </View>
           )}
@@ -304,9 +343,19 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
           {hasInstallationNotes && (
             <View style={styles.row}>
               <Text style={styles.label}>Notes:</Text>
-              <Text style={styles.value}>Voir page suivante</Text>
+              <Text style={styles.value}>
+                {purchaseOrder.installationNotes}
+              </Text>
             </View>
           )}
+        </View>
+      </Page>
+
+      {/* Second page with summary */}
+      <Page size="A4" style={styles.page}>
+        {/* Header for consistency */}
+        <View style={styles.header}>
+          <Text style={styles.headerText}>FORESTAR</Text>
         </View>
 
         {/* Summary */}
@@ -336,37 +385,43 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
             </View>
             <View style={styles.tableCol}>
               <Text style={styles.tableCell}>
-                {formatPrice(purchaseOrder.robotInventory?.sellingPrice)}
+                {formatPriceForPdf(
+                  purchaseOrder.robotInventory?.sellingPrice || 0,
+                )}
               </Text>
             </View>
           </View>
-          {purchaseOrder.antennaType && (
+          {purchaseOrder.antenna && (
             <View style={styles.tableRow}>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>
-                  Antenne {purchaseOrder.antennaType}
+                  Antenne {purchaseOrder.antenna.name}
                 </Text>
               </View>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>1</Text>
               </View>
               <View style={styles.tableCol}>
-                <Text style={styles.tableCell}>-</Text>
+                <Text style={styles.tableCell}>
+                  {formatPriceForPdf(purchaseOrder.antenna?.sellingPrice || 0)}
+                </Text>
               </View>
             </View>
           )}
-          {purchaseOrder.pluginType && (
+          {purchaseOrder.plugin && (
             <View style={styles.tableRow}>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>
-                  Plugin {purchaseOrder.pluginType}
+                  Plugin {purchaseOrder.plugin.name}
                 </Text>
               </View>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>1</Text>
               </View>
               <View style={styles.tableCol}>
-                <Text style={styles.tableCell}>-</Text>
+                <Text style={styles.tableCell}>
+                  {formatPriceForPdf(purchaseOrder.plugin?.sellingPrice || 0)}
+                </Text>
               </View>
             </View>
           )}
@@ -397,7 +452,9 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
                 <Text style={styles.tableCell}>1</Text>
               </View>
               <View style={styles.tableCol}>
-                <Text style={styles.tableCell}>50 €</Text>
+                <Text style={styles.tableCell}>
+                  {formatPriceForPdf(ANTENNA_SUPPORT_PRICE)}
+                </Text>
               </View>
             </View>
           )}
@@ -415,27 +472,80 @@ export const PurchaseOrderPdfDocument: React.FC<PurchaseOrderPdfProps> = ({
               </View>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>
-                  {formatPrice(purchaseOrder.shelterPrice)}
+                  {formatPriceForPdf(purchaseOrder.shelterPrice)}
                 </Text>
               </View>
             </View>
           )}
-        </View>
-
-        {/* Second page for installation notes if they exist */}
-        {hasInstallationNotes && (
-          <>
-            <View style={styles.sectionTitle}>
-              <Text>NOTES D'INSTALLATION</Text>
-            </View>
-            <View style={styles.column}>
-              <Text style={styles.noteText}>
-                {purchaseOrder.installationNotes}
+          <View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
+            <View style={styles.tableCol}>
+              <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
+                TOTAL
               </Text>
             </View>
-          </>
-        )}
+            <View style={styles.tableCol}>
+              <Text style={styles.tableCell}></Text>
+            </View>
+            <View style={styles.tableCol}>
+              <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
+                {formatPriceForPdf(calculateTotalPrice())}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.tableRow]}>
+            <View style={styles.tableCol}>
+              <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
+                ACOMPTE
+              </Text>
+            </View>
+            <View style={styles.tableCol}>
+              <Text style={styles.tableCell}></Text>
+            </View>
+            <View style={styles.tableCol}>
+              <Text style={[styles.tableCell]}>
+                {formatPriceForPdf(purchaseOrder.deposit)}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
+            <View style={styles.tableCol}>
+              <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
+                RESTE À PAYER
+              </Text>
+            </View>
+            <View style={styles.tableCol}>
+              <Text style={styles.tableCell}></Text>
+            </View>
+            <View style={styles.tableCol}>
+              <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
+                {formatPriceForPdf(
+                  (calculateTotalPrice() || 0) - (purchaseOrder.deposit || 0),
+                )}
+              </Text>
+            </View>
+          </View>
+        </View>
       </Page>
+
+      {/* Third page with installation preparation instructions */}
+      {installationText && (
+        <Page size="A4" style={styles.page}>
+          {/* Header for consistency */}
+          <View style={styles.header}>
+            <Text style={styles.headerText}>FORESTAR</Text>
+          </View>
+
+          {/* Installation preparation title */}
+          <View style={styles.sectionTitle}>
+            <Text>PRÉPARATION DE L'INSTALLATION</Text>
+          </View>
+
+          {/* Installation preparation text */}
+          <View style={styles.column}>
+            <Text style={styles.noteText}>{installationText}</Text>
+          </View>
+        </Page>
+      )}
     </Document>
   );
 };

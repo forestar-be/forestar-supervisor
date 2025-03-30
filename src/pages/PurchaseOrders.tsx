@@ -8,6 +8,10 @@ import {
   Tooltip,
   Typography,
   useTheme,
+  Select,
+  MenuItem,
+  FormControl,
+  SelectChangeEvent,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -17,6 +21,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import HandymanIcon from '@mui/icons-material/Handyman';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -25,6 +31,7 @@ import {
   ColDef,
   GridReadyEvent,
   ValueFormatterParams,
+  ICellRendererParams,
 } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import { StyledAgGridWrapper } from '../components/styles/AgGridStyles';
@@ -34,6 +41,7 @@ import {
   deletePurchaseOrder,
   fetchPurchaseOrders,
   getPurchaseOrderPdf,
+  updatePurchaseOrderStatus,
 } from '../utils/api';
 import {
   onFirstDataRendered,
@@ -324,6 +332,129 @@ const PurchaseOrders: React.FC = () => {
     [handleEditPurchaseOrder, handleDeletePurchaseOrder, PdfActionButton],
   );
 
+  // Handle status change
+  const handleStatusChange = useCallback(
+    async (
+      orderId: number,
+      field: 'hasAppointment' | 'isInstalled',
+      value: boolean,
+    ) => {
+      if (!token) return;
+
+      try {
+        const statusData = { [field]: value };
+        const updatedOrder = await updatePurchaseOrderStatus(
+          token,
+          orderId,
+          statusData,
+        );
+
+        // Update local state
+        setPurchaseOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order.id === orderId ? { ...order, ...statusData } : order,
+          ),
+        );
+
+        toast.success(`Statut mis à jour avec succès`);
+      } catch (error) {
+        console.error('Error updating status:', error);
+        toast.error('Erreur lors de la mise à jour du statut');
+      }
+    },
+    [token],
+  );
+
+  // Appointment status cell renderer
+  const appointmentStatusCellRenderer = useCallback(
+    (params: ICellRendererParams) => {
+      if (!params.data) return null;
+      const order = params.data as PurchaseOrder;
+
+      const bgColor = order.hasAppointment
+        ? 'rgba(46, 125, 50, 0.1)'
+        : 'rgba(211, 47, 47, 0.1)';
+      const borderColor = order.hasAppointment
+        ? 'rgba(46, 125, 50, 0.5)'
+        : 'rgba(211, 47, 47, 0.5)';
+
+      return (
+        <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+          <FormControl size="small" fullWidth>
+            <Select
+              value={order.hasAppointment ? 'true' : 'false'}
+              onChange={(e: SelectChangeEvent) => {
+                const newValue = e.target.value === 'true';
+                handleStatusChange(order.id, 'hasAppointment', newValue);
+              }}
+              sx={{
+                height: '32px',
+                backgroundColor: bgColor,
+                '.MuiOutlinedInput-notchedOutline': {
+                  borderColor: borderColor,
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: order.hasAppointment
+                    ? 'rgba(46, 125, 50, 0.8)'
+                    : 'rgba(211, 47, 47, 0.8)',
+                },
+              }}
+            >
+              <MenuItem value="true">Pris</MenuItem>
+              <MenuItem value="false">Non pris</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      );
+    },
+    [handleStatusChange],
+  );
+
+  // Installation status cell renderer
+  const installationStatusCellRenderer = useCallback(
+    (params: ICellRendererParams) => {
+      if (!params.data) return null;
+      const order = params.data as PurchaseOrder;
+
+      const bgColor = order.isInstalled
+        ? 'rgba(46, 125, 50, 0.1)'
+        : 'rgba(211, 47, 47, 0.1)';
+      const borderColor = order.isInstalled
+        ? 'rgba(46, 125, 50, 0.5)'
+        : 'rgba(211, 47, 47, 0.5)';
+
+      return (
+        <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+          <FormControl size="small" fullWidth>
+            <Select
+              value={order.isInstalled ? 'true' : 'false'}
+              onChange={(e: SelectChangeEvent) => {
+                const newValue = e.target.value === 'true';
+                handleStatusChange(order.id, 'isInstalled', newValue);
+              }}
+              sx={{
+                height: '32px',
+                backgroundColor: bgColor,
+                '.MuiOutlinedInput-notchedOutline': {
+                  borderColor: borderColor,
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: order.isInstalled
+                    ? 'rgba(46, 125, 50, 0.8)'
+                    : 'rgba(211, 47, 47, 0.8)',
+                },
+              }}
+            >
+              <MenuItem value="true">Installé</MenuItem>
+              <MenuItem value="false">Non installé</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      );
+    },
+    [handleStatusChange],
+  );
+
   // Column definitions
   const columnDefs = useMemo<ColDef[]>(
     () => [
@@ -381,6 +512,26 @@ const PurchaseOrders: React.FC = () => {
         flex: 1,
       },
       {
+        headerName: 'RDV pris',
+        field: 'hasAppointment',
+        sortable: true,
+        filter: true,
+        flex: 1.5,
+        cellRenderer: appointmentStatusCellRenderer,
+        cellClass: 'no-focus-outline',
+        headerClass: 'appointment-header',
+      },
+      {
+        headerName: 'Robot installé',
+        field: 'isInstalled',
+        sortable: true,
+        filter: true,
+        flex: 1.5,
+        cellRenderer: installationStatusCellRenderer,
+        cellClass: 'no-focus-outline',
+        headerClass: 'installed-header',
+      },
+      {
         headerName: 'Actions',
         field: 'actions',
         sortable: false,
@@ -389,7 +540,13 @@ const PurchaseOrders: React.FC = () => {
         cellRenderer: actionCellRenderer,
       },
     ],
-    [formatDate, formatPrice, actionCellRenderer],
+    [
+      formatDate,
+      formatPrice,
+      actionCellRenderer,
+      appointmentStatusCellRenderer,
+      installationStatusCellRenderer,
+    ],
   );
 
   const onGridReady = useCallback(
@@ -499,6 +656,22 @@ const PurchaseOrders: React.FC = () => {
           theme.palette.mode === 'dark' ? '-dark' : ''
         }`}
       >
+        <style>
+          {`
+            .no-focus-outline .ag-cell-focus {
+              border: none !important;
+              outline: none !important;
+            }
+            .appointment-header::before {
+              content: "📅 ";
+              font-size: 16px;
+            }
+            .installed-header::before {
+              content: "🔧 ";
+              font-size: 16px;
+            }
+          `}
+        </style>
         <AgGridReact
           suppressCellFocus={true}
           ref={gridRef}

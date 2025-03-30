@@ -468,6 +468,22 @@ export const updatePurchaseOrder = (
   }
 };
 
+export const updatePurchaseOrderStatus = (
+  token: string,
+  id: number,
+  statusData: {
+    hasAppointment?: boolean;
+    isInstalled?: boolean;
+  },
+): Promise<PurchaseOrder> => {
+  return apiRequest(
+    `/supervisor/purchase-orders/${id}/status`,
+    'PATCH',
+    token,
+    statusData,
+  );
+};
+
 export const deletePurchaseOrder = (token: string, id: number): Promise<void> =>
   apiRequest(`/supervisor/purchase-orders/${id}`, 'DELETE', token);
 

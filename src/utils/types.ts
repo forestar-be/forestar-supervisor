@@ -59,8 +59,12 @@ export interface PurchaseOrder {
   robotInventoryId: number;
   robotInventory?: RobotInventory;
 
-  pluginType: string | null;
-  antennaType: string | null;
+  pluginInventoryId: number | null;
+  plugin?: RobotInventory;
+
+  antennaInventoryId: number | null;
+  antenna?: RobotInventory;
+
   hasWire: boolean;
   wireLength: number | null;
   shelterType: string | null;
@@ -70,6 +74,10 @@ export interface PurchaseOrder {
   installationDate: string | null;
   needsInstaller: boolean;
   installationNotes: string | null;
+
+  // Status fields
+  hasAppointment: boolean;
+  isInstalled: boolean;
 
   orderPdfId: string | null;
   eventId?: string | null;
@@ -85,8 +93,8 @@ export interface PurchaseOrderFormData {
 
   robotInventoryId: number;
 
-  pluginType: string;
-  antennaType: string;
+  pluginInventoryId: number | null;
+  antennaInventoryId: number | null;
   hasWire: boolean;
   wireLength: number;
   shelterType: string;
@@ -96,6 +104,17 @@ export interface PurchaseOrderFormData {
   installationDate: string;
   needsInstaller: boolean;
   installationNotes: string;
+
+  // Status fields
+  hasAppointment?: boolean;
+  isInstalled?: boolean;
+}
+
+// Define the InventoryCategory enum
+export enum InventoryCategory {
+  ROBOT = 'ROBOT',
+  ANTENNA = 'ANTENNA',
+  PLUGIN = 'PLUGIN',
 }
 
 // Types for Robot Inventory
@@ -103,7 +122,7 @@ export interface RobotInventory {
   id: number;
   reference?: string;
   name: string;
-  category?: string;
+  category: InventoryCategory;
   sellingPrice?: number;
   purchasePrice?: number;
   createdAt: string;
