@@ -57,7 +57,16 @@ import { RootState } from '../store/index';
 import {
   RobotInventory as RobotInventoryType,
   InventoryPlan,
+  InventoryCategory,
 } from '../utils/types';
+import { useAppDispatch } from '../store/hooks';
+import {
+  addInventoryItemAsync,
+  updateInventoryItemAsync,
+  deleteInventoryItemAsync,
+  updateInventoryPlansAsync,
+  fetchInventorySummaryAsync,
+} from '../store/robotInventorySlice';
 
 // Helper function to get month name from month number (1-12)
 const getMonthName = (month: number): string => {
@@ -75,17 +84,18 @@ const getCurrentYearMonth = () => {
   };
 };
 
-const RobotInventory: React.FC = () => {
+const Inventory: React.FC = () => {
   const { token } = useAuth();
   const theme = useTheme();
+  const dispatch = useAppDispatch();
   const config = useSelector((state: RootState) => state.config.config);
-  const [robots, setRobots] = useState<RobotInventoryType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { items, periods, loading } = useSelector(
+    (state: RootState) => state.robotInventory,
+  );
   const [openDialog, setOpenDialog] = useState(false);
-  const [currentRobot, setCurrentRobot] = useState<Partial<RobotInventoryType>>(
+  const [currentItem, setCurrentItem] = useState<Partial<RobotInventoryType>>(
     {},
   );
-  const [periods, setPeriods] = useState<{ year: number; month: number }[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(
     getCurrentYearMonth().year,
   );
@@ -99,45 +109,9 @@ const RobotInventory: React.FC = () => {
   const [hideZeroQuantity, setHideZeroQuantity] = useState(false);
   const gridRef = React.createRef<AgGridReact>();
 
-  // Get categories from config
-  const categories = useMemo(() => {
-    const categoriesFromConfig = config['Catégories robot'] || '';
-    const parsedCategories = categoriesFromConfig
-      .split(',')
-      .map((cat) => cat.trim())
-      .filter((cat) => cat.length > 0);
-
-    // Add 'Autre' if not already in the list
-    if (!parsedCategories.includes('Autre')) {
-      parsedCategories.push('Autre');
-    }
-
-    return parsedCategories.length > 0 ? parsedCategories : ['Autre'];
-  }, [config]);
-
-  // Fetch data
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!token) return;
-      try {
-        setLoading(true);
-        const summaryResponse = await fetchInventorySummary(token);
-        setRobots(summaryResponse.robots || []);
-        setPeriods(summaryResponse.periods || []);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Erreur lors du chargement des données');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [token]);
-
   // Calculate page size
   const calculatePageSize = useCallback(() => {
-    const element = document.getElementById('robot-inventory-table');
+    const element = document.getElementById('inventory-table');
     const footer = document.querySelector('.ag-paging-panel');
     const header = document.querySelector('.ag-header-viewport');
     if (element) {
@@ -160,6 +134,13 @@ const RobotInventory: React.FC = () => {
       window.removeEventListener('resize', calculatePageSize);
     };
   }, [calculatePageSize]);
+
+  // Refresh data if needed
+  useEffect(() => {
+    if (token && items.length === 0 && !loading) {
+      dispatch(fetchInventorySummaryAsync(token));
+    }
+  }, [token, items.length, loading, dispatch]);
 
   // Get available years from periods
   const years = useMemo(() => {
@@ -190,21 +171,21 @@ const RobotInventory: React.FC = () => {
     return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   }, []);
 
-  // Find inventory plan for a robot in the selected year/month
+  // Find inventory plan for an item in the selected year/month
   const getInventoryPlan = useCallback(
-    (robot: RobotInventoryType): InventoryPlan | undefined => {
-      return robot.inventoryPlans?.find(
+    (item: RobotInventoryType): InventoryPlan | undefined => {
+      return item.inventoryPlans?.find(
         (plan) => plan.year === selectedYear && plan.month === selectedMonth,
       );
     },
     [selectedYear, selectedMonth],
   );
 
-  // Get quantity for a robot in the selected year/month
+  // Get quantity for an item in the selected year/month
   const getQuantity = useCallback(
-    (robot: RobotInventoryType): number => {
-      const plan = getInventoryPlan(robot);
-      const editKey = `${robot.id}-${selectedYear}-${selectedMonth}`;
+    (item: RobotInventoryType): number => {
+      const plan = getInventoryPlan(item);
+      const editKey = `${item.id}-${selectedYear}-${selectedMonth}`;
 
       if (editKey in inventoryEdits) {
         return inventoryEdits[editKey];
@@ -215,86 +196,89 @@ const RobotInventory: React.FC = () => {
     [getInventoryPlan, inventoryEdits, selectedMonth, selectedYear],
   );
 
-  // Filter robots based on hideZeroQuantity setting
-  const filteredRobots = useMemo(() => {
-    if (!hideZeroQuantity) return robots;
-    return robots.filter((robot) => getQuantity(robot) > 0);
-  }, [robots, hideZeroQuantity, getQuantity]);
+  // Filter items based on hideZeroQuantity setting
+  const filteredItems = useMemo(() => {
+    if (!hideZeroQuantity) return items;
+    return items.filter((item) => getQuantity(item) > 0);
+  }, [items, hideZeroQuantity, getQuantity]);
 
-  // Handle dialog open for adding new robot
-  const handleAddRobot = () => {
-    setCurrentRobot({});
+  // Handle dialog open for adding new item
+  const handleAddItem = () => {
+    setCurrentItem({});
     setOpenDialog(true);
   };
 
-  // Handle dialog open for editing robot
-  const handleEditRobot = useCallback((robot: RobotInventoryType) => {
-    setCurrentRobot({ ...robot });
+  // Handle dialog open for editing item
+  const handleEditItem = useCallback((item: RobotInventoryType) => {
+    setCurrentItem({ ...item });
     setOpenDialog(true);
   }, []);
 
   // Handle dialog close
   const handleCloseDialog = useCallback(() => {
     setOpenDialog(false);
-    setCurrentRobot({});
+    setCurrentItem({});
   }, []);
 
-  // Handle save robot
-  const handleSaveRobot = async () => {
-    if (!token || !currentRobot.name) {
-      toast.error('Nom du robot requis');
+  // Handle save item
+  const handleSaveItem = async () => {
+    if (!token || !currentItem.name) {
+      toast.error("Nom de l'élément requis");
       return;
     }
 
     try {
-      let updatedRobot: RobotInventoryType;
-      if (currentRobot.id) {
-        // Update existing robot
-        updatedRobot = await updateRobotInventory(
-          token,
-          currentRobot.id,
-          currentRobot,
-        );
-        setRobots((prev) =>
-          prev.map((r) => (r.id === updatedRobot.id ? updatedRobot : r)),
-        );
-        toast.success('Robot mis à jour avec succès');
+      if (currentItem.id) {
+        // Update existing item
+        await dispatch(
+          updateInventoryItemAsync({
+            token,
+            id: currentItem.id,
+            itemData: currentItem,
+          }),
+        ).unwrap();
+        toast.success('Élément mis à jour avec succès');
       } else {
-        // Create new robot
-        updatedRobot = await createRobotInventory(token, currentRobot);
-        setRobots((prev) => [...prev, updatedRobot]);
-        toast.success('Robot ajouté avec succès');
+        // Create new item
+        await dispatch(
+          addInventoryItemAsync({
+            token,
+            itemData: currentItem,
+          }),
+        ).unwrap();
+        toast.success('Élément ajouté avec succès');
       }
       handleCloseDialog();
     } catch (error) {
-      console.error('Error saving robot:', error);
-      toast.error('Erreur lors de la sauvegarde');
+      console.error('Error saving item:', error);
+      toast.error(`Erreur lors de la sauvegarde: ${error}`);
     }
   };
 
-  // Handle delete robot
-  const handleDeleteRobot = useCallback(
-    async (robot: RobotInventoryType) => {
+  // Handle delete item
+  const handleDeleteItem = useCallback(
+    async (item: RobotInventoryType) => {
       if (
         !token ||
-        !window.confirm('Êtes-vous sûr de vouloir supprimer ce robot?')
+        !window.confirm('Êtes-vous sûr de vouloir supprimer cet élément?')
       ) {
         return;
       }
 
       try {
-        await deleteRobotInventory(token, robot.id);
-        setRobots((prev) => prev.filter((r) => r.id !== robot.id));
-        toast.success('Robot supprimé avec succès');
+        await dispatch(
+          deleteInventoryItemAsync({ token, id: item.id }),
+        ).unwrap();
+        toast.success('Élément supprimé avec succès');
       } catch (error) {
-        console.error('Error deleting robot:', error);
+        console.error('Error deleting item:', error);
         toast.error('Erreur lors de la suppression');
       }
     },
-    [token],
+    [token, dispatch],
   );
 
-  // Handle quantity change for a robot
+  // Handle quantity change for an item
   const handleQuantityChange = useCallback(
     (id: number, quantity: number) => {
       const editKey = `${id}-${selectedYear}-${selectedMonth}`;
@@ -306,26 +290,26 @@ const RobotInventory: React.FC = () => {
     [selectedMonth, selectedYear],
   );
 
-  // Increment robot quantity
+  // Increment item quantity
   const handleIncrementQuantity = useCallback(
-    (robot: RobotInventoryType) => {
+    (item: RobotInventoryType) => {
       setInventoryEdits((prev) => {
-        const key = `${robot.id}-${selectedYear}-${selectedMonth}`;
+        const key = `${item.id}-${selectedYear}-${selectedMonth}`;
         const currentQuantity =
-          key in prev ? prev[key] : getInventoryPlan(robot)?.quantity || 0;
+          key in prev ? prev[key] : getInventoryPlan(item)?.quantity || 0;
         return { ...prev, [key]: currentQuantity + 1 };
       });
     },
     [selectedYear, selectedMonth, getInventoryPlan],
   );
 
-  // Decrement robot quantity
+  // Decrement item quantity
   const handleDecrementQuantity = useCallback(
-    (robot: RobotInventoryType) => {
+    (item: RobotInventoryType) => {
       setInventoryEdits((prev) => {
-        const key = `${robot.id}-${selectedYear}-${selectedMonth}`;
+        const key = `${item.id}-${selectedYear}-${selectedMonth}`;
         const currentQuantity =
-          key in prev ? prev[key] : getInventoryPlan(robot)?.quantity || 0;
+          key in prev ? prev[key] : getInventoryPlan(item)?.quantity || 0;
         return { ...prev, [key]: currentQuantity - 1 };
       });
     },
@@ -341,20 +325,16 @@ const RobotInventory: React.FC = () => {
     try {
       // Convert inventoryEdits to array of inventory plans
       const plans = Object.keys(inventoryEdits).map((key) => {
-        const [robotId, year, month] = key.split('-').map(Number);
+        const [itemId, year, month] = key.split('-').map(Number);
         return {
-          robotInventoryId: robotId,
+          robotInventoryId: itemId,
           year,
           month,
           quantity: inventoryEdits[key],
         };
       });
 
-      await updateInventoryPlans(token, plans);
-
-      // Refresh data
-      const response = await fetchRobotInventory(token);
-      setRobots(response.data || []);
+      await dispatch(updateInventoryPlansAsync({ token, plans })).unwrap();
 
       // Clear edits
       setInventoryEdits({});
@@ -362,7 +342,7 @@ const RobotInventory: React.FC = () => {
       toast.success('Inventaire mis à jour avec succès');
     } catch (error) {
       console.error('Error saving inventory:', error);
-      toast.error("Erreur lors de la sauvegarde de l'inventaire");
+      toast.error(`Erreur lors de la sauvegarde de l'inventaire: ${error}`);
     }
   };
 
@@ -385,7 +365,7 @@ const RobotInventory: React.FC = () => {
     (params: any) => {
       if (!params.data) return null;
 
-      const robotId = params.data.id;
+      const itemId = params.data.id;
       const quantity = getQuantity(params.data);
 
       return (
@@ -402,7 +382,7 @@ const RobotInventory: React.FC = () => {
             size="small"
             value={quantity}
             onChange={(e) =>
-              handleQuantityChange(robotId, Number(e.target.value))
+              handleQuantityChange(itemId, Number(e.target.value))
             }
             InputProps={{
               sx: { height: '32px' },
@@ -428,14 +408,14 @@ const RobotInventory: React.FC = () => {
   const actionCellRenderer = useCallback(
     (params: any) => {
       if (!params.data) return null;
-      const robot = params.data as RobotInventoryType;
+      const item = params.data as RobotInventoryType;
 
       return (
         <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
           <Tooltip title="Diminuer quantité" arrow>
             <IconButton
               color="error"
-              onClick={() => handleDecrementQuantity(robot)}
+              onClick={() => handleDecrementQuantity(item)}
               size="small"
             >
               <RemoveCircleIcon />
@@ -444,7 +424,7 @@ const RobotInventory: React.FC = () => {
           <Tooltip title="Augmenter quantité" arrow>
             <IconButton
               color="success"
-              onClick={() => handleIncrementQuantity(robot)}
+              onClick={() => handleIncrementQuantity(item)}
               size="small"
             >
               <AddCircleIcon />
@@ -453,7 +433,7 @@ const RobotInventory: React.FC = () => {
           <Tooltip title="Modifier" arrow>
             <IconButton
               color="primary"
-              onClick={() => handleEditRobot(params.data)}
+              onClick={() => handleEditItem(params.data)}
               size="small"
             >
               <EditIcon />
@@ -462,7 +442,7 @@ const RobotInventory: React.FC = () => {
           <Tooltip title="Supprimer" arrow>
             <IconButton
               color="error"
-              onClick={() => handleDeleteRobot(params.data)}
+              onClick={() => handleDeleteItem(params.data)}
               size="small"
             >
               <DeleteIcon />
@@ -474,44 +454,47 @@ const RobotInventory: React.FC = () => {
     [
       handleIncrementQuantity,
       handleDecrementQuantity,
-      handleEditRobot,
-      handleDeleteRobot,
+      handleEditItem,
+      handleDeleteItem,
     ],
   );
 
   // Category cell renderer
-  const categoryCellRenderer = useCallback(
-    (params: any) => {
-      if (!params.value) return '-';
+  const categoryCellRenderer = useCallback((params: any) => {
+    if (!params.value) return '-';
 
-      // Create color map dynamically from available categories
-      const colorOptions = [
-        'primary',
-        'secondary',
-        'success',
-        'info',
-        'warning',
-      ];
-      const colorMap: { [key: string]: any } = {};
+    // Create color map for different inventory categories
+    const colorMap: { [key in InventoryCategory]: any } = {
+      [InventoryCategory.ROBOT]: 'primary',
+      [InventoryCategory.ANTENNA]: 'secondary',
+      [InventoryCategory.PLUGIN]: 'success',
+    };
 
-      categories.forEach((category, index) => {
-        // Assign colors from the available options, cycling if needed
-        colorMap[category] = colorOptions[index % colorOptions.length];
-      });
+    // Get friendly display name for category
+    const getCategoryDisplayName = (category: InventoryCategory): string => {
+      switch (category) {
+        case InventoryCategory.ROBOT:
+          return 'Robot';
+        case InventoryCategory.ANTENNA:
+          return 'Antenne';
+        case InventoryCategory.PLUGIN:
+          return 'Plugin';
+        default:
+          return category;
+      }
+    };
 
-      // Always set 'Autre' to default
-      colorMap['Autre'] = 'default';
+    // Cast the value to the correct type
+    const category = params.value as InventoryCategory;
 
-      return (
-        <Chip
-          label={params.value}
-          color={colorMap[params.value] || 'default'}
-          size="small"
-        />
-      );
-    },
-    [categories],
-  );
+    return (
+      <Chip
+        label={getCategoryDisplayName(category)}
+        color={colorMap[category] || 'default'}
+        size="small"
+      />
+    );
+  }, []);
 
   // Column definitions
   const columnDefs = useMemo<ColDef[]>(
@@ -593,14 +576,14 @@ const RobotInventory: React.FC = () => {
 
       const gridApi = params.api;
       // Setup event listeners to save grid state on changes
-      setupGridStateEvents(gridApi, 'robotInventoryAgGridState');
+      setupGridStateEvents(gridApi, 'inventoryAgGridState');
     },
     [loading, calculatePageSize],
   );
 
   // Handle first data rendered - load saved column state
   const handleFirstDataRendered = useCallback((params: any) => {
-    onFirstDataRendered(params, 'robotInventoryAgGridState');
+    onFirstDataRendered(params, 'inventoryAgGridState');
   }, []);
 
   // Update the grid when year or month changes
@@ -618,7 +601,7 @@ const RobotInventory: React.FC = () => {
       )
     ) {
       // Clear the saved state
-      clearGridState('robotInventoryAgGridState');
+      clearGridState('inventoryAgGridState');
       // Reload the page to apply the reset
       window.location.reload();
     }
@@ -643,7 +626,7 @@ const RobotInventory: React.FC = () => {
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h5" component="h1" sx={{ mr: 4 }}>
-            Inventaire des robots
+            Inventaire
           </Typography>
           <FormControl sx={{ minWidth: 120 }}>
             <InputLabel id="year-select-label">Année</InputLabel>
@@ -685,7 +668,7 @@ const RobotInventory: React.FC = () => {
                 color="primary"
               />
             }
-            label="Masquer robots sans stock"
+            label="Masquer éléments sans stock"
           />
           {hasUnsavedChanges && (
             <>
@@ -710,7 +693,7 @@ const RobotInventory: React.FC = () => {
             </>
           )}
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
           <Tooltip
             title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
             arrow
@@ -720,32 +703,33 @@ const RobotInventory: React.FC = () => {
               color="secondary"
               startIcon={<RestartAltIcon />}
               onClick={handleResetGrid}
+              size="small"
             >
               Réinitialiser
             </Button>
           </Tooltip>
-          <Tooltip title="Ajouter un robot" arrow>
+          <Tooltip title="Ajouter un élément" arrow>
             <Button
               variant="contained"
               color="primary"
               startIcon={<AddIcon />}
-              onClick={handleAddRobot}
+              onClick={handleAddItem}
             >
-              Ajouter un robot
+              Ajouter
             </Button>
           </Tooltip>
         </Box>
       </Box>
       <StyledAgGridWrapper
-        id="robot-inventory-table"
-        className={`robot-inventory-table ag-theme-quartz${
+        id="inventory-table"
+        className={`inventory-table ag-theme-quartz${
           theme.palette.mode === 'dark' ? '-dark' : ''
         }`}
       >
         <AgGridReact
           suppressCellFocus={true}
           ref={gridRef}
-          rowData={filteredRobots}
+          rowData={filteredItems}
           columnDefs={columnDefs}
           pagination={true}
           paginationPageSize={paginationPageSize}
@@ -756,10 +740,10 @@ const RobotInventory: React.FC = () => {
           overlayLoadingTemplate='<span class="ag-overlay-loading-center">Chargement...</span>'
           paginationPageSizeSelector={false}
           loadingOverlayComponentParams={{ loading }}
-          overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Aucun robot trouvé</span>'
+          overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Aucun élément trouvé</span>'
         />
       </StyledAgGridWrapper>
-      {/* Robot Edit Dialog */}
+      {/* Item Edit Dialog */}
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
@@ -767,7 +751,7 @@ const RobotInventory: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          {currentRobot.id ? 'Modifier le robot' : 'Ajouter un robot'}
+          {currentItem.id ? "Modifier l'élément" : 'Ajouter un élément'}
         </DialogTitle>
         <DialogContent>
           <Box component="form" sx={{ mt: 1 }}>
@@ -775,9 +759,9 @@ const RobotInventory: React.FC = () => {
               margin="normal"
               fullWidth
               label="Référence"
-              value={currentRobot.reference || ''}
+              value={currentItem.reference || ''}
               onChange={(e) =>
-                setCurrentRobot((prev) => ({
+                setCurrentItem((prev) => ({
                   ...prev,
                   reference: e.target.value,
                 }))
@@ -788,29 +772,27 @@ const RobotInventory: React.FC = () => {
               required
               fullWidth
               label="Nom"
-              value={currentRobot.name || ''}
+              value={currentItem.name || ''}
               onChange={(e) =>
-                setCurrentRobot((prev) => ({ ...prev, name: e.target.value }))
+                setCurrentItem((prev) => ({ ...prev, name: e.target.value }))
               }
             />
             <FormControl fullWidth margin="normal">
               <InputLabel id="category-select-label">Catégorie</InputLabel>
               <Select
                 labelId="category-select-label"
-                value={currentRobot.category || ''}
+                value={currentItem.category || InventoryCategory.ROBOT}
                 label="Catégorie"
                 onChange={(e) =>
-                  setCurrentRobot((prev) => ({
+                  setCurrentItem((prev) => ({
                     ...prev,
-                    category: e.target.value,
+                    category: e.target.value as InventoryCategory,
                   }))
                 }
               >
-                {categories.map((category) => (
-                  <MenuItem key={category} value={category}>
-                    {category}
-                  </MenuItem>
-                ))}
+                <MenuItem value={InventoryCategory.ROBOT}>Robot</MenuItem>
+                <MenuItem value={InventoryCategory.ANTENNA}>Antenne</MenuItem>
+                <MenuItem value={InventoryCategory.PLUGIN}>Plugin</MenuItem>
               </Select>
             </FormControl>
             <TextField
@@ -819,9 +801,9 @@ const RobotInventory: React.FC = () => {
               label="Prix de vente (PV)"
               type="number"
               InputProps={{ inputProps: { min: 0, step: 0.01 } }}
-              value={currentRobot.sellingPrice || ''}
+              value={currentItem.sellingPrice || ''}
               onChange={(e) =>
-                setCurrentRobot((prev) => ({
+                setCurrentItem((prev) => ({
                   ...prev,
                   sellingPrice: e.target.value
                     ? parseFloat(e.target.value)
@@ -835,9 +817,9 @@ const RobotInventory: React.FC = () => {
               label="Prix d'achat (PA)"
               type="number"
               InputProps={{ inputProps: { min: 0, step: 0.01 } }}
-              value={currentRobot.purchasePrice || ''}
+              value={currentItem.purchasePrice || ''}
               onChange={(e) =>
-                setCurrentRobot((prev) => ({
+                setCurrentItem((prev) => ({
                   ...prev,
                   purchasePrice: e.target.value
                     ? parseFloat(e.target.value)
@@ -853,7 +835,7 @@ const RobotInventory: React.FC = () => {
           </Tooltip>
           <Tooltip title="Enregistrer" arrow>
             <Button
-              onClick={handleSaveRobot}
+              onClick={handleSaveItem}
               variant="contained"
               color="primary"
             >
@@ -866,4 +848,4 @@ const RobotInventory: React.FC = () => {
   );
 };
 
-export default RobotInventory;
+export default Inventory;
