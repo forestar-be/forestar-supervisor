@@ -65,11 +65,13 @@ export interface PurchaseOrder {
   antennaInventoryId: number | null;
   antenna?: RobotInventory;
 
+  shelterInventoryId: number | null;
+  shelter?: RobotInventory;
+
   hasWire: boolean;
   wireLength: number | null;
-  shelterType: string | null;
-  shelterPrice: number | null;
   hasAntennaSupport: boolean;
+  hasPlacement: boolean;
 
   installationDate: string | null;
   needsInstaller: boolean;
@@ -95,11 +97,12 @@ export interface PurchaseOrderFormData {
 
   pluginInventoryId: number | null;
   antennaInventoryId: number | null;
+  shelterInventoryId: number | null;
+
   hasWire: boolean;
   wireLength: number;
-  shelterType: string;
-  shelterPrice: number;
   hasAntennaSupport: boolean;
+  hasPlacement: boolean;
 
   installationDate: string;
   needsInstaller: boolean;
@@ -115,6 +118,7 @@ export enum InventoryCategory {
   ROBOT = 'ROBOT',
   ANTENNA = 'ANTENNA',
   PLUGIN = 'PLUGIN',
+  SHELTER = 'SHELTER',
 }
 
 // Types for Robot Inventory
@@ -144,4 +148,21 @@ export interface InventoryPlan {
 export interface InventorySummary {
   robots: RobotInventory[];
   periods: { year: number; month: number }[];
+}
+
+// Installation Preparation Text
+export enum InstallationTextType {
+  TITLE = 'TITLE',
+  SUBTITLE = 'SUBTITLE',
+  SUBTITLE2 = 'SUBTITLE2',
+  PARAGRAPH = 'PARAGRAPH',
+}
+
+export interface InstallationPreparationText {
+  id: number;
+  content: string;
+  type: InstallationTextType;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
 }

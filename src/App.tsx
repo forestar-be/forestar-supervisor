@@ -24,6 +24,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
 import { fetchInventorySummaryAsync } from './store/robotInventorySlice';
+import { fetchAllInstallationTextsThunk } from './store/installationTextsSlice';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
@@ -61,8 +62,7 @@ const defaultTheme = 'light';
 //   </PDFViewer>
 // );
 
-// Configuration loader component
-const ConfigLoader = () => {
+const InitStoreLoader = () => {
   const auth = useAuth();
   const dispatch = useAppDispatch();
 
@@ -70,6 +70,7 @@ const ConfigLoader = () => {
     if (auth.token) {
       dispatch(fetchConfigAsync(auth.token));
       dispatch(fetchInventorySummaryAsync(auth.token));
+      dispatch(fetchAllInstallationTextsThunk(auth.token));
     }
   }, [auth.token, dispatch]);
 
@@ -129,7 +130,7 @@ const App = (): JSX.Element => {
                         path="/*"
                         element={
                           <Provider store={store}>
-                            <ConfigLoader />
+                            <InitStoreLoader />
                             <Routes>
                               <Route path="/" element={<Home />} />
                               <Route

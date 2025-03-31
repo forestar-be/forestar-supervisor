@@ -7,7 +7,11 @@ import {
   StyleSheet,
   PDFViewer,
 } from '@react-pdf/renderer';
-import { PurchaseOrder } from '../utils/types';
+import {
+  PurchaseOrder,
+  InstallationPreparationText,
+  InstallationTextType,
+} from '../utils/types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 
@@ -167,6 +171,8 @@ const formatPriceForPdf = (price: number | null | undefined): string => {
 
 // Define constant for antenna support price
 const ANTENNA_SUPPORT_PRICE = 50;
+// Define constant for placement price
+const PLACEMENT_PRICE = 200;
 
 interface PurchaseOrderPdfProps {
   purchaseOrder: PurchaseOrder;
@@ -176,15 +182,13 @@ interface PurchaseOrderPdfProps {
 export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
   purchaseOrder,
 }) => {
-  const configData = useSelector((state: RootState) => state.config.config);
+  const { texts } = useSelector((state: RootState) => state.installationTexts);
 
   return (
     <PDFViewer style={{ width: '100%', height: '100vh' }}>
       <PurchaseOrderPdfDocument
         purchaseOrder={purchaseOrder}
-        installationText={
-          configData['Texte préparation installation bon de commande']
-        }
+        installationTexts={texts}
       />
     </PDFViewer>
   );
@@ -193,10 +197,12 @@ export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
 // Document component for the PDF
 export const PurchaseOrderPdfDocument: React.FC<{
   purchaseOrder: PurchaseOrder;
-  installationText?: string;
-}> = ({ purchaseOrder, installationText }) => {
-  // Check if we need a second page for installation notes
+  installationTexts?: InstallationPreparationText[];
+}> = ({ purchaseOrder, installationTexts }) => {
+  // Check if we need a third page for installation notes
   const hasInstallationNotes = !!purchaseOrder.installationNotes;
+  const hasInstallationTexts =
+    installationTexts && installationTexts.length > 0;
 
   // Calculate total price
   const calculateTotalPrice = () => {
@@ -210,13 +216,77 @@ export const PurchaseOrderPdfDocument: React.FC<{
       total += purchaseOrder.antenna?.sellingPrice;
     }
 
+    if (purchaseOrder.shelter?.sellingPrice) {
+      total += purchaseOrder.shelter?.sellingPrice;
+    }
+
     if (purchaseOrder.hasAntennaSupport) {
       total += ANTENNA_SUPPORT_PRICE;
     }
-    if (purchaseOrder.shelterPrice) {
-      total += purchaseOrder.shelterPrice;
+
+    if (purchaseOrder.hasPlacement) {
+      total += PLACEMENT_PRICE;
     }
+
     return total;
+  };
+
+  // Function to render installation preparation text based on its type
+  const renderInstallationText = (text: InstallationPreparationText) => {
+    switch (text.type) {
+      case InstallationTextType.TITLE:
+        return (
+          <Text
+            key={text.id}
+            style={{
+              fontSize: 16,
+              fontWeight: 'bold',
+              marginTop: 15,
+              marginBottom: 10,
+            }}
+          >
+            {text.content}
+          </Text>
+        );
+      case InstallationTextType.SUBTITLE:
+        return (
+          <Text
+            key={text.id}
+            style={{
+              fontSize: 14,
+              fontWeight: 'bold',
+              marginTop: 12,
+              marginBottom: 8,
+            }}
+          >
+            {text.content}
+          </Text>
+        );
+      case InstallationTextType.SUBTITLE2:
+        return (
+          <Text
+            key={text.id}
+            style={{
+              fontSize: 12,
+              fontWeight: 'bold',
+              marginTop: 10,
+              marginBottom: 6,
+            }}
+          >
+            {text.content}
+          </Text>
+        );
+      case InstallationTextType.PARAGRAPH:
+      default:
+        return (
+          <Text
+            key={text.id}
+            style={{ fontSize: 10, marginBottom: 10, lineHeight: 1.5 }}
+          >
+            {text.content}
+          </Text>
+        );
+    }
   };
 
   return (
@@ -290,6 +360,12 @@ export const PurchaseOrderPdfDocument: React.FC<{
               <Text style={styles.value}>{purchaseOrder.antenna.name}</Text>
             </View>
           )}
+          {purchaseOrder.shelter && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Abri:</Text>
+              <Text style={styles.value}>{purchaseOrder.shelter.name}</Text>
+            </View>
+          )}
           {purchaseOrder.hasWire && (
             <View style={styles.row}>
               <Text style={styles.label}>Filaire:</Text>
@@ -307,18 +383,10 @@ export const PurchaseOrderPdfDocument: React.FC<{
               <Text style={styles.value}>Oui (+50€)</Text>
             </View>
           )}
-          {purchaseOrder.shelterType && (
+          {purchaseOrder.hasPlacement && (
             <View style={styles.row}>
-              <Text style={styles.label}>Type d'abri:</Text>
-              <Text style={styles.value}>{purchaseOrder.shelterType}</Text>
-            </View>
-          )}
-          {purchaseOrder.shelterPrice && purchaseOrder.shelterPrice > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Prix abri:</Text>
-              <Text style={styles.value}>
-                {formatPriceForPdf(purchaseOrder.shelterPrice)}
-              </Text>
+              <Text style={styles.label}>Placement:</Text>
+              <Text style={styles.value}>Oui (+200€)</Text>
             </View>
           )}
         </View>
@@ -425,6 +493,23 @@ export const PurchaseOrderPdfDocument: React.FC<{
               </View>
             </View>
           )}
+          {purchaseOrder.shelter && (
+            <View style={styles.tableRow}>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>
+                  Abri {purchaseOrder.shelter.name}
+                </Text>
+              </View>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>1</Text>
+              </View>
+              <View style={styles.tableCol}>
+                <Text style={styles.tableCell}>
+                  {formatPriceForPdf(purchaseOrder.shelter?.sellingPrice || 0)}
+                </Text>
+              </View>
+            </View>
+          )}
           {purchaseOrder.hasWire && (
             <View style={styles.tableRow}>
               <View style={styles.tableCol}>
@@ -458,21 +543,17 @@ export const PurchaseOrderPdfDocument: React.FC<{
               </View>
             </View>
           )}
-          {purchaseOrder.shelterPrice && purchaseOrder.shelterPrice > 0 && (
+          {purchaseOrder.hasPlacement && (
             <View style={styles.tableRow}>
               <View style={styles.tableCol}>
-                <Text style={styles.tableCell}>
-                  Abri{' '}
-                  {purchaseOrder.shelterType &&
-                    `(${purchaseOrder.shelterType})`}
-                </Text>
+                <Text style={styles.tableCell}>Placement</Text>
               </View>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>1</Text>
               </View>
               <View style={styles.tableCol}>
                 <Text style={styles.tableCell}>
-                  {formatPriceForPdf(purchaseOrder.shelterPrice)}
+                  {formatPriceForPdf(PLACEMENT_PRICE)}
                 </Text>
               </View>
             </View>
@@ -528,21 +609,16 @@ export const PurchaseOrderPdfDocument: React.FC<{
       </Page>
 
       {/* Third page with installation preparation instructions */}
-      {installationText && (
+      {hasInstallationTexts && (
         <Page size="A4" style={styles.page}>
           {/* Header for consistency */}
           <View style={styles.header}>
             <Text style={styles.headerText}>FORESTAR</Text>
           </View>
 
-          {/* Installation preparation title */}
-          <View style={styles.sectionTitle}>
-            <Text>PRÉPARATION DE L'INSTALLATION</Text>
-          </View>
-
-          {/* Installation preparation text */}
+          {/* Installation preparation texts */}
           <View style={styles.column}>
-            <Text style={styles.noteText}>{installationText}</Text>
+            {installationTexts?.map((text) => renderInstallationText(text))}
           </View>
         </Page>
       )}
