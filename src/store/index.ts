@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
-import configReducer from './configSlice';
 import robotInventoryReducer from './robotInventorySlice';
+import configReducer from './configSlice';
+import installationTextsReducer from './installationTextsSlice';
 
 export const store = configureStore({
   reducer: {
-    config: configReducer,
     robotInventory: robotInventoryReducer,
+    config: configReducer,
+    installationTexts: installationTextsReducer,
   },
 });
 

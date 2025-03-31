@@ -468,6 +468,7 @@ const Inventory: React.FC = () => {
       [InventoryCategory.ROBOT]: 'primary',
       [InventoryCategory.ANTENNA]: 'secondary',
       [InventoryCategory.PLUGIN]: 'success',
+      [InventoryCategory.SHELTER]: 'warning',
     };
 
     // Get friendly display name for category
@@ -479,6 +480,8 @@ const Inventory: React.FC = () => {
           return 'Antenne';
         case InventoryCategory.PLUGIN:
           return 'Plugin';
+        case InventoryCategory.SHELTER:
+          return 'Abri';
         default:
           return category;
       }
@@ -793,6 +796,7 @@ const Inventory: React.FC = () => {
                 <MenuItem value={InventoryCategory.ROBOT}>Robot</MenuItem>
                 <MenuItem value={InventoryCategory.ANTENNA}>Antenne</MenuItem>
                 <MenuItem value={InventoryCategory.PLUGIN}>Plugin</MenuItem>
+                <MenuItem value={InventoryCategory.SHELTER}>Abri</MenuItem>
               </Select>
             </FormControl>
             <TextField

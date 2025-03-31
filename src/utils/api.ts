@@ -5,6 +5,7 @@ import {
   PurchaseOrder,
   PurchaseOrderFormData,
   RobotInventory,
+  InstallationPreparationText,
 } from './types';
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -506,3 +507,48 @@ export const getAuthUrlGg = async (
     token,
   );
 };
+
+// Installation Preparation Text API functions
+export const fetchAllInstallationTexts = (
+  token: string,
+): Promise<InstallationPreparationText[]> =>
+  apiRequest('/supervisor/installation-preparation-texts', 'GET', token);
+
+export const createInstallationText = (
+  token: string,
+  data: { content: string; type: string; order: number },
+): Promise<InstallationPreparationText> =>
+  apiRequest('/supervisor/installation-preparation-texts', 'POST', token, data);
+
+export const updateInstallationText = (
+  token: string,
+  id: number,
+  updates: { content?: string; type?: string; order?: number },
+): Promise<InstallationPreparationText> =>
+  apiRequest(
+    `/supervisor/installation-preparation-texts/${id}`,
+    'PATCH',
+    token,
+    updates,
+  );
+
+export const deleteInstallationText = (
+  token: string,
+  id: number,
+): Promise<void> =>
+  apiRequest(
+    `/supervisor/installation-preparation-texts/${id}`,
+    'DELETE',
+    token,
+  );
+
+export const reorderInstallationTexts = (
+  token: string,
+  textIds: number[],
+): Promise<InstallationPreparationText[]> =>
+  apiRequest(
+    '/supervisor/installation-preparation-texts/reorder',
+    'POST',
+    token,
+    { textIds },
+  );

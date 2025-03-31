@@ -26,7 +26,6 @@ interface ConfigState {
     'Prix hivernage': string;
     États: string;
     'URL drive bons de commande': string;
-    'Texte préparation installation bon de commande': string;
     [key: string]: string;
   };
   loading: boolean;
@@ -51,7 +50,6 @@ const initialState: ConfigState = {
     'Prix hivernage': '0',
     États: '{}',
     'URL drive bons de commande': '',
-    'Texte préparation installation bon de commande': '',
   },
   loading: false,
   error: null,

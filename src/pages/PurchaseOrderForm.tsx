@@ -200,11 +200,11 @@ const PurchaseOrderForm: React.FC = () => {
     robotInventoryId: 0,
     pluginInventoryId: null,
     antennaInventoryId: null,
+    shelterInventoryId: null,
     hasWire: false,
     wireLength: 0,
-    shelterType: '',
-    shelterPrice: 0,
     hasAntennaSupport: false,
+    hasPlacement: false,
     installationDate: '',
     needsInstaller: false,
     installationNotes: '',
@@ -216,8 +216,7 @@ const PurchaseOrderForm: React.FC = () => {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(
     null,
   );
-
-  const configData = useSelector((state: RootState) => state.config.config);
+  const { texts } = useSelector((state: RootState) => state.installationTexts);
   const { items: inventoryItems, loading: inventoryLoading } = useSelector(
     (state: RootState) => state.robotInventory,
   );
@@ -231,6 +230,9 @@ const PurchaseOrderForm: React.FC = () => {
   );
   const plugins = inventoryItems.filter(
     (item) => item.category === InventoryCategory.PLUGIN,
+  );
+  const shelters = inventoryItems.filter(
+    (item) => item.category === InventoryCategory.SHELTER,
   );
 
   // Fetch inventory data if needed
@@ -252,6 +254,7 @@ const PurchaseOrderForm: React.FC = () => {
           ...data,
           pluginInventoryId: data.pluginInventoryId || null,
           antennaInventoryId: data.antennaInventoryId || null,
+          shelterInventoryId: data.shelterInventoryId || null,
         });
 
         setFormData({
@@ -264,11 +267,11 @@ const PurchaseOrderForm: React.FC = () => {
           robotInventoryId: data.robotInventoryId,
           pluginInventoryId: data.pluginInventoryId || null,
           antennaInventoryId: data.antennaInventoryId || null,
+          shelterInventoryId: data.shelterInventoryId || null,
           hasWire: data.hasWire,
           wireLength: data.wireLength || 0,
-          shelterType: data.shelterType || '',
-          shelterPrice: data.shelterPrice || 0,
           hasAntennaSupport: data.hasAntennaSupport || false,
+          hasPlacement: data.hasPlacement || false,
           installationDate: data.installationDate || '',
           needsInstaller: data.needsInstaller,
           installationNotes: data.installationNotes || '',
@@ -314,13 +317,12 @@ const PurchaseOrderForm: React.FC = () => {
   const generatePDF = async (order: PurchaseOrder) => {
     try {
       console.log('order', order);
+      console.log('texts', texts);
       // Create the PDF document
       const pdfBlob = await pdf(
         <PurchaseOrderPdfDocument
           purchaseOrder={order}
-          installationText={
-            configData['Texte préparation installation bon de commande']
-          }
+          installationTexts={texts}
         />,
       ).toBlob();
 
@@ -410,11 +412,11 @@ const PurchaseOrderForm: React.FC = () => {
         robotInventoryId: formData.robotInventoryId,
         pluginInventoryId: formData.pluginInventoryId,
         antennaInventoryId: formData.antennaInventoryId,
+        shelterInventoryId: formData.shelterInventoryId,
         hasWire: formData.hasWire,
         wireLength: formData.wireLength || null,
-        shelterType: formData.shelterType || null,
-        shelterPrice: formData.shelterPrice || null,
         hasAntennaSupport: formData.hasAntennaSupport,
+        hasPlacement: formData.hasPlacement,
         installationDate: formData.installationDate || null,
         needsInstaller: formData.needsInstaller,
         installationNotes: formData.installationNotes || null,
@@ -429,6 +431,9 @@ const PurchaseOrderForm: React.FC = () => {
           : undefined,
         antenna: formData.antennaInventoryId
           ? antennas.find((a) => a.id === formData.antennaInventoryId)
+          : undefined,
+        shelter: formData.shelterInventoryId
+          ? shelters.find((s) => s.id === formData.shelterInventoryId)
           : undefined,
       };
 
@@ -494,6 +499,14 @@ const PurchaseOrderForm: React.FC = () => {
     ...plugins.map((plugin) => ({
       value: plugin.id,
       label: `${plugin.name} ${plugin.reference ? `(réf. ${plugin.reference})` : ''} - ${plugin.sellingPrice ? formatPriceNumberToFrenchFormatStr(plugin.sellingPrice) : 'Aucun prix'}`,
+    })),
+  ];
+
+  const shelterOptions = [
+    { value: null, label: 'Aucun' },
+    ...shelters.map((shelter) => ({
+      value: shelter.id,
+      label: `${shelter.name} ${shelter.reference ? `(réf. ${shelter.reference})` : ''} - ${shelter.sellingPrice ? formatPriceNumberToFrenchFormatStr(shelter.sellingPrice) : 'Aucun prix'}`,
     })),
   ];
 
@@ -602,6 +615,18 @@ const PurchaseOrderForm: React.FC = () => {
               options={antennaOptions}
               disabled={isEditing}
             />
+            <FormSelectField
+              name="shelterInventoryId"
+              label={
+                isEditing && !formData.shelterInventoryId
+                  ? 'Aucun abri'
+                  : 'Abri'
+              }
+              value={formData.shelterInventoryId}
+              onChange={handleChange}
+              options={shelterOptions}
+              disabled={isEditing}
+            />
             <Grid item xs={12} sm={6}>
               <FormControlLabel
                 control={
@@ -613,26 +638,17 @@ const PurchaseOrderForm: React.FC = () => {
                 label="Support antenne (+50€)"
               />
             </Grid>
-            <FormSelectField
-              name="shelterType"
-              label="Type d'abri"
-              value={formData.shelterType}
-              onChange={handleChange}
-              options={[
-                { value: '', label: 'Aucun' },
-                { value: 'Standard', label: 'Standard' },
-                { value: 'Premium', label: 'Premium' },
-                { value: 'Deluxe', label: 'Deluxe' },
-              ]}
-            />
-            <FormTextField
-              name="shelterPrice"
-              label="Prix abri"
-              type="number"
-              value={formData.shelterPrice || ''}
-              onChange={handleChange}
-              startAdornment="€"
-            />
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.hasPlacement}
+                    onChange={() => handleCheckboxChange('hasPlacement')}
+                  />
+                }
+                label="Placement (+200€)"
+              />
+            </Grid>
             <Grid item xs={12} sm={6}>
               <FormControlLabel
                 control={

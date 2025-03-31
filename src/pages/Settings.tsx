@@ -1,4 +1,4 @@
-import { Box, Tabs, Tab } from '@mui/material';
+import { Box, Tabs, Tab, SxProps } from '@mui/material';
 import React from 'react';
 import EditRepairedPart from '../components/settings/EditRepairedPart';
 import EditUser from '../components/settings/EditUser';
@@ -17,11 +17,16 @@ import {
 import EditConfig from '../components/settings/EditConfig';
 import { useAuth } from '../hooks/AuthProvider';
 import EditRobotType from '../components/settings/EditRobotType';
+import InstallationPreparationTextEditor from '../components/InstallationPreparationTextEditor';
+import InstallationPreparationTextPreview from '../components/InstallationPreparationTextPreview';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
+  subTabPanelSx?: SxProps;
 }
 
 function a11yProps(index: number) {
@@ -44,7 +49,11 @@ function CustomTabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box height={'100%'} sx={{ p: 3 }}>
+        <Box
+          height={'100%'}
+          sx={props.subTabPanelSx || { pt: 2 }}
+          id={`sub-tabpanel-${index}`}
+        >
           {children}
         </Box>
       )}
@@ -54,13 +63,22 @@ function CustomTabPanel(props: TabPanelProps) {
 const Settings = (): JSX.Element => {
   const { isAdmin } = useAuth();
   const [value, setValue] = React.useState(0);
+  const [installationTabValue, setInstallationTabValue] = React.useState(0);
+  const { texts } = useSelector((state: RootState) => state.installationTexts);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
 
+  const handleInstallationTabChange = (
+    event: React.SyntheticEvent,
+    newValue: number,
+  ) => {
+    setInstallationTabValue(newValue);
+  };
+
   return (
-    <Box sx={{ padding: 4, height: '100%', position: 'relative' }}>
+    <Box sx={{ px: 4, py: 1, height: '100%', position: 'relative' }}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs
           value={value}
@@ -72,8 +90,9 @@ const Settings = (): JSX.Element => {
           <Tab label="Marques" {...a11yProps(2)} />
           <Tab label="Type de machine" {...a11yProps(3)} />
           <Tab label="Types de robot" {...a11yProps(4)} />
-          <Tab label="Autre" {...a11yProps(5)} />
-          {isAdmin && <Tab label="Utilisateurs" {...a11yProps(6)} />}
+          <Tab label="Textes d'installation" {...a11yProps(5)} />
+          <Tab label="Autre" {...a11yProps(6)} />
+          {isAdmin && <Tab label="Utilisateurs" {...a11yProps(7)} />}
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
@@ -106,11 +125,33 @@ const Settings = (): JSX.Element => {
       <CustomTabPanel value={value} index={4}>
         <EditRobotType />
       </CustomTabPanel>
-      <CustomTabPanel value={value} index={5}>
+      <CustomTabPanel value={value} index={5} subTabPanelSx={{ pt: 1 }}>
+        <Box
+          sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+          id="installation-preparation-text-editor"
+        >
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Tabs
+              value={installationTabValue}
+              onChange={handleInstallationTabChange}
+              aria-label="Installation preparation text tabs"
+            >
+              <Tab label="Éditer" {...a11yProps(0)} />
+              <Tab label="Prévisualiser" {...a11yProps(1)} />
+            </Tabs>
+          </Box>
+          {installationTabValue === 0 ? (
+            <InstallationPreparationTextEditor />
+          ) : (
+            <InstallationPreparationTextPreview texts={texts} />
+          )}
+        </Box>
+      </CustomTabPanel>
+      <CustomTabPanel value={value} index={6}>
         <EditConfig />
       </CustomTabPanel>
       {isAdmin && (
-        <CustomTabPanel value={value} index={6}>
+        <CustomTabPanel value={value} index={7}>
           <EditUser />
         </CustomTabPanel>
       )}
