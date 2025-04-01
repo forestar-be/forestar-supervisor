@@ -348,6 +348,12 @@ export const PurchaseOrderPdfDocument: React.FC<{
                 : ''}
             </Text>
           </View>
+          {purchaseOrder.serialNumber && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Numéro de série:</Text>
+              <Text style={styles.value}>{purchaseOrder.serialNumber}</Text>
+            </View>
+          )}
           {purchaseOrder.plugin && (
             <View style={styles.row}>
               <Text style={styles.label}>Plugin:</Text>

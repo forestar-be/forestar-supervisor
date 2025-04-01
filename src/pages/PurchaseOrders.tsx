@@ -12,6 +12,7 @@ import {
   MenuItem,
   FormControl,
   SelectChangeEvent,
+  Checkbox,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -336,7 +337,7 @@ const PurchaseOrders: React.FC = () => {
   const handleStatusChange = useCallback(
     async (
       orderId: number,
-      field: 'hasAppointment' | 'isInstalled',
+      field: 'hasAppointment' | 'isInstalled' | 'isInvoiced',
       value: boolean,
     ) => {
       if (!token) return;
@@ -371,39 +372,29 @@ const PurchaseOrders: React.FC = () => {
       if (!params.data) return null;
       const order = params.data as PurchaseOrder;
 
-      const bgColor = order.hasAppointment
-        ? 'rgba(46, 125, 50, 0.1)'
-        : 'rgba(211, 47, 47, 0.1)';
-      const borderColor = order.hasAppointment
-        ? 'rgba(46, 125, 50, 0.5)'
-        : 'rgba(211, 47, 47, 0.5)';
-
       return (
-        <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-          <FormControl size="small" fullWidth>
-            <Select
-              value={order.hasAppointment ? 'true' : 'false'}
-              onChange={(e: SelectChangeEvent) => {
-                const newValue = e.target.value === 'true';
-                handleStatusChange(order.id, 'hasAppointment', newValue);
-              }}
-              sx={{
-                height: '32px',
-                backgroundColor: bgColor,
-                '.MuiOutlinedInput-notchedOutline': {
-                  borderColor: borderColor,
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: order.hasAppointment
-                    ? 'rgba(46, 125, 50, 0.8)'
-                    : 'rgba(211, 47, 47, 0.8)',
-                },
-              }}
-            >
-              <MenuItem value="true">Pris</MenuItem>
-              <MenuItem value="false">Non pris</MenuItem>
-            </Select>
-          </FormControl>
+        <Box
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Checkbox
+            checked={order.hasAppointment}
+            onChange={(e) => {
+              handleStatusChange(order.id, 'hasAppointment', e.target.checked);
+            }}
+            sx={{
+              color: order.hasAppointment
+                ? 'rgba(46, 125, 50, 0.8)'
+                : 'rgba(211, 47, 47, 0.8)',
+              '&.Mui-checked': {
+                color: 'rgba(46, 125, 50, 0.8)',
+              },
+            }}
+          />
         </Box>
       );
     },
@@ -416,39 +407,64 @@ const PurchaseOrders: React.FC = () => {
       if (!params.data) return null;
       const order = params.data as PurchaseOrder;
 
-      const bgColor = order.isInstalled
-        ? 'rgba(46, 125, 50, 0.1)'
-        : 'rgba(211, 47, 47, 0.1)';
-      const borderColor = order.isInstalled
-        ? 'rgba(46, 125, 50, 0.5)'
-        : 'rgba(211, 47, 47, 0.5)';
+      return (
+        <Box
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Checkbox
+            checked={order.isInstalled}
+            onChange={(e) => {
+              handleStatusChange(order.id, 'isInstalled', e.target.checked);
+            }}
+            sx={{
+              color: order.isInstalled
+                ? 'rgba(46, 125, 50, 0.8)'
+                : 'rgba(211, 47, 47, 0.8)',
+              '&.Mui-checked': {
+                color: 'rgba(46, 125, 50, 0.8)',
+              },
+            }}
+          />
+        </Box>
+      );
+    },
+    [handleStatusChange],
+  );
+
+  // Invoice status cell renderer
+  const invoiceStatusCellRenderer = useCallback(
+    (params: ICellRendererParams) => {
+      if (!params.data) return null;
+      const order = params.data as PurchaseOrder;
 
       return (
-        <Box sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
-          <FormControl size="small" fullWidth>
-            <Select
-              value={order.isInstalled ? 'true' : 'false'}
-              onChange={(e: SelectChangeEvent) => {
-                const newValue = e.target.value === 'true';
-                handleStatusChange(order.id, 'isInstalled', newValue);
-              }}
-              sx={{
-                height: '32px',
-                backgroundColor: bgColor,
-                '.MuiOutlinedInput-notchedOutline': {
-                  borderColor: borderColor,
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: order.isInstalled
-                    ? 'rgba(46, 125, 50, 0.8)'
-                    : 'rgba(211, 47, 47, 0.8)',
-                },
-              }}
-            >
-              <MenuItem value="true">Installé</MenuItem>
-              <MenuItem value="false">Non installé</MenuItem>
-            </Select>
-          </FormControl>
+        <Box
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Checkbox
+            checked={order.isInvoiced}
+            onChange={(e) => {
+              handleStatusChange(order.id, 'isInvoiced', e.target.checked);
+            }}
+            sx={{
+              color: order.isInvoiced
+                ? 'rgba(46, 125, 50, 0.8)'
+                : 'rgba(211, 47, 47, 0.8)',
+              '&.Mui-checked': {
+                color: 'rgba(46, 125, 50, 0.8)',
+              },
+            }}
+          />
         </Box>
       );
     },
@@ -459,26 +475,19 @@ const PurchaseOrders: React.FC = () => {
   const columnDefs = useMemo<ColDef[]>(
     () => [
       {
-        headerName: 'ID',
-        field: 'id',
-        sortable: true,
-        filter: true,
-        width: 70,
-      },
-      {
-        headerName: 'Date de création',
+        headerName: 'Création',
         field: 'createdAt',
         sortable: true,
         filter: true,
+        minWidth: 130,
+        maxWidth: 130,
         valueFormatter: formatDate,
-        flex: 1,
       },
       {
         headerName: 'Client',
         field: 'clientName',
         sortable: true,
         filter: true,
-        flex: 2,
         valueGetter: (params) => {
           if (!params.data) return '';
           return `${params.data.clientFirstName} ${params.data.clientLastName}`;
@@ -489,11 +498,16 @@ const PurchaseOrders: React.FC = () => {
         field: 'robotName',
         sortable: true,
         filter: true,
-        flex: 2,
         valueGetter: (params) => {
           if (!params.data || !params.data.robotInventory) return '';
           return params.data.robotInventory.name;
         },
+      },
+      {
+        headerName: 'N° de série',
+        field: 'serialNumber',
+        sortable: true,
+        filter: true,
       },
       {
         headerName: 'Acompte',
@@ -501,7 +515,6 @@ const PurchaseOrders: React.FC = () => {
         sortable: true,
         filter: 'agNumberColumnFilter',
         valueFormatter: formatPrice,
-        flex: 1,
       },
       {
         headerName: "Date d'installation",
@@ -509,34 +522,62 @@ const PurchaseOrders: React.FC = () => {
         sortable: true,
         filter: true,
         valueFormatter: formatDate,
-        flex: 1,
       },
       {
         headerName: 'RDV pris',
         field: 'hasAppointment',
         sortable: true,
         filter: true,
-        flex: 1.5,
+        minWidth: 120,
+        maxWidth: 120,
         cellRenderer: appointmentStatusCellRenderer,
         cellClass: 'no-focus-outline',
-        headerClass: 'appointment-header',
+        cellStyle: (params: any) => ({
+          backgroundColor:
+            params.data && params.data.hasAppointment
+              ? 'rgba(46, 125, 50, 0.1)'
+              : 'rgba(211, 47, 47, 0.1)',
+        }),
       },
       {
-        headerName: 'Robot installé',
+        headerName: 'Installé',
         field: 'isInstalled',
         sortable: true,
         filter: true,
-        flex: 1.5,
+        minWidth: 120,
+        maxWidth: 120,
         cellRenderer: installationStatusCellRenderer,
         cellClass: 'no-focus-outline',
-        headerClass: 'installed-header',
+        cellStyle: (params: any) => ({
+          backgroundColor:
+            params.data && params.data.isInstalled
+              ? 'rgba(46, 125, 50, 0.1)'
+              : 'rgba(211, 47, 47, 0.1)',
+        }),
+      },
+      {
+        headerName: 'Facturé',
+        field: 'isInvoiced',
+        sortable: true,
+        filter: true,
+        minWidth: 120,
+        maxWidth: 120,
+        cellRenderer: invoiceStatusCellRenderer,
+        cellClass: 'no-focus-outline',
+        cellStyle: (params: any) => ({
+          backgroundColor:
+            params.data && params.data.isInvoiced
+              ? 'rgba(46, 125, 50, 0.1)'
+              : 'rgba(211, 47, 47, 0.1)',
+        }),
       },
       {
         headerName: 'Actions',
         field: 'actions',
         sortable: false,
         filter: false,
-        flex: 1.5,
+        minWidth: 200,
+        maxWidth: 200,
         cellRenderer: actionCellRenderer,
       },
     ],
@@ -546,6 +587,7 @@ const PurchaseOrders: React.FC = () => {
       actionCellRenderer,
       appointmentStatusCellRenderer,
       installationStatusCellRenderer,
+      invoiceStatusCellRenderer,
     ],
   );
 
@@ -656,24 +698,9 @@ const PurchaseOrders: React.FC = () => {
           theme.palette.mode === 'dark' ? '-dark' : ''
         }`}
       >
-        <style>
-          {`
-            .no-focus-outline .ag-cell-focus {
-              border: none !important;
-              outline: none !important;
-            }
-            .appointment-header::before {
-              content: "📅 ";
-              font-size: 16px;
-            }
-            .installed-header::before {
-              content: "🔧 ";
-              font-size: 16px;
-            }
-          `}
-        </style>
         <AgGridReact
           suppressCellFocus={true}
+          suppressMovableColumns={true}
           ref={gridRef}
           rowData={purchaseOrders}
           columnDefs={columnDefs}
