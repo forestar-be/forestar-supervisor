@@ -58,6 +58,7 @@ export interface PurchaseOrder {
 
   robotInventoryId: number;
   robotInventory?: RobotInventory;
+  serialNumber?: string;
 
   pluginInventoryId: number | null;
   plugin?: RobotInventory;
@@ -80,6 +81,7 @@ export interface PurchaseOrder {
   // Status fields
   hasAppointment: boolean;
   isInstalled: boolean;
+  isInvoiced: boolean;
 
   orderPdfId: string | null;
   eventId?: string | null;
@@ -94,6 +96,7 @@ export interface PurchaseOrderFormData {
   deposit: number;
 
   robotInventoryId: number;
+  serialNumber: string;
 
   pluginInventoryId: number | null;
   antennaInventoryId: number | null;
@@ -111,6 +114,7 @@ export interface PurchaseOrderFormData {
   // Status fields
   hasAppointment?: boolean;
   isInstalled?: boolean;
+  isInvoiced?: boolean;
 }
 
 // Define the InventoryCategory enum

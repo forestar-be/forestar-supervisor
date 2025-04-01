@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
@@ -68,35 +68,38 @@ const InstallationPreparationTextEditor = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [textToDelete, setTextToDelete] = useState<number | null>(null);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       content: '',
       type: InstallationTextType.PARAGRAPH,
     });
     setEditMode(false);
     setCurrentId(null);
-  };
+  }, []);
 
-  const handleOpenDialog = (text?: InstallationPreparationText) => {
-    if (text) {
-      setFormData({
-        content: text.content,
-        type: text.type as InstallationTextType,
-      });
-      setEditMode(true);
-      setCurrentId(text.id);
-    } else {
-      resetForm();
-    }
-    setOpenDialog(true);
-  };
+  const handleOpenDialog = useCallback(
+    (text?: InstallationPreparationText) => {
+      if (text) {
+        setFormData({
+          content: text.content,
+          type: text.type as InstallationTextType,
+        });
+        setEditMode(true);
+        setCurrentId(text.id);
+      } else {
+        resetForm();
+      }
+      setOpenDialog(true);
+    },
+    [resetForm],
+  );
 
-  const handleCloseDialog = () => {
+  const handleCloseDialog = useCallback(() => {
     setOpenDialog(false);
     resetForm();
-  };
+  }, [resetForm]);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     const { content, type } = formData;
     if (!content.trim() || !token) return;
 
@@ -126,26 +129,37 @@ const InstallationPreparationTextEditor = () => {
     }
 
     handleCloseDialog();
-  };
+  }, [
+    formData,
+    editMode,
+    currentId,
+    token,
+    texts,
+    dispatch,
+    handleCloseDialog,
+  ]);
 
-  const handleChange = (
-    e:
-      | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-      | SelectChangeEvent<InstallationTextType>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name as string]: value,
-    }));
-  };
+  const handleChange = useCallback(
+    (
+      e:
+        | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+        | SelectChangeEvent<InstallationTextType>,
+    ) => {
+      const { name, value } = e.target;
+      setFormData((prev) => ({
+        ...prev,
+        [name as string]: value,
+      }));
+    },
+    [],
+  );
 
-  const handleDeleteClick = (id: number) => {
+  const handleDeleteClick = useCallback((id: number) => {
     setTextToDelete(id);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = useCallback(() => {
     if (textToDelete !== null && token) {
       dispatch(deleteInstallationTextThunk({ token, id: textToDelete })).then(
         () => {
@@ -155,24 +169,27 @@ const InstallationPreparationTextEditor = () => {
     }
     setDeleteDialogOpen(false);
     setTextToDelete(null);
-  };
+  }, [textToDelete, token, dispatch]);
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination || !token) return;
+  const handleDragEnd = useCallback(
+    (result: any) => {
+      if (!result.destination || !token) return;
 
-    const items = Array.from(texts);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
+      const items = Array.from(texts);
+      const [reorderedItem] = items.splice(result.source.index, 1);
+      items.splice(result.destination.index, 0, reorderedItem);
 
-    const newOrderIds = items.map((item) => item.id);
-    dispatch(
-      reorderInstallationTextsThunk({ token, textIds: newOrderIds }),
-    ).then(() => {
-      dispatch(fetchAllInstallationTextsThunk(token));
-    });
-  };
+      const newOrderIds = items.map((item) => item.id);
+      dispatch(
+        reorderInstallationTextsThunk({ token, textIds: newOrderIds }),
+      ).then(() => {
+        dispatch(fetchAllInstallationTextsThunk(token));
+      });
+    },
+    [texts, token, dispatch],
+  );
 
-  const getTextStyle = (type: InstallationTextType) => {
+  const getTextStyle = useCallback((type: InstallationTextType) => {
     switch (type) {
       case InstallationTextType.TITLE:
         return { fontWeight: 'bold', fontSize: '1.5rem' };
@@ -183,7 +200,48 @@ const InstallationPreparationTextEditor = () => {
       default:
         return { fontSize: '1rem' };
     }
-  };
+  }, []);
+
+  const getTextTypeTranslation = useCallback(
+    (type: InstallationTextType): string => {
+      switch (type) {
+        case InstallationTextType.TITLE:
+          return 'Titre';
+        case InstallationTextType.SUBTITLE:
+          return 'Sous-titre';
+        case InstallationTextType.SUBTITLE2:
+          return 'Sous-titre 2';
+        case InstallationTextType.PARAGRAPH:
+          return 'Paragraphe';
+        default:
+          return type;
+      }
+    },
+    [],
+  );
+
+  const dialogTitle = useMemo(
+    () => (editMode ? 'Modifier une section' : 'Ajouter une section'),
+    [editMode],
+  );
+
+  const submitButtonText = useMemo(
+    () => (editMode ? 'Mettre à jour' : 'Ajouter'),
+    [editMode],
+  );
+
+  const emptyStateMessage = useMemo(
+    () =>
+      texts.length === 0 ? (
+        <Box p={3} textAlign="center">
+          <Typography color="text.secondary">
+            Aucune instruction de préparation n'a été définie. Cliquez sur
+            "Ajouter une section" pour commencer.
+          </Typography>
+        </Box>
+      ) : null,
+    [texts.length],
+  );
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -221,98 +279,90 @@ const InstallationPreparationTextEditor = () => {
         </Box>
       ) : (
         <Paper elevation={3} sx={{ p: 0, overflow: 'hidden' }}>
-          {texts.length === 0 ? (
-            <Box p={3} textAlign="center">
-              <Typography color="text.secondary">
-                Aucune instruction de préparation n'a été définie. Cliquez sur
-                "Ajouter une section" pour commencer.
-              </Typography>
-            </Box>
-          ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="texts">
-                {(provided) => (
-                  <List {...provided.droppableProps} ref={provided.innerRef}>
-                    {texts.map((text, index) => (
-                      <Draggable
-                        key={text.id}
-                        draggableId={text.id.toString()}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <ListItem
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            sx={{
-                              borderBottom:
-                                index < texts.length - 1
-                                  ? '1px solid #eee'
-                                  : 'none',
-                              bgcolor:
-                                index % 2 === 0
-                                  ? 'rgba(0,0,0,0.01)'
-                                  : 'inherit',
-                            }}
+          {emptyStateMessage}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="texts">
+              {(provided) => (
+                <List {...provided.droppableProps} ref={provided.innerRef}>
+                  {texts.map((text, index) => (
+                    <Draggable
+                      key={text.id}
+                      draggableId={text.id.toString()}
+                      index={index}
+                    >
+                      {(provided) => (
+                        <ListItem
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          sx={{
+                            borderBottom:
+                              index < texts.length - 1
+                                ? '1px solid #eee'
+                                : 'none',
+                            bgcolor:
+                              index % 2 === 0 ? 'rgba(0,0,0,0.01)' : 'inherit',
+                          }}
+                        >
+                          <Box
+                            {...provided.dragHandleProps}
+                            sx={{ mr: 1, color: 'text.secondary' }}
                           >
-                            <Box
-                              {...provided.dragHandleProps}
-                              sx={{ mr: 1, color: 'text.secondary' }}
+                            <DragHandleIcon />
+                          </Box>
+                          <ListItemText
+                            primary={
+                              <Typography
+                                component="div"
+                                sx={{
+                                  ...getTextStyle(
+                                    text.type as InstallationTextType,
+                                  ),
+                                  whiteSpace: 'pre-wrap',
+                                }}
+                              >
+                                {text.content}
+                              </Typography>
+                            }
+                            secondary={
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                {getTextTypeTranslation(
+                                  text.type as InstallationTextType,
+                                )}
+                              </Typography>
+                            }
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton
+                              edge="end"
+                              onClick={() => handleOpenDialog(text)}
+                              aria-label="edit"
+                              size="small"
+                              sx={{ mr: 1 }}
                             >
-                              <DragHandleIcon />
-                            </Box>
-                            <ListItemText
-                              primary={
-                                <Typography
-                                  component="div"
-                                  sx={{
-                                    ...getTextStyle(
-                                      text.type as InstallationTextType,
-                                    ),
-                                    whiteSpace: 'pre-wrap',
-                                  }}
-                                >
-                                  {text.content}
-                                </Typography>
-                              }
-                              secondary={
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
-                                  {text.type}
-                                </Typography>
-                              }
-                            />
-                            <ListItemSecondaryAction>
-                              <IconButton
-                                edge="end"
-                                onClick={() => handleOpenDialog(text)}
-                                aria-label="edit"
-                                size="small"
-                                sx={{ mr: 1 }}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton
-                                edge="end"
-                                onClick={() => handleDeleteClick(text.id)}
-                                aria-label="delete"
-                                size="small"
-                                color="error"
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </ListItemSecondaryAction>
-                          </ListItem>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </List>
-                )}
-              </Droppable>
-            </DragDropContext>
-          )}
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              edge="end"
+                              onClick={() => handleDeleteClick(text.id)}
+                              aria-label="delete"
+                              size="small"
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </List>
+              )}
+            </Droppable>
+          </DragDropContext>
         </Paper>
       )}
 
@@ -323,9 +373,7 @@ const InstallationPreparationTextEditor = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          {editMode ? 'Modifier une section' : 'Ajouter une section'}
-        </DialogTitle>
+        <DialogTitle>{dialogTitle}</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
             <FormControl fullWidth>
@@ -369,7 +417,7 @@ const InstallationPreparationTextEditor = () => {
         <DialogActions>
           <Button onClick={handleCloseDialog}>Annuler</Button>
           <Button onClick={handleSubmit} variant="contained" color="primary">
-            {editMode ? 'Mettre à jour' : 'Ajouter'}
+            {submitButtonText}
           </Button>
         </DialogActions>
       </Dialog>

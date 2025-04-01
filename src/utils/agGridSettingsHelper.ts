@@ -52,7 +52,7 @@ export function onFirstDataRendered(params: any, gridStateKey: string) {
       const columnState = JSON.parse(columnStateJson) as ColumnState[];
       params.api.applyColumnState({
         state: columnState,
-        applyOrder: true,
+        applyOrder: false,
       });
       console.log('Loaded grid column state', gridStateKey);
     } catch (error) {

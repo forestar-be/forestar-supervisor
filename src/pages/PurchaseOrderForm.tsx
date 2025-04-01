@@ -198,6 +198,7 @@ const PurchaseOrderForm: React.FC = () => {
     clientPhone: '',
     deposit: 0,
     robotInventoryId: 0,
+    serialNumber: '',
     pluginInventoryId: null,
     antennaInventoryId: null,
     shelterInventoryId: null,
@@ -210,6 +211,7 @@ const PurchaseOrderForm: React.FC = () => {
     installationNotes: '',
     hasAppointment: false,
     isInstalled: false,
+    isInvoiced: false,
   });
   const [selectedInvoice, setSelectedInvoice] = useState<File | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
@@ -265,6 +267,7 @@ const PurchaseOrderForm: React.FC = () => {
           clientPhone: data.clientPhone,
           deposit: data.deposit,
           robotInventoryId: data.robotInventoryId,
+          serialNumber: data.serialNumber || '',
           pluginInventoryId: data.pluginInventoryId || null,
           antennaInventoryId: data.antennaInventoryId || null,
           shelterInventoryId: data.shelterInventoryId || null,
@@ -424,6 +427,9 @@ const PurchaseOrderForm: React.FC = () => {
           formData.hasAppointment || purchaseOrder?.hasAppointment || false,
         isInstalled:
           formData.isInstalled || purchaseOrder?.isInstalled || false,
+        isInvoiced: formData.isInvoiced || purchaseOrder?.isInvoiced || false,
+        serialNumber:
+          formData.serialNumber || purchaseOrder?.serialNumber || '',
         orderPdfId: purchaseOrder?.orderPdfId || null,
         robotInventory: robots.find((r) => r.id === formData.robotInventoryId),
         plugin: formData.pluginInventoryId
@@ -590,6 +596,12 @@ const PurchaseOrderForm: React.FC = () => {
               options={robotOptions}
               required
               disabled={isEditing}
+            />
+            <FormTextField
+              name="serialNumber"
+              label="Numéro de série"
+              value={formData.serialNumber}
+              onChange={handleChange}
             />
             <FormSelectField
               name="pluginInventoryId"
