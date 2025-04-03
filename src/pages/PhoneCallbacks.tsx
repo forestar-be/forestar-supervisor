@@ -47,7 +47,6 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { useAuth } from '../hooks/AuthProvider';
 import {
-  fetchPhoneCallbacks,
   createPhoneCallback,
   updatePhoneCallback,
   deletePhoneCallback,
@@ -59,10 +58,18 @@ import {
 import {
   notifySuccess,
   notifyError,
-  notifyLoading,
   notifyWarning,
 } from '../utils/notifications';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
+import {
+  onFirstDataRendered,
+  setupGridStateEvents,
+  clearGridState,
+  saveGridPageSize,
+  loadGridPageSize,
+} from '../utils/agGridSettingsHelper';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { StyledAgGridWrapper } from '../components/styles/AgGridStyles';
 
 // Identifiants des colonnes pour potentiellement configurer quelles colonnes afficher
 export enum COLUMN_ID_CALLBACKS {
@@ -215,6 +222,9 @@ const ActionsCellRenderer: React.FC<ActionsCellProps> = (props) => {
   );
 };
 
+// Grid state key for phone callbacks
+const PHONE_CALLBACKS_GRID_STATE_KEY = 'phoneCallbacksAgGridState';
+
 // Composant principal
 const PhoneCallbacks: React.FC = () => {
   const auth = useAuth();
@@ -230,7 +240,9 @@ const PhoneCallbacks: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(() =>
+    loadGridPageSize(PHONE_CALLBACKS_GRID_STATE_KEY, 20),
+  );
   const [totalCount, setTotalCount] = useState(0);
   const [filterCompleted, setFilterCompleted] = useState<boolean | undefined>(
     undefined,
@@ -240,6 +252,14 @@ const PhoneCallbacks: React.FC = () => {
 
   // Constante pour la hauteur des lignes du tableau
   const ROW_HEIGHT = 48;
+
+  // Options de taille de page disponibles
+  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
+
+  // Save page size to localStorage when it changes
+  useEffect(() => {
+    saveGridPageSize(PHONE_CALLBACKS_GRID_STATE_KEY, rowsPerPage);
+  }, [rowsPerPage]);
 
   // Récupération des données depuis l'API
   const fetchCallbacks = useCallback(async () => {
@@ -457,46 +477,6 @@ const PhoneCallbacks: React.FC = () => {
     return dayjs(dateString).format('DD/MM/YYYY HH:mm');
   };
 
-  // Calcul automatique du nombre de lignes par page en fonction de la taille de l'écran
-  const calculatePageSize = useCallback(() => {
-    const element = document.getElementById('phone-callbacks-table');
-    const footer = document.querySelector('.ag-paging-panel');
-    const header = document.querySelector('.ag-header-viewport');
-    if (element) {
-      const elementHeight = element.clientHeight;
-      const footerHeight = footer?.clientHeight ?? 48;
-      const headerHeight = header?.clientHeight ?? 48;
-      const newPageSize = Math.floor(
-        (elementHeight - headerHeight - footerHeight) / ROW_HEIGHT,
-      );
-      setRowsPerPage(Math.max(5, newPageSize)); // Minimum 5 lignes par page
-    }
-  }, []);
-
-  // Recalculer la taille de la page quand les données changent
-  useEffect(() => {
-    calculatePageSize();
-  }, [callbacks, calculatePageSize]);
-
-  useEffect(() => {
-    console.debug('useEffect filterCompleted', filterCompleted);
-    // Ne pas appeler fetchCallbacks ici car nous avons déjà toutes les données
-    // et l'effet ci-dessus s'occupera de filtrer
-  }, [filterCompleted]);
-
-  // Charger toutes les données au premier rendu
-  useEffect(() => {
-    fetchCallbacks();
-  }, [fetchCallbacks]);
-
-  // Ajouter un écouteur pour le redimensionnement de la fenêtre
-  useEffect(() => {
-    window.addEventListener('resize', calculatePageSize);
-    return () => {
-      window.removeEventListener('resize', calculatePageSize);
-    };
-  }, [calculatePageSize]);
-
   // Initialisation de la grille
   const onGridReady = (params: GridReadyEvent) => {
     setGridApi(params.api);
@@ -506,17 +486,28 @@ const PhoneCallbacks: React.FC = () => {
       params.api.sizeColumnsToFit();
     }
 
-    // Calculer le nombre de lignes par page
-    calculatePageSize();
+    // Setup event listeners to save grid state on changes
+    setupGridStateEvents(params.api, PHONE_CALLBACKS_GRID_STATE_KEY);
   };
 
-  // Gestion de la pagination
-  const onPaginationChanged = () => {
-    if (gridApi) {
-      const currentPage = gridApi.paginationGetCurrentPage();
-      setPage(currentPage);
+  // Handle first data rendered - load saved column state
+  const handleFirstDataRendered = useCallback((params: any) => {
+    onFirstDataRendered(params, PHONE_CALLBACKS_GRID_STATE_KEY);
+  }, []);
+
+  // Handle reset grid state
+  const handleResetGrid = useCallback(() => {
+    if (
+      window.confirm(
+        'Réinitialiser tous les paramètres du tableau (colonnes, filtres) ?',
+      )
+    ) {
+      // Clear the saved state
+      clearGridState(PHONE_CALLBACKS_GRID_STATE_KEY);
+      // Reload the page to apply the reset
+      window.location.reload();
     }
-  };
+  }, []);
 
   // Configuration de base commune à toutes les colonnes
   const baseColumnConfig = useMemo(
@@ -595,8 +586,13 @@ const PhoneCallbacks: React.FC = () => {
     [handleToggleComplete, handleEdit, handleDelete, baseColumnConfig],
   );
 
+  // Charger toutes les données au premier rendu
+  useEffect(() => {
+    fetchCallbacks();
+  }, [fetchCallbacks]);
+
   return (
-    (<Paper
+    <Paper
       sx={{
         position: 'relative',
         height: '100%',
@@ -660,36 +656,50 @@ const PhoneCallbacks: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Partie droite: bouton d'ajout */}
-        <Tooltip
-          title="Ajouter un nouveau rappel téléphonique"
-          arrow
-          placement="left"
-        >
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setFormData(initialFormData);
-              setEditingId(null);
-              setDialogOpen(true);
-            }}
-            disabled={loading}
+        {/* Partie droite: boutons d'action */}
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Tooltip
+            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+            arrow
+            placement="left"
           >
-            Nouveau rappel
-          </Button>
-        </Tooltip>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<RestartAltIcon />}
+              onClick={handleResetGrid}
+              size="small"
+            >
+              Réinitialiser
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title="Ajouter un nouveau rappel téléphonique"
+            arrow
+            placement="left"
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setFormData(initialFormData);
+                setEditingId(null);
+                setDialogOpen(true);
+              }}
+              disabled={loading}
+            >
+              Nouveau rappel
+            </Button>
+          </Tooltip>
+        </Box>
       </Box>
       {/* Tableau AG Grid */}
-      <Box
+      <StyledAgGridWrapper
         id="phone-callbacks-table"
-        className={
-          theme.palette.mode === 'dark'
-            ? 'ag-theme-quartz-dark'
-            : 'ag-theme-quartz'
-        }
-        sx={{ height: '100%', width: '100%' }}
+        className={`ag-theme-quartz${
+          theme.palette.mode === 'dark' ? '-dark' : ''
+        }`}
       >
         <AgGridReact
           ref={gridRef}
@@ -697,8 +707,18 @@ const PhoneCallbacks: React.FC = () => {
           columnDefs={columnDefs}
           pagination={true}
           paginationPageSize={rowsPerPage}
+          paginationPageSizeSelector={pageSizeOptions}
           onGridReady={onGridReady}
-          onPaginationChanged={onPaginationChanged}
+          onFirstDataRendered={handleFirstDataRendered}
+          onPaginationChanged={(event) => {
+            const api = event.api;
+            const newPageSize = api.paginationGetPageSize();
+            if (newPageSize !== rowsPerPage) {
+              setRowsPerPage(newPageSize);
+            }
+            const currentPage = api.paginationGetCurrentPage();
+            setPage(currentPage);
+          }}
           animateRows={true}
           suppressCellFocus={true}
           enableCellTextSelection={true}
@@ -706,16 +726,14 @@ const PhoneCallbacks: React.FC = () => {
           overlayNoRowsTemplate="<span>Aucun rappel téléphonique trouvé</span>"
           overlayLoadingTemplate="<span>Chargement des données...</span>"
           tooltipShowDelay={0}
-          onFirstDataRendered={(params) => params.api.sizeColumnsToFit()}
           rowHeight={ROW_HEIGHT}
           headerHeight={48}
           domLayout="normal"
           suppressMovableColumns={false}
           suppressColumnVirtualisation={false}
           loadingOverlayComponent="loadingRenderer"
-          paginationPageSizeSelector={false}
         />
-      </Box>
+      </StyledAgGridWrapper>
       <Dialog
         open={dialogOpen}
         onClose={() => !loading && setDialogOpen(false)}
@@ -834,7 +852,7 @@ const PhoneCallbacks: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Paper>)
+    </Paper>
   );
 };
 

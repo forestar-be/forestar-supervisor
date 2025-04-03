@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  Grid,
   IconButton,
   InputLabel,
   MenuItem,
@@ -29,14 +28,6 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useAuth } from '../hooks/AuthProvider';
 import { toast } from 'react-toastify';
-import {
-  createRobotInventory,
-  updateRobotInventory,
-  deleteRobotInventory,
-  fetchRobotInventory,
-  fetchInventorySummary,
-  updateInventoryPlans,
-} from '../utils/api';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
@@ -51,6 +42,8 @@ import {
   onFirstDataRendered,
   setupGridStateEvents,
   clearGridState,
+  saveGridPageSize,
+  loadGridPageSize,
 } from '../utils/agGridSettingsHelper';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/index';
@@ -68,27 +61,19 @@ import {
   fetchInventorySummaryAsync,
 } from '../store/robotInventorySlice';
 
-// Helper function to get month name from month number (1-12)
-const getMonthName = (month: number): string => {
-  const date = new Date();
-  date.setMonth(month - 1);
-  return date.toLocaleString('fr-FR', { month: 'long' });
+// Helper function to get current year
+const getCurrentYear = () => {
+  const now = new Date();
+  return now.getFullYear();
 };
 
-// Helper function to get current year and month
-const getCurrentYearMonth = () => {
-  const now = new Date();
-  return {
-    year: now.getFullYear(),
-    month: now.getMonth() + 1, // JavaScript months are 0-indexed
-  };
-};
+// Grid state key for inventory
+const INVENTORY_GRID_STATE_KEY = 'inventoryAgGridState';
 
 const Inventory: React.FC = () => {
   const { token } = useAuth();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const config = useSelector((state: RootState) => state.config.config);
   const { items, periods, loading } = useSelector(
     (state: RootState) => state.robotInventory,
   );
@@ -96,44 +81,20 @@ const Inventory: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<Partial<RobotInventoryType>>(
     {},
   );
-  const [selectedYear, setSelectedYear] = useState<number>(
-    getCurrentYearMonth().year,
-  );
-  const [selectedMonth, setSelectedMonth] = useState<number>(
-    getCurrentYearMonth().month,
-  );
+  const [selectedYear, setSelectedYear] = useState<number>(getCurrentYear());
   const [inventoryEdits, setInventoryEdits] = useState<{
     [key: string]: number;
   }>({});
-  const [paginationPageSize, setPaginationPageSize] = useState(10);
+  const [paginationPageSize, setPaginationPageSize] = useState(() =>
+    loadGridPageSize(INVENTORY_GRID_STATE_KEY, 20),
+  );
   const [hideZeroQuantity, setHideZeroQuantity] = useState(false);
   const gridRef = React.createRef<AgGridReact>();
 
-  // Calculate page size
-  const calculatePageSize = useCallback(() => {
-    const element = document.getElementById('inventory-table');
-    const footer = document.querySelector('.ag-paging-panel');
-    const header = document.querySelector('.ag-header-viewport');
-    if (element) {
-      const elementHeight = element.clientHeight;
-      const footerHeight = footer?.clientHeight ?? 48;
-      const headerHeight = header?.clientHeight ?? 48;
-      const rowHeight = 48; // Default row height
-      const newPageSize = Math.floor(
-        (elementHeight - headerHeight - footerHeight) / rowHeight,
-      );
-      setPaginationPageSize(Math.max(5, newPageSize)); // Ensure minimum of 5 rows
-    }
-  }, []);
-
+  // Save page size to localStorage when it changes
   useEffect(() => {
-    window.addEventListener('resize', calculatePageSize);
-    calculatePageSize();
-
-    return () => {
-      window.removeEventListener('resize', calculatePageSize);
-    };
-  }, [calculatePageSize]);
+    saveGridPageSize(INVENTORY_GRID_STATE_KEY, paginationPageSize);
+  }, [paginationPageSize]);
 
   // Refresh data if needed
   useEffect(() => {
@@ -145,7 +106,7 @@ const Inventory: React.FC = () => {
   // Get available years from periods
   const years = useMemo(() => {
     const uniqueYears = Array.from(new Set(periods.map((p) => p.year)));
-    const currentYear = getCurrentYearMonth().year;
+    const currentYear = getCurrentYear();
 
     // Add current year if not in list
     if (!uniqueYears.includes(currentYear)) {
@@ -165,27 +126,19 @@ const Inventory: React.FC = () => {
     return uniqueYears.sort((a, b) => a - b);
   }, [periods]);
 
-  // Get available months - always return all 12 months
-  const months = useMemo(() => {
-    // Return all 12 months for any selected year
-    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  }, []);
-
-  // Find inventory plan for an item in the selected year/month
+  // Find inventory plan for an item in the selected year
   const getInventoryPlan = useCallback(
     (item: RobotInventoryType): InventoryPlan | undefined => {
-      return item.inventoryPlans?.find(
-        (plan) => plan.year === selectedYear && plan.month === selectedMonth,
-      );
+      return item.inventoryPlans?.find((plan) => plan.year === selectedYear);
     },
-    [selectedYear, selectedMonth],
+    [selectedYear],
   );
 
-  // Get quantity for an item in the selected year/month
+  // Get quantity for an item in the selected year
   const getQuantity = useCallback(
     (item: RobotInventoryType): number => {
       const plan = getInventoryPlan(item);
-      const editKey = `${item.id}-${selectedYear}-${selectedMonth}`;
+      const editKey = `${item.id}-${selectedYear}`;
 
       if (editKey in inventoryEdits) {
         return inventoryEdits[editKey];
@@ -193,7 +146,7 @@ const Inventory: React.FC = () => {
 
       return plan?.quantity || 0;
     },
-    [getInventoryPlan, inventoryEdits, selectedMonth, selectedYear],
+    [getInventoryPlan, inventoryEdits, selectedYear],
   );
 
   // Filter items based on hideZeroQuantity setting
@@ -281,39 +234,39 @@ const Inventory: React.FC = () => {
   // Handle quantity change for an item
   const handleQuantityChange = useCallback(
     (id: number, quantity: number) => {
-      const editKey = `${id}-${selectedYear}-${selectedMonth}`;
+      const editKey = `${id}-${selectedYear}`;
       setInventoryEdits((prev) => ({
         ...prev,
         [editKey]: quantity,
       }));
     },
-    [selectedMonth, selectedYear],
+    [selectedYear],
   );
 
   // Increment item quantity
   const handleIncrementQuantity = useCallback(
     (item: RobotInventoryType) => {
       setInventoryEdits((prev) => {
-        const key = `${item.id}-${selectedYear}-${selectedMonth}`;
+        const key = `${item.id}-${selectedYear}`;
         const currentQuantity =
           key in prev ? prev[key] : getInventoryPlan(item)?.quantity || 0;
         return { ...prev, [key]: currentQuantity + 1 };
       });
     },
-    [selectedYear, selectedMonth, getInventoryPlan],
+    [selectedYear, getInventoryPlan],
   );
 
   // Decrement item quantity
   const handleDecrementQuantity = useCallback(
     (item: RobotInventoryType) => {
       setInventoryEdits((prev) => {
-        const key = `${item.id}-${selectedYear}-${selectedMonth}`;
+        const key = `${item.id}-${selectedYear}`;
         const currentQuantity =
           key in prev ? prev[key] : getInventoryPlan(item)?.quantity || 0;
         return { ...prev, [key]: currentQuantity - 1 };
       });
     },
-    [selectedYear, selectedMonth, getInventoryPlan],
+    [selectedYear, getInventoryPlan],
   );
 
   // Save all inventory changes
@@ -325,11 +278,10 @@ const Inventory: React.FC = () => {
     try {
       // Convert inventoryEdits to array of inventory plans
       const plans = Object.keys(inventoryEdits).map((key) => {
-        const [itemId, year, month] = key.split('-').map(Number);
+        const [itemId, year] = key.split('-').map(Number);
         return {
           robotInventoryId: itemId,
           year,
-          month,
           quantity: inventoryEdits[key],
         };
       });
@@ -542,7 +494,7 @@ const Inventory: React.FC = () => {
         valueFormatter: formatPrice,
       },
       {
-        headerName: `Quantité (${getMonthName(selectedMonth)} ${selectedYear})`,
+        headerName: `Quantité (${selectedYear})`,
         field: 'quantity',
         sortable: false,
         filter: false,
@@ -563,7 +515,6 @@ const Inventory: React.FC = () => {
       quantityCellRenderer,
       actionCellRenderer,
       categoryCellRenderer,
-      selectedMonth,
       selectedYear,
     ],
   );
@@ -575,26 +526,25 @@ const Inventory: React.FC = () => {
       } else {
         params.api.hideOverlay();
       }
-      calculatePageSize();
 
       const gridApi = params.api;
       // Setup event listeners to save grid state on changes
-      setupGridStateEvents(gridApi, 'inventoryAgGridState');
+      setupGridStateEvents(gridApi, INVENTORY_GRID_STATE_KEY);
     },
-    [loading, calculatePageSize],
+    [loading],
   );
 
   // Handle first data rendered - load saved column state
   const handleFirstDataRendered = useCallback((params: any) => {
-    onFirstDataRendered(params, 'inventoryAgGridState');
+    onFirstDataRendered(params, INVENTORY_GRID_STATE_KEY);
   }, []);
 
-  // Update the grid when year or month changes
+  // Update the grid when year changes
   useEffect(() => {
     if (gridRef.current && gridRef.current.api) {
       gridRef.current.api.refreshHeader();
     }
-  }, [selectedYear, selectedMonth, gridRef]);
+  }, [selectedYear, gridRef]);
 
   // Handle reset grid state
   const handleResetGrid = useCallback(() => {
@@ -604,11 +554,14 @@ const Inventory: React.FC = () => {
       )
     ) {
       // Clear the saved state
-      clearGridState('inventoryAgGridState');
+      clearGridState(INVENTORY_GRID_STATE_KEY);
       // Reload the page to apply the reset
       window.location.reload();
     }
   }, []);
+
+  // Available page size options
+  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
 
   if (loading) {
     return <Typography>Chargement...</Typography>;
@@ -643,22 +596,6 @@ const Inventory: React.FC = () => {
               {years.map((year) => (
                 <MenuItem key={year} value={year}>
                   {year}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl sx={{ minWidth: 120 }}>
-            <InputLabel id="month-select-label">Mois</InputLabel>
-            <Select
-              labelId="month-select-label"
-              value={selectedMonth}
-              label="Mois"
-              size="small"
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            >
-              {months.map((month) => (
-                <MenuItem key={month} value={month}>
-                  {getMonthName(month)}
                 </MenuItem>
               ))}
             </Select>
@@ -736,14 +673,21 @@ const Inventory: React.FC = () => {
           columnDefs={columnDefs}
           pagination={true}
           paginationPageSize={paginationPageSize}
+          paginationPageSizeSelector={pageSizeOptions}
           localeText={AG_GRID_LOCALE_FR}
           autoSizeStrategy={{ type: 'fitGridWidth' }}
           onGridReady={onGridReady}
           onFirstDataRendered={handleFirstDataRendered}
           overlayLoadingTemplate='<span class="ag-overlay-loading-center">Chargement...</span>'
-          paginationPageSizeSelector={false}
           loadingOverlayComponentParams={{ loading }}
           overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Aucun élément trouvé</span>'
+          onPaginationChanged={(event) => {
+            const api = event.api;
+            const newPageSize = api.paginationGetPageSize();
+            if (newPageSize !== paginationPageSize) {
+              setPaginationPageSize(newPageSize);
+            }
+          }}
         />
       </StyledAgGridWrapper>
       {/* Item Edit Dialog */}

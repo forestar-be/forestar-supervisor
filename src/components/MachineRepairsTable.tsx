@@ -18,6 +18,7 @@ import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import '../styles/MachineRepairsTable.css';
 import { getAllMachineRepairs } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
@@ -29,8 +30,19 @@ import { useAppSelector } from '../store/hooks';
 import { RootState } from '../store/index';
 import { notifyError } from '../utils/notifications';
 import { toast } from 'react-toastify';
+import {
+  onFirstDataRendered,
+  setupGridStateEvents,
+  clearGridState,
+  saveGridPageSize,
+  loadGridPageSize,
+} from '../utils/agGridSettingsHelper';
+import { StyledAgGridWrapper } from './styles/AgGridStyles';
 
 const rowHeight = 40;
+
+// Grid state key for machine repairs
+const MACHINE_REPAIRS_GRID_STATE_KEY = 'machineRepairsAgGridState';
 
 const MachineRepairsTable: React.FC = () => {
   const auth = useAuth();
@@ -40,7 +52,17 @@ const MachineRepairsTable: React.FC = () => {
   const [machineRepairs, setMachineRepairs] = useState<MachineRepair[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
-  const [paginationPageSize, setPaginationPageSize] = useState(10);
+  const [paginationPageSize, setPaginationPageSize] = useState(() =>
+    loadGridPageSize(MACHINE_REPAIRS_GRID_STATE_KEY, 20),
+  );
+
+  // Available page size options
+  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
+
+  // Save page size to localStorage when it changes
+  useEffect(() => {
+    saveGridPageSize(MACHINE_REPAIRS_GRID_STATE_KEY, paginationPageSize);
+  }, [paginationPageSize]);
 
   // Get colorByState from Redux store
   const { config } = useAppSelector((state: RootState) => state.config);
@@ -90,39 +112,56 @@ const MachineRepairsTable: React.FC = () => {
     [customerFilterText],
   );
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const data: MachineRepairFromApi[] = await getAllMachineRepairs(
-        auth.token,
-      );
-      const repairsDataWithDate: MachineRepair[] = data.map(
-        (repair: MachineRepairFromApi) => ({
-          ...repair,
-          start_timer: repair.start_timer ? new Date(repair.start_timer) : null,
-          client_call_times: repair.client_call_times.map(
-            (date) => new Date(date),
-          ),
-        }),
-      );
-      setMachineRepairs(repairsDataWithDate);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      notifyError(
-        "Une erreur s'est produite lors de la récupération des données",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data: MachineRepairFromApi[] = await getAllMachineRepairs(
+          auth.token,
+        );
+        const repairsDataWithDate: MachineRepair[] = data.map(
+          (repair: MachineRepairFromApi) => ({
+            ...repair,
+            start_timer: repair.start_timer
+              ? new Date(repair.start_timer)
+              : null,
+            client_call_times: repair.client_call_times.map(
+              (date) => new Date(date),
+            ),
+          }),
+        );
+        setMachineRepairs(repairsDataWithDate);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+        notifyError(
+          "Une erreur s'est produite lors de la récupération des données",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchData();
   }, []);
 
-  useEffect(() => {
-    calculatePageSize();
-  }, [machineRepairs]);
+  // Handle first data rendered - load saved column state
+  const handleFirstDataRendered = useCallback((params: any) => {
+    onFirstDataRendered(params, MACHINE_REPAIRS_GRID_STATE_KEY);
+  }, []);
+
+  // Handle reset grid state
+  const handleResetGrid = useCallback(() => {
+    if (
+      window.confirm(
+        'Réinitialiser tous les paramètres du tableau (colonnes, filtres) ?',
+      )
+    ) {
+      // Clear the saved state
+      clearGridState(MACHINE_REPAIRS_GRID_STATE_KEY);
+      // Reload the page to apply the reset
+      window.location.reload();
+    }
+  }, []);
 
   const columns: ColDef<MachineRepair>[] = [
     {
@@ -259,7 +298,7 @@ const MachineRepairsTable: React.FC = () => {
       sortable: true,
       unSortIcon: true,
       filter: 'agDateColumnFilter',
-      sort: 'desc', // Tri par défaut par cette colonne, en ordre décroissant
+      initialSort: 'desc',
       valueFormatter: (params: any) =>
         new Date(params.value).toLocaleString('fr-FR'),
       comparator: (valueA: string, valueB: string) =>
@@ -267,40 +306,34 @@ const MachineRepairsTable: React.FC = () => {
     },
   ];
 
-  const calculatePageSize = () => {
-    const element = document.getElementById('machine-repairs-table');
-    const footer = document.querySelector('.ag-paging-panel');
-    const header = document.querySelector('.ag-header-viewport');
-    if (element && footer && header) {
-      const elementHeight = element.clientHeight;
-      const footerHeight = footer.clientHeight;
-      const headerHeight = header.clientHeight;
-      const newPageSize = Math.floor(
-        (elementHeight - headerHeight - footerHeight) / rowHeight,
-      );
-      setPaginationPageSize(newPageSize);
-    }
-  };
-
-  useEffect(() => {
-    window.addEventListener('resize', calculatePageSize);
-    return () => {
-      window.removeEventListener('resize', calculatePageSize);
-    };
-  }, []);
-
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box
-        display={'flex'}
-        flexDirection={'row'}
-        justifyContent={'space-between'}
-        alignItems={'center'}
+        sx={{
+          pt: 1.5,
+          pb: 1,
+          pl: 2,
+          pr: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
       >
-        <div style={{ padding: 16 }}>
+        <Box>
           <Typography variant="h6">Réparations/Entretiens</Typography>
-        </div>
-        <Box display="flex" gap={2} alignItems="center">
+        </Box>
+        <Box display="flex" gap={2}>
+          <Tooltip title="Réinitialiser le tableau" arrow>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<RestartAltIcon />}
+              onClick={handleResetGrid}
+              size="small"
+            >
+              Réinitialiser
+            </Button>
+          </Tooltip>
           <Tooltip title="Ouvrir le dossier Google Drive" arrow>
             <Button
               variant="outlined"
@@ -315,7 +348,7 @@ const MachineRepairsTable: React.FC = () => {
             id="search-client"
             label="Rechercher un client"
             variant="outlined"
-            sx={{ minWidth: 450, margin: 2 }}
+            sx={{ minWidth: 450 }}
             size="small"
             value={customerFilterText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -329,10 +362,11 @@ const MachineRepairsTable: React.FC = () => {
           />
         </Box>
       </Box>
-      <Box
+      <StyledAgGridWrapper
         id="machine-repairs-table"
-        className={`machine-repairs-table ag-theme-quartz${theme.palette.mode === 'dark' ? '-dark' : ''}`}
-        sx={{ height: '100%', width: '100%' }}
+        className={`machine-repairs-table ag-theme-quartz${
+          theme.palette.mode === 'dark' ? '-dark' : ''
+        }`}
       >
         <AgGridReact
           rowHeight={rowHeight}
@@ -341,15 +375,27 @@ const MachineRepairsTable: React.FC = () => {
           columnDefs={columns}
           pagination={true}
           paginationPageSize={paginationPageSize}
+          paginationPageSizeSelector={pageSizeOptions}
           localeText={AG_GRID_LOCALE_FR}
           autoSizeStrategy={{
             type: 'fitGridWidth',
           }}
-          paginationPageSizeSelector={false}
+          onGridReady={(params) => {
+            // Setup event listeners to save grid state on changes
+            setupGridStateEvents(params.api, MACHINE_REPAIRS_GRID_STATE_KEY);
+          }}
+          onFirstDataRendered={handleFirstDataRendered}
+          onPaginationChanged={(event) => {
+            const api = event.api;
+            const newPageSize = api.paginationGetPageSize();
+            if (newPageSize !== paginationPageSize) {
+              setPaginationPageSize(newPageSize);
+            }
+          }}
           isExternalFilterPresent={isExternalFilterPresent}
           doesExternalFilterPass={doesExternalFilterPass}
         />
-      </Box>
+      </StyledAgGridWrapper>
     </Paper>
   );
 };
