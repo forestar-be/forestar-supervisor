@@ -10,12 +10,11 @@ import {
 import {
   RobotInventory,
   InventoryPlan,
-  InventorySummary,
 } from '../utils/types';
 
 interface RobotInventoryState {
   items: RobotInventory[];
-  periods: { year: number; month: number }[];
+  periods: { year: number }[];
   loading: boolean;
   error: string | null;
 }

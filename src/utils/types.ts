@@ -139,14 +139,12 @@ export interface RobotInventory {
 }
 
 export interface InventoryPlan {
-  id: number;
+  id?: number;
   robotInventoryId: number;
   year: number;
-  month: number;
   quantity: number;
-  createdAt: string;
-  updatedAt: string;
-  robotInventory?: RobotInventory;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface InventorySummary {

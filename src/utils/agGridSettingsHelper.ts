@@ -25,6 +25,15 @@ const debouncedSaveFilterModel = debounce(
   300,
 );
 
+// Debounced function to save page size
+const debouncedSavePageSize = debounce(
+  (gridStateKey: string, pageSize: number) => {
+    console.log('Saving grid page size', gridStateKey, pageSize);
+    localStorage.setItem(`${gridStateKey}_pageSize`, pageSize.toString());
+  },
+  300,
+);
+
 /**
  * Save grid column state
  */
@@ -39,6 +48,36 @@ export function onSaveGridColumnState(gridStateKey: string, api: GridApi) {
 export function onSaveGridFilterState(gridStateKey: string, api: GridApi) {
   const filterModel = api.getFilterModel();
   debouncedSaveFilterModel(gridStateKey, filterModel);
+}
+
+/**
+ * Save grid page size
+ * @param gridStateKey Unique key to identify the grid
+ * @param pageSize Page size to save
+ */
+export function saveGridPageSize(gridStateKey: string, pageSize: number) {
+  debouncedSavePageSize(gridStateKey, pageSize);
+}
+
+/**
+ * Load grid page size
+ * @param gridStateKey Unique key to identify the grid
+ * @param defaultPageSize Default page size to return if none is saved
+ * @returns The saved page size or the default if none is saved
+ */
+export function loadGridPageSize(
+  gridStateKey: string,
+  defaultPageSize: number = 10,
+): number {
+  const savedPageSize = localStorage.getItem(`${gridStateKey}_pageSize`);
+  if (savedPageSize) {
+    try {
+      return parseInt(savedPageSize, 10);
+    } catch (error) {
+      console.error('Failed to load grid page size', error);
+    }
+  }
+  return defaultPageSize;
 }
 
 /**
@@ -110,5 +149,6 @@ export function saveGridState(gridApi: GridApi<any>, gridStateKey: string) {
 export function clearGridState(gridStateKey: string) {
   localStorage.removeItem(`${gridStateKey}_columns`);
   localStorage.removeItem(`${gridStateKey}_filters`);
+  localStorage.removeItem(`${gridStateKey}_pageSize`);
   console.log('Cleared grid state', gridStateKey);
 }

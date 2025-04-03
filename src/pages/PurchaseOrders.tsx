@@ -48,6 +48,8 @@ import {
   onFirstDataRendered,
   setupGridStateEvents,
   clearGridState,
+  saveGridPageSize,
+  loadGridPageSize,
 } from '../utils/agGridSettingsHelper';
 import { PurchaseOrder } from '../utils/types';
 import { RootState } from '../store';
@@ -56,6 +58,9 @@ import { useSelector } from 'react-redux';
 // PDF action types
 type PdfActionType = 'view' | 'download' | 'print';
 
+// Grid state key for purchase orders
+const PURCHASE_ORDERS_GRID_STATE_KEY = 'purchaseOrdersAgGridState';
+
 const PurchaseOrders: React.FC = () => {
   const { token } = useAuth();
   const theme = useTheme();
@@ -63,12 +68,19 @@ const PurchaseOrders: React.FC = () => {
   const config = useSelector((state: RootState) => state.config.config);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [paginationPageSize, setPaginationPageSize] = useState(10);
+  const [paginationPageSize, setPaginationPageSize] = useState(() =>
+    loadGridPageSize(PURCHASE_ORDERS_GRID_STATE_KEY, 20),
+  );
   const [pdfCache, setPdfCache] = useState<Record<number, Blob>>({});
   const [loadingPdfIds, setLoadingPdfIds] = useState<Record<number, boolean>>(
     {},
   );
   const gridRef = React.createRef<AgGridReact>();
+
+  // Save page size to localStorage when it changes
+  useEffect(() => {
+    saveGridPageSize(PURCHASE_ORDERS_GRID_STATE_KEY, paginationPageSize);
+  }, [paginationPageSize]);
 
   // Fetch purchase orders
   useEffect(() => {
@@ -88,32 +100,6 @@ const PurchaseOrders: React.FC = () => {
 
     fetchData();
   }, [token]);
-
-  // Calculate page size
-  const calculatePageSize = useCallback(() => {
-    const element = document.getElementById('purchase-orders-table');
-    const footer = document.querySelector('.ag-paging-panel');
-    const header = document.querySelector('.ag-header-viewport');
-    if (element) {
-      const elementHeight = element.clientHeight;
-      const footerHeight = footer?.clientHeight ?? 48;
-      const headerHeight = header?.clientHeight ?? 48;
-      const rowHeight = 48; // Default row height
-      const newPageSize = Math.floor(
-        (elementHeight - headerHeight - footerHeight) / rowHeight,
-      );
-      setPaginationPageSize(Math.max(5, newPageSize)); // Ensure minimum of 5 rows
-    }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('resize', calculatePageSize);
-    calculatePageSize();
-
-    return () => {
-      window.removeEventListener('resize', calculatePageSize);
-    };
-  }, [calculatePageSize]);
 
   // Handle add new purchase order
   const handleAddPurchaseOrder = () => {
@@ -598,18 +584,17 @@ const PurchaseOrders: React.FC = () => {
       } else {
         params.api.hideOverlay();
       }
-      calculatePageSize();
 
       const gridApi = params.api;
       // Setup event listeners to save grid state on changes
-      setupGridStateEvents(gridApi, 'purchaseOrdersAgGridState');
+      setupGridStateEvents(gridApi, PURCHASE_ORDERS_GRID_STATE_KEY);
     },
-    [loading, calculatePageSize],
+    [loading],
   );
 
   // Handle first data rendered - load saved column state
   const handleFirstDataRendered = useCallback((params: any) => {
-    onFirstDataRendered(params, 'purchaseOrdersAgGridState');
+    onFirstDataRendered(params, PURCHASE_ORDERS_GRID_STATE_KEY);
   }, []);
 
   // Handle opening Google Drive folder
@@ -629,11 +614,14 @@ const PurchaseOrders: React.FC = () => {
       )
     ) {
       // Clear the saved state
-      clearGridState('purchaseOrdersAgGridState');
+      clearGridState(PURCHASE_ORDERS_GRID_STATE_KEY);
       // Reload the page to apply the reset
       window.location.reload();
     }
   }, []);
+
+  // Available page size options
+  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
 
   if (loading) {
     return <Typography>Chargement...</Typography>;
@@ -706,14 +694,21 @@ const PurchaseOrders: React.FC = () => {
           columnDefs={columnDefs}
           pagination={true}
           paginationPageSize={paginationPageSize}
+          paginationPageSizeSelector={pageSizeOptions}
           localeText={AG_GRID_LOCALE_FR}
           autoSizeStrategy={{ type: 'fitGridWidth' }}
           onGridReady={onGridReady}
           onFirstDataRendered={handleFirstDataRendered}
           overlayLoadingTemplate='<span class="ag-overlay-loading-center">Chargement...</span>'
-          paginationPageSizeSelector={false}
           loadingOverlayComponentParams={{ loading }}
           overlayNoRowsTemplate='<span class="ag-overlay-no-rows-center">Aucun bon de commande trouvé</span>'
+          onPaginationChanged={(event) => {
+            const api = event.api;
+            const newPageSize = api.paginationGetPageSize();
+            if (newPageSize !== paginationPageSize) {
+              setPaginationPageSize(newPageSize);
+            }
+          }}
         />
       </StyledAgGridWrapper>
     </Paper>
