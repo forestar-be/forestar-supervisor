@@ -8,10 +8,6 @@ import {
   Tooltip,
   Typography,
   useTheme,
-  Select,
-  MenuItem,
-  FormControl,
-  SelectChangeEvent,
   Checkbox,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -22,8 +18,6 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
-import HandymanIcon from '@mui/icons-material/Handyman';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
