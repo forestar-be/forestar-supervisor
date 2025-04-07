@@ -459,6 +459,9 @@ const PurchaseOrderForm: React.FC = () => {
         toast.success('Bon de commande créé avec succès');
       }
 
+      // Update inventory data in the Redux store
+      dispatch(fetchInventorySummaryAsync(token));
+
       navigate('/purchase-orders');
     } catch (error) {
       console.error('Error saving purchase order:', error);
@@ -595,7 +598,6 @@ const PurchaseOrderForm: React.FC = () => {
               onChange={handleChange}
               options={robotOptions}
               required
-              disabled={isEditing}
             />
             <FormTextField
               name="serialNumber"
@@ -613,7 +615,6 @@ const PurchaseOrderForm: React.FC = () => {
               value={formData.pluginInventoryId}
               onChange={handleChange}
               options={pluginOptions}
-              disabled={isEditing}
             />
             <FormSelectField
               name="antennaInventoryId"
@@ -625,7 +626,6 @@ const PurchaseOrderForm: React.FC = () => {
               value={formData.antennaInventoryId}
               onChange={handleChange}
               options={antennaOptions}
-              disabled={isEditing}
             />
             <FormSelectField
               name="shelterInventoryId"
@@ -637,7 +637,6 @@ const PurchaseOrderForm: React.FC = () => {
               value={formData.shelterInventoryId}
               onChange={handleChange}
               options={shelterOptions}
-              disabled={isEditing}
             />
             <Grid item xs={12} sm={6}>
               <FormControlLabel
