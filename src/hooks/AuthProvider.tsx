@@ -1,5 +1,6 @@
 import { useContext, createContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../utils/api';
 
 const AuthContext = createContext({
   token: '',
@@ -12,7 +13,6 @@ const AuthContext = createContext({
   logOut: () => {},
   isAdmin: false,
 });
-const API_URL = process.env.REACT_APP_API_URL;
 
 const getTokenFromLocalStorage = () => {
   const token = localStorage.getItem('token');
@@ -41,46 +41,31 @@ const AuthProvider = ({ children }: any) => {
   const loginAction = async (
     data: any,
   ): Promise<{ success: boolean; message: string }> => {
-    const response = await fetch(`${API_URL}/supervisor/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      try {
-        const res = await response.json();
-        if (res.message) {
-          return { success: false, message: res.message };
-        }
-      } catch (error) {
-        console.log(error);
+    try {
+      const res = await login(data);
+      if (res.authentificated) {
+        setExpiresAt(res.expiresAt);
+        setToken(res.token);
+        setIsAdmin(res.isAdmin);
+        localStorage.setItem('token', String(res.token));
+        localStorage.setItem('expires_at', String(res.expiresAt));
+        localStorage.setItem('is_admin', String(res.isAdmin));
+        navigate('/');
+        return { success: true, message: 'Vous êtes connecté' };
       }
-
       return {
         success: false,
         message:
+          "Impossible de vous authentifier, vérifiez vos informations d'identification et réessayez",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message:
+          error.message ||
           'Impossible de vous authentifier, veuillez réessayer plus tard',
       };
     }
-
-    const res = await response.json();
-    if (res.authentificated) {
-      setExpiresAt(res.expiresAt);
-      setToken(res.token);
-      setIsAdmin(res.isAdmin);
-      localStorage.setItem('token', String(res.token));
-      localStorage.setItem('expires_at', String(res.expiresAt));
-      localStorage.setItem('is_admin', String(res.isAdmin));
-      navigate('/');
-      return { success: true, message: 'Vous êtes connecté' };
-    }
-    return {
-      success: false,
-      message:
-        "Impossible de vous authentifier, vérifiez vos informations d'identification et réessayez",
-    };
   };
 
   const logOut = () => {
