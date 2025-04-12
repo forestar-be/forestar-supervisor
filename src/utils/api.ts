@@ -79,6 +79,10 @@ const apiRequest = async (
   return data;
 };
 
+export const login = async (data: any) => {
+  return apiRequest('/supervisor/login', 'POST', '', data);
+};
+
 export const getAllMachineRepairs = async (token: string) => {
   const response = await apiRequest(
     '/supervisor/machine-repairs',
