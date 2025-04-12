@@ -20,7 +20,12 @@ import { toast } from 'react-toastify';
 export interface User {
   id: string;
   username: string;
-  role: 'OPERATOR' | 'SUPERVISOR' | 'ADMIN' | 'RENTAL_MANAGER';
+  role:
+    | 'OPERATOR'
+    | 'SUPERVISOR'
+    | 'ADMIN'
+    | 'RENTAL_MANAGER'
+    | 'RENTAL_OPERATOR';
 }
 
 const EditUser = () => {
@@ -31,7 +36,12 @@ const EditUser = () => {
   const [username, setUsername] = useState<string | null>(null);
   const [password, setPassword] = useState<string | null>(null);
   const [role, setRole] = useState<
-    'OPERATOR' | 'SUPERVISOR' | 'ADMIN' | null | 'RENTAL_MANAGER'
+    | 'OPERATOR'
+    | 'SUPERVISOR'
+    | 'ADMIN'
+    | 'RENTAL_MANAGER'
+    | 'RENTAL_OPERATOR'
+    | null
   >(null);
   const theme = useTheme();
 
@@ -125,6 +135,10 @@ const EditUser = () => {
           return 'Gestionnaire de location';
         }
 
+        if (params.value === 'RENTAL_OPERATOR') {
+          return 'Opérateur de location';
+        }
+
         return params.value;
       },
     },
@@ -216,7 +230,8 @@ const EditUser = () => {
                     | 'OPERATOR'
                     | 'SUPERVISOR'
                     | 'ADMIN'
-                    | 'RENTAL_MANAGER',
+                    | 'RENTAL_MANAGER'
+                    | 'RENTAL_OPERATOR',
                 )
               }
             >
