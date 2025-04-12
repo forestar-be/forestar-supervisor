@@ -340,7 +340,7 @@ const Inventory: React.FC = () => {
               sx: { height: '32px' },
             }}
             sx={{
-              width: '80px',
+              width: '100px',
               '& .MuiOutlinedInput-root': {
                 height: '32px',
                 padding: '0 8px',
