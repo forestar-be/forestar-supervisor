@@ -5,6 +5,7 @@ import {
   CircularProgress,
   IconButton,
   Paper,
+  TextField,
   Tooltip,
   Typography,
   useTheme,
@@ -18,6 +19,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import SearchIcon from '@mui/icons-material/Search';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -27,6 +29,7 @@ import {
   GridReadyEvent,
   ValueFormatterParams,
   ICellRendererParams,
+  IRowNode,
 } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import { StyledAgGridWrapper } from '../components/styles/AgGridStyles';
@@ -62,6 +65,7 @@ const PurchaseOrders: React.FC = () => {
   const config = useSelector((state: RootState) => state.config.config);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [customerFilterText, setCustomerFilterText] = useState('');
   const [paginationPageSize, setPaginationPageSize] = useState(() =>
     loadGridPageSize(PURCHASE_ORDERS_GRID_STATE_KEY, 20),
   );
@@ -451,6 +455,36 @@ const PurchaseOrders: React.FC = () => {
     [handleStatusChange],
   );
 
+  // External filter functions for client search
+  const isExternalFilterPresent = useCallback((): boolean => {
+    return Boolean(customerFilterText);
+  }, [customerFilterText]);
+
+  const doesExternalFilterPass = useCallback(
+    (node: IRowNode<PurchaseOrder>): boolean => {
+      if (node.data) {
+        const { clientFirstName, clientLastName } = node.data;
+        const customerSearchWords = customerFilterText
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .split(' ');
+        const normalizeString = (str: string) =>
+          str
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+        return customerSearchWords.every(
+          (word) =>
+            normalizeString(clientFirstName || '').includes(word) ||
+            normalizeString(clientLastName || '').includes(word),
+        );
+      }
+      return true;
+    },
+    [customerFilterText],
+  );
+
   // Column definitions
   const columnDefs = useMemo<ColDef[]>(
     () => [
@@ -662,6 +696,22 @@ const PurchaseOrders: React.FC = () => {
               Google Drive
             </Button>
           </Tooltip>
+          <TextField
+            id="search-client"
+            label="Rechercher un client"
+            variant="outlined"
+            size="small"
+            sx={{ minWidth: 300 }}
+            value={customerFilterText}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setCustomerFilterText(e.target.value)
+            }
+            slotProps={{
+              input: {
+                endAdornment: <SearchIcon />,
+              },
+            }}
+          />
           <Tooltip title="Créer un bon de commande" arrow>
             <Button
               variant="contained"
@@ -703,6 +753,8 @@ const PurchaseOrders: React.FC = () => {
               setPaginationPageSize(newPageSize);
             }
           }}
+          isExternalFilterPresent={isExternalFilterPresent}
+          doesExternalFilterPass={doesExternalFilterPass}
         />
       </StyledAgGridWrapper>
     </Paper>
