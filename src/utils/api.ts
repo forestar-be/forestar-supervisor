@@ -479,8 +479,32 @@ export const updatePurchaseOrderStatus = (
   statusData: {
     hasAppointment?: boolean;
     isInstalled?: boolean;
+    isInvoiced?: boolean;
+    devis?: boolean;
   },
+  pdfBlob?: Blob,
 ): Promise<PurchaseOrder> => {
+  if (pdfBlob) {
+    // If we have a PDF, create FormData and send as multipart
+    const formData = new FormData();
+    formData.append('pdf', pdfBlob, 'purchase_order.pdf');
+
+    // Add status data
+    Object.entries(statusData).forEach(([key, value]) => {
+      formData.append(key, String(value));
+    });
+
+    return apiRequest(
+      `/supervisor/purchase-orders/${id}/status`,
+      'PATCH',
+      token,
+      formData,
+      {}, // No Content-Type - browser will set it with boundary
+      false, // Don't stringify the body
+    );
+  }
+
+  // Normal update without PDF
   return apiRequest(
     `/supervisor/purchase-orders/${id}/status`,
     'PATCH',

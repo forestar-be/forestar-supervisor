@@ -10,6 +10,13 @@ import {
   Typography,
   useTheme,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Card,
+  Fade,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -20,6 +27,14 @@ import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SearchIcon from '@mui/icons-material/Search';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import DescriptionIcon from '@mui/icons-material/Description';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import HandymanIcon from '@mui/icons-material/Handyman';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -40,6 +55,7 @@ import {
   fetchPurchaseOrders,
   getPurchaseOrderPdf,
   updatePurchaseOrderStatus,
+  fetchPurchaseOrderById,
 } from '../utils/api';
 import {
   onFirstDataRendered,
@@ -51,9 +67,30 @@ import {
 import { PurchaseOrder } from '../utils/types';
 import { RootState } from '../store';
 import { useSelector } from 'react-redux';
+import { pdf } from '@react-pdf/renderer';
+import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 
 // PDF action types
 type PdfActionType = 'view' | 'download' | 'print';
+
+// Dialog state type with additional icon info
+interface ConfirmDialogState {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => Promise<void>;
+  isLoading: boolean;
+  type?:
+    | 'delete'
+    | 'warning'
+    | 'info'
+    | 'success'
+    | 'devis'
+    | 'bon'
+    | 'appointment'
+    | 'installation'
+    | 'invoice';
+}
 
 // Grid state key for purchase orders
 const PURCHASE_ORDERS_GRID_STATE_KEY = 'purchaseOrdersAgGridState';
@@ -73,7 +110,21 @@ const PurchaseOrders: React.FC = () => {
   const [loadingPdfIds, setLoadingPdfIds] = useState<Record<number, boolean>>(
     {},
   );
+  // Confirmation dialog state with type
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: async () => {},
+    isLoading: false,
+    type: 'info',
+  });
+
   const gridRef = React.createRef<AgGridReact>();
+  const { items: inventoryItems } = useSelector(
+    (state: RootState) => state.robotInventory,
+  );
+  const { texts } = useSelector((state: RootState) => state.installationTexts);
 
   // Save page size to localStorage when it changes
   useEffect(() => {
@@ -112,28 +163,62 @@ const PurchaseOrders: React.FC = () => {
     [navigate],
   );
 
+  // Helper function to show confirmation dialog with type
+  const showConfirmDialog = useCallback(
+    (
+      title: string,
+      message: string,
+      onConfirm: () => Promise<void>,
+      type: ConfirmDialogState['type'] = 'info',
+    ) => {
+      setConfirmDialog({
+        open: true,
+        title,
+        message,
+        onConfirm,
+        isLoading: false,
+        type,
+      });
+    },
+    [],
+  );
+
+  // Handle dialog close
+  const handleCloseDialog = useCallback(() => {
+    if (confirmDialog.isLoading) return; // Prevent closing during loading
+    setConfirmDialog({ ...confirmDialog, open: false });
+  }, [confirmDialog]);
+
+  // Handle dialog confirmation
+  const handleConfirmDialog = useCallback(async () => {
+    try {
+      setConfirmDialog((prev) => ({ ...prev, isLoading: true }));
+      await confirmDialog.onConfirm();
+    } catch (error) {
+      console.error('Error in dialog confirmation action:', error);
+      toast.error('Une erreur est survenue');
+    } finally {
+      setConfirmDialog((prev) => ({ ...prev, open: false, isLoading: false }));
+    }
+  }, [confirmDialog]);
+
   // Handle delete purchase order
   const handleDeletePurchaseOrder = useCallback(
     async (order: PurchaseOrder) => {
-      if (
-        !token ||
-        !window.confirm(
-          'Êtes-vous sûr de vouloir supprimer ce bon de commande?',
-        )
-      ) {
-        return;
-      }
+      if (!token) return;
 
-      try {
-        await deletePurchaseOrder(token, order.id);
-        setPurchaseOrders((prev) => prev.filter((o) => o.id !== order.id));
-        toast.success('Bon de commande supprimé avec succès');
-      } catch (error) {
-        console.error('Error deleting purchase order:', error);
-        toast.error('Erreur lors de la suppression');
-      }
+      showConfirmDialog(
+        'Confirmer la suppression',
+        'Êtes-vous sûr de vouloir supprimer ce bon de commande?',
+        async () => {
+          await deletePurchaseOrder(token, order.id);
+          setPurchaseOrders((prev) => prev.filter((o) => o.id !== order.id));
+          toast.success('Bon de commande supprimé avec succès');
+        },
+        'delete',
+      );
     },
-    [token],
+    [token, showConfirmDialog],
   );
 
   // Get PDF from API or cache
@@ -317,22 +402,59 @@ const PurchaseOrders: React.FC = () => {
     [handleEditPurchaseOrder, handleDeletePurchaseOrder, PdfActionButton],
   );
 
+  // Generate the PDF for a purchase order
+  const generatePDF = useCallback(
+    async (order: PurchaseOrder) => {
+      try {
+        // Create the PDF document
+        const pdfBlob = await pdf(
+          <PurchaseOrderPdfDocument
+            purchaseOrder={order}
+            installationTexts={texts}
+          />,
+        ).toBlob();
+
+        return pdfBlob;
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        throw error;
+      }
+    },
+    [texts],
+  );
+
   // Handle status change
   const handleStatusChange = useCallback(
     async (
       orderId: number,
-      field: 'hasAppointment' | 'isInstalled' | 'isInvoiced',
+      field: 'hasAppointment' | 'isInstalled' | 'isInvoiced' | 'devis',
       value: boolean,
     ) => {
       if (!token) return;
 
       try {
         const statusData = { [field]: value };
-        const updatedOrder = await updatePurchaseOrderStatus(
-          token,
-          orderId,
-          statusData,
-        );
+
+        // If devis status is changing, we need to regenerate the PDF
+        if (field === 'devis') {
+          // First get the full purchase order data
+          const orderData = await fetchPurchaseOrderById(token, orderId);
+
+          // Update the devis status locally
+          const updatedOrder = {
+            ...orderData,
+            devis: value,
+          };
+
+          // Generate new PDF with updated devis status
+          const pdfBlob = await generatePDF(updatedOrder);
+
+          // Update status and PDF in DB
+          await updatePurchaseOrderStatus(token, orderId, statusData, pdfBlob);
+        } else {
+          // For other status changes, just update the status
+          await updatePurchaseOrderStatus(token, orderId, statusData);
+        }
 
         // Update local state
         setPurchaseOrders((prevOrders) =>
@@ -347,7 +469,7 @@ const PurchaseOrders: React.FC = () => {
         toast.error('Erreur lors de la mise à jour du statut');
       }
     },
-    [token],
+    [token, generatePDF],
   );
 
   // Appointment status cell renderer
@@ -368,7 +490,23 @@ const PurchaseOrders: React.FC = () => {
           <Checkbox
             checked={order.hasAppointment}
             onChange={(e) => {
-              handleStatusChange(order.id, 'hasAppointment', e.target.checked);
+              const newValue = e.target.checked;
+              const message = newValue
+                ? 'Confirmer que le rendez-vous a été pris avec le client ?'
+                : "Indiquer que le rendez-vous n'est pas encore pris ?";
+
+              showConfirmDialog(
+                newValue ? 'Confirmer rendez-vous' : 'Annuler rendez-vous',
+                message,
+                async () => {
+                  await handleStatusChange(
+                    order.id,
+                    'hasAppointment',
+                    newValue,
+                  );
+                },
+                'appointment',
+              );
             }}
             sx={{
               color: order.hasAppointment
@@ -382,7 +520,7 @@ const PurchaseOrders: React.FC = () => {
         </Box>
       );
     },
-    [handleStatusChange],
+    [handleStatusChange, showConfirmDialog],
   );
 
   // Installation status cell renderer
@@ -403,7 +541,19 @@ const PurchaseOrders: React.FC = () => {
           <Checkbox
             checked={order.isInstalled}
             onChange={(e) => {
-              handleStatusChange(order.id, 'isInstalled', e.target.checked);
+              const newValue = e.target.checked;
+              const message = newValue
+                ? "Confirmer que l'installation a été effectuée ?"
+                : "Indiquer que l'installation n'a pas encore été effectuée ?";
+
+              showConfirmDialog(
+                newValue ? 'Confirmer installation' : 'Annuler installation',
+                message,
+                async () => {
+                  await handleStatusChange(order.id, 'isInstalled', newValue);
+                },
+                'installation',
+              );
             }}
             sx={{
               color: order.isInstalled
@@ -417,7 +567,7 @@ const PurchaseOrders: React.FC = () => {
         </Box>
       );
     },
-    [handleStatusChange],
+    [handleStatusChange, showConfirmDialog],
   );
 
   // Invoice status cell renderer
@@ -438,7 +588,19 @@ const PurchaseOrders: React.FC = () => {
           <Checkbox
             checked={order.isInvoiced}
             onChange={(e) => {
-              handleStatusChange(order.id, 'isInvoiced', e.target.checked);
+              const newValue = e.target.checked;
+              const message = newValue
+                ? 'Confirmer que la facture a été émise ?'
+                : "Indiquer que la facture n'a pas encore été émise ?";
+
+              showConfirmDialog(
+                newValue ? 'Confirmer facturation' : 'Annuler facturation',
+                message,
+                async () => {
+                  await handleStatusChange(order.id, 'isInvoiced', newValue);
+                },
+                'invoice',
+              );
             }}
             sx={{
               color: order.isInvoiced
@@ -452,7 +614,61 @@ const PurchaseOrders: React.FC = () => {
         </Box>
       );
     },
-    [handleStatusChange],
+    [handleStatusChange, showConfirmDialog],
+  );
+
+  // Devis status cell renderer
+  const devisStatusCellRenderer = useCallback(
+    (params: ICellRendererParams) => {
+      if (!params.data) return null;
+      const order = params.data as PurchaseOrder;
+
+      return (
+        <Box
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Tooltip
+            title={order.devis ? 'Devis en cours' : 'Bon de commande finalisé'}
+            arrow
+          >
+            <Checkbox
+              checked={!order.devis}
+              onChange={(e) => {
+                const newValue = !e.target.checked;
+                const message = newValue
+                  ? 'Êtes-vous sûr de vouloir transformer ce bon de commande en devis ? Un nouveau PDF sera généré.'
+                  : 'Êtes-vous sûr de vouloir finaliser ce devis en bon de commande ? Un nouveau PDF sera généré.';
+
+                showConfirmDialog(
+                  newValue
+                    ? 'Transformer en devis'
+                    : 'Finaliser en bon de commande',
+                  message,
+                  async () => {
+                    await handleStatusChange(order.id, 'devis', newValue);
+                  },
+                  newValue ? 'devis' : 'bon',
+                );
+              }}
+              sx={{
+                color: !order.devis
+                  ? 'rgba(46, 125, 50, 0.8)'
+                  : 'rgba(211, 47, 47, 0.8)',
+                '&.Mui-checked': {
+                  color: 'rgba(46, 125, 50, 0.8)',
+                },
+              }}
+            />
+          </Tooltip>
+        </Box>
+      );
+    },
+    [handleStatusChange, showConfirmDialog],
   );
 
   // External filter functions for client search
@@ -538,6 +754,24 @@ const PurchaseOrders: React.FC = () => {
         valueFormatter: formatDate,
       },
       {
+        headerName: 'Devis accepté',
+        field: 'devis',
+        sortable: true,
+        filter: false,
+        minWidth: 120,
+        maxWidth: 120,
+        cellRenderer: devisStatusCellRenderer,
+        cellClass: 'no-focus-outline',
+        headerTooltip:
+          'Cochez si le devis est transformé en bon de commande finalisé',
+        cellStyle: (params: any) => ({
+          backgroundColor:
+            params.data && !params.data.devis
+              ? 'rgba(46, 125, 50, 0.1)'
+              : 'rgba(211, 47, 47, 0.1)',
+        }),
+      },
+      {
         headerName: 'RDV pris',
         field: 'hasAppointment',
         sortable: true,
@@ -602,6 +836,7 @@ const PurchaseOrders: React.FC = () => {
       appointmentStatusCellRenderer,
       installationStatusCellRenderer,
       invoiceStatusCellRenderer,
+      devisStatusCellRenderer,
     ],
   );
 
@@ -636,20 +871,76 @@ const PurchaseOrders: React.FC = () => {
 
   // Handle reset grid state
   const handleResetGrid = useCallback(() => {
-    if (
-      window.confirm(
-        'Réinitialiser tous les paramètres du tableau (colonnes, filtres) ?',
-      )
-    ) {
-      // Clear the saved state
-      clearGridState(PURCHASE_ORDERS_GRID_STATE_KEY);
-      // Reload the page to apply the reset
-      window.location.reload();
-    }
-  }, []);
+    showConfirmDialog(
+      'Réinitialiser le tableau',
+      'Réinitialiser tous les paramètres du tableau (colonnes, filtres) ?',
+      async () => {
+        // Clear the saved state
+        clearGridState(PURCHASE_ORDERS_GRID_STATE_KEY);
+        // Reload the page to apply the reset
+        window.location.reload();
+      },
+      'warning',
+    );
+  }, [showConfirmDialog]);
 
   // Available page size options
   const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
+
+  // Get dialog icon based on type
+  const getDialogIcon = (type: ConfirmDialogState['type']) => {
+    switch (type) {
+      case 'delete':
+        return <DeleteIcon sx={{ fontSize: 60, color: 'error.main' }} />;
+      case 'warning':
+        return (
+          <WarningAmberIcon sx={{ fontSize: 60, color: 'warning.main' }} />
+        );
+      case 'success':
+        return (
+          <CheckCircleOutlineIcon
+            sx={{ fontSize: 60, color: 'success.main' }}
+          />
+        );
+      case 'devis':
+        return <DescriptionIcon sx={{ fontSize: 60, color: 'info.main' }} />;
+      case 'bon':
+        return <ReceiptIcon sx={{ fontSize: 60, color: 'success.main' }} />;
+      case 'appointment':
+        return (
+          <EventAvailableIcon sx={{ fontSize: 60, color: 'primary.main' }} />
+        );
+      case 'installation':
+        return <HandymanIcon sx={{ fontSize: 60, color: 'secondary.main' }} />;
+      case 'invoice':
+        return <ReceiptIcon sx={{ fontSize: 60, color: 'info.dark' }} />;
+      case 'info':
+      default:
+        return <HelpOutlineIcon sx={{ fontSize: 60, color: 'info.main' }} />;
+    }
+  };
+
+  // Get button color based on dialog type
+  const getDialogActionColor = (type: ConfirmDialogState['type']) => {
+    switch (type) {
+      case 'delete':
+        return 'error';
+      case 'warning':
+        return 'warning';
+      case 'devis':
+        return 'info';
+      case 'bon':
+        return 'success';
+      case 'appointment':
+      case 'installation':
+      case 'invoice':
+        return 'primary';
+      case 'success':
+      case 'info':
+      default:
+        return 'primary';
+    }
+  };
 
   if (loading) {
     return <Typography>Chargement...</Typography>;
@@ -657,6 +948,122 @@ const PurchaseOrders: React.FC = () => {
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Enhanced Confirmation Dialog */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={handleCloseDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+        disableEscapeKeyDown={confirmDialog.isLoading}
+        maxWidth="sm"
+        TransitionComponent={Fade}
+        TransitionProps={{ timeout: 300 }}
+      >
+        <DialogTitle
+          id="alert-dialog-title"
+          sx={{
+            textAlign: 'center',
+            fontWeight: 'bold',
+            pt: 3,
+            pb: 1,
+          }}
+        >
+          {confirmDialog.title}
+        </DialogTitle>
+        <DialogContent sx={{ px: 4, py: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              mb: 2,
+            }}
+          >
+            <Fade in={true} timeout={500}>
+              <Box sx={{ mb: 3, mt: 1 }}>
+                {getDialogIcon(confirmDialog.type)}
+              </Box>
+            </Fade>
+
+            <Card
+              elevation={0}
+              sx={{
+                width: '100%',
+                backgroundColor: 'background.paper',
+                p: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+              }}
+            >
+              <Typography
+                variant="body1"
+                align="center"
+                sx={{
+                  px: 2,
+                  fontWeight: 'medium',
+                }}
+              >
+                {confirmDialog.message}
+              </Typography>
+            </Card>
+          </Box>
+
+          {confirmDialog.isLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <CircularProgress size={32} />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions
+          sx={{
+            justifyContent: 'center',
+            gap: 2,
+            pb: 3,
+            pt: 1,
+          }}
+        >
+          <Button
+            onClick={handleCloseDialog}
+            variant="outlined"
+            color="inherit"
+            disabled={confirmDialog.isLoading}
+            startIcon={<CancelOutlinedIcon />}
+            sx={{
+              minWidth: 120,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.05)',
+              },
+            }}
+          >
+            Annuler
+          </Button>
+          <Button
+            onClick={handleConfirmDialog}
+            variant="contained"
+            color={getDialogActionColor(confirmDialog.type)}
+            disabled={confirmDialog.isLoading}
+            startIcon={
+              confirmDialog.isLoading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <CheckCircleOutlineIcon />
+              )
+            }
+            sx={{
+              minWidth: 120,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.05)',
+              },
+            }}
+          >
+            {confirmDialog.isLoading ? 'Traitement...' : 'Confirmer'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Box
         sx={{
           pt: 1.5,
@@ -712,14 +1119,14 @@ const PurchaseOrders: React.FC = () => {
               },
             }}
           />
-          <Tooltip title="Créer un bon de commande" arrow>
+          <Tooltip title="Créer un devis ou bon de commande" arrow>
             <Button
               variant="contained"
               color="primary"
               startIcon={<AddIcon />}
               onClick={handleAddPurchaseOrder}
             >
-              Créer un bon de commande
+              Créer un devis ou bon de commande
             </Button>
           </Tooltip>
         </Box>
