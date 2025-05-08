@@ -82,6 +82,7 @@ export interface PurchaseOrder {
   hasAppointment: boolean;
   isInstalled: boolean;
   isInvoiced: boolean;
+  devis: boolean;
 
   orderPdfId: string | null;
   eventId?: string | null;
@@ -115,6 +116,7 @@ export interface PurchaseOrderFormData {
   hasAppointment?: boolean;
   isInstalled?: boolean;
   isInvoiced?: boolean;
+  devis?: boolean;
 }
 
 // Define the InventoryCategory enum

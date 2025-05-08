@@ -300,7 +300,9 @@ export const PurchaseOrderPdfDocument: React.FC<{
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>BON DE COMMANDE</Text>
+        <Text style={styles.title}>
+          {purchaseOrder.devis ? 'DEVIS' : 'BON DE COMMANDE'}
+        </Text>
         <Text>Date: {formatDate(purchaseOrder.createdAt)}</Text>
 
         {/* Client Information */}
@@ -615,7 +617,7 @@ export const PurchaseOrderPdfDocument: React.FC<{
       </Page>
 
       {/* Third page with installation preparation instructions */}
-      {hasInstallationTexts && (
+      {hasInstallationTexts && !purchaseOrder.devis && (
         <Page size="A4" style={styles.page}>
           {/* Header for consistency */}
           <View style={styles.header}>

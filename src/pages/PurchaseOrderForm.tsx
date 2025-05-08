@@ -5,6 +5,9 @@ import {
   Button,
   Checkbox,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   FormControl,
   FormControlLabel,
   Grid,
@@ -15,6 +18,9 @@ import {
   Select,
   TextField,
   Typography,
+  Card,
+  CardActionArea,
+  CardContent,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -45,6 +51,9 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { useAppDispatch } from '../store/hooks';
 import { fetchInventorySummaryAsync } from '../store/robotInventorySlice';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -212,12 +221,15 @@ const PurchaseOrderForm: React.FC = () => {
     hasAppointment: false,
     isInstalled: false,
     isInvoiced: false,
+    devis: false,
   });
   const [selectedInvoice, setSelectedInvoice] = useState<File | null>(null);
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(
     null,
   );
+  const [typeDialogOpen, setTypeDialogOpen] = useState(!isEditing);
+
   const { texts } = useSelector((state: RootState) => state.installationTexts);
   const { items: inventoryItems, loading: inventoryLoading } = useSelector(
     (state: RootState) => state.robotInventory,
@@ -257,6 +269,7 @@ const PurchaseOrderForm: React.FC = () => {
           pluginInventoryId: data.pluginInventoryId || null,
           antennaInventoryId: data.antennaInventoryId || null,
           shelterInventoryId: data.shelterInventoryId || null,
+          devis: data.devis || false,
         });
 
         setFormData({
@@ -280,6 +293,8 @@ const PurchaseOrderForm: React.FC = () => {
           installationNotes: data.installationNotes || '',
           hasAppointment: data.hasAppointment || false,
           isInstalled: data.isInstalled || false,
+          isInvoiced: data.isInvoiced || false,
+          devis: data.devis || false,
         });
       } catch (error) {
         console.error('Error fetching purchase order:', error);
@@ -315,6 +330,29 @@ const PurchaseOrderForm: React.FC = () => {
     },
     [],
   );
+
+  // Handle document type selection
+  const handleTypeSelection = (type: 'devis' | 'bon_de_commande') => {
+    setFormData((prev) => ({
+      ...prev,
+      devis: type === 'devis',
+    }));
+    setTypeDialogOpen(false);
+  };
+
+  // Toggle between quote and purchase order
+  const toggleDocumentType = () => {
+    // Dismiss any existing toast notifications
+    toast.dismiss();
+
+    setFormData((prev) => ({
+      ...prev,
+      devis: !prev.devis,
+    }));
+    toast.info(
+      !formData.devis ? 'Converti en devis' : 'Converti en bon de commande',
+    );
+  };
 
   // Generate the PDF and return the blob
   const generatePDF = async (order: PurchaseOrder) => {
@@ -428,6 +466,7 @@ const PurchaseOrderForm: React.FC = () => {
         isInstalled:
           formData.isInstalled || purchaseOrder?.isInstalled || false,
         isInvoiced: formData.isInvoiced || purchaseOrder?.isInvoiced || false,
+        devis: formData.devis || purchaseOrder?.devis || false,
         serialNumber:
           formData.serialNumber || purchaseOrder?.serialNumber || '',
         orderPdfId: purchaseOrder?.orderPdfId || null,
@@ -521,6 +560,127 @@ const PurchaseOrderForm: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: 'auto', py: 2 }}>
+      {/* Document Type Selection Dialog */}
+      <Dialog
+        open={typeDialogOpen}
+        disableEscapeKeyDown
+        maxWidth="md"
+        disablePortal
+        onClose={(event, reason) => {
+          // Don't allow closing by clicking outside or pressing escape
+          if (reason && reason === 'backdropClick') {
+            return;
+          }
+        }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 'bold', pt: 3 }}>
+          Choisissez le type de document
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 4,
+            pt: '24px !important',
+            pb: 4,
+          }}
+        >
+          <Card
+            sx={{
+              width: 220,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: 6,
+                borderColor: 'primary.main',
+              },
+              border: '2px solid transparent',
+            }}
+          >
+            <CardActionArea
+              onClick={() => handleTypeSelection('devis')}
+              sx={{ height: '100%', p: 1 }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  py: 3,
+                }}
+              >
+                <DescriptionIcon
+                  sx={{ fontSize: 60, mb: 2, color: 'info.main' }}
+                />
+                <CardContent>
+                  <Typography
+                    variant="h5"
+                    component="div"
+                    sx={{ textAlign: 'center' }}
+                  >
+                    Devis
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 2, textAlign: 'center' }}
+                  >
+                    Créer un devis pour le client (sans engagement)
+                  </Typography>
+                </CardContent>
+              </Box>
+            </CardActionArea>
+          </Card>
+
+          <Card
+            sx={{
+              width: 220,
+              transition: 'all 0.3s ease',
+              border: '2px solid transparent',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                borderColor: 'primary.main',
+                boxShadow: 6,
+              },
+            }}
+          >
+            <CardActionArea
+              onClick={() => handleTypeSelection('bon_de_commande')}
+              sx={{ height: '100%', p: 1 }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  py: 3,
+                }}
+              >
+                <ReceiptIcon
+                  sx={{ fontSize: 60, mb: 2, color: 'success.main' }}
+                />
+                <CardContent>
+                  <Typography
+                    variant="h5"
+                    component="div"
+                    sx={{ textAlign: 'center' }}
+                  >
+                    Bon de commande
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mt: 2, textAlign: 'center' }}
+                  >
+                    Créer un bon de commande finalisé
+                  </Typography>
+                </CardContent>
+              </Box>
+            </CardActionArea>
+          </Card>
+        </DialogContent>
+      </Dialog>
+
       <Paper sx={{ p: 3 }}>
         <Backdrop
           sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
@@ -529,19 +689,41 @@ const PurchaseOrderForm: React.FC = () => {
           <CircularProgress color="inherit" />
         </Backdrop>
 
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+        <Box
+          sx={{
+            mb: 3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Button
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/purchase-orders')}
+              sx={{ mr: 2 }}
+            >
+              Retour
+            </Button>
+            <Typography variant="h5" component="h1">
+              {isEditing
+                ? `Modifier le ${formData.devis ? 'devis' : 'bon de commande'}`
+                : `Créer un ${formData.devis ? 'devis' : 'bon de commande'}`}
+            </Typography>
+          </Box>
+
+          {/* Document Type Toggle Button */}
           <Button
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/purchase-orders')}
-            sx={{ mr: 2 }}
+            variant="outlined"
+            color={formData.devis ? 'info' : 'success'}
+            onClick={toggleDocumentType}
+            startIcon={<CompareArrowsIcon />}
+            sx={{ ml: 2 }}
           >
-            Retour
+            {formData.devis
+              ? 'Convertir en bon de commande'
+              : 'Convertir en devis'}
           </Button>
-          <Typography variant="h5" component="h1">
-            {isEditing
-              ? 'Modifier le bon de commande'
-              : 'Créer un bon de commande'}
-          </Typography>
         </Box>
 
         <Box component="form" onSubmit={handleSubmit}>
@@ -731,32 +913,46 @@ const PurchaseOrderForm: React.FC = () => {
 
           <FormSection title="Facturation">
             <Grid item xs={12}>
-              <Button
-                component="label"
-                variant="outlined"
-                startIcon={<CloudUploadIcon />}
-                color={invoiceError ? 'error' : 'primary'}
-              >
-                {selectedInvoice
-                  ? selectedInvoice.name
-                  : 'Ajouter une facture (optionnel)'}
-                <VisuallyHiddenInput
-                  type="file"
-                  onChange={handleInvoiceChange}
-                  accept="application/pdf"
-                />
-              </Button>
-              {selectedInvoice && (
+              {!formData.devis ? (
+                <>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    startIcon={<CloudUploadIcon />}
+                    color={invoiceError ? 'error' : 'primary'}
+                  >
+                    {selectedInvoice
+                      ? selectedInvoice.name
+                      : 'Ajouter une facture (optionnel)'}
+                    <VisuallyHiddenInput
+                      type="file"
+                      onChange={handleInvoiceChange}
+                      accept="application/pdf"
+                    />
+                  </Button>
+                  {selectedInvoice && (
+                    <Typography
+                      variant="body2"
+                      sx={{ mt: 1, color: 'text.secondary' }}
+                    >
+                      La facture sera fusionnée avec le bon de commande
+                    </Typography>
+                  )}
+                  {invoiceError && (
+                    <Typography
+                      variant="body2"
+                      sx={{ mt: 1, color: 'error.main' }}
+                    >
+                      {invoiceError}
+                    </Typography>
+                  )}
+                </>
+              ) : (
                 <Typography
                   variant="body2"
-                  sx={{ mt: 1, color: 'text.secondary' }}
+                  sx={{ color: 'text.secondary', fontStyle: 'italic' }}
                 >
-                  La facture sera fusionnée avec le bon de commande
-                </Typography>
-              )}
-              {invoiceError && (
-                <Typography variant="body2" sx={{ mt: 1, color: 'error.main' }}>
-                  {invoiceError}
+                  L'ajout de facture n'est pas disponible pour un devis
                 </Typography>
               )}
             </Grid>
