@@ -5,9 +5,11 @@ import { debounce } from 'lodash';
 const debouncedSaveColumnState = debounce(
   (gridStateKey: string, columnState: ColumnState[]) => {
     console.log('Saving grid column state', gridStateKey, columnState);
+    // Remove hide property from each column state object
+    const filteredColumnState = columnState.map(({ hide, ...rest }) => rest);
     localStorage.setItem(
       `${gridStateKey}_columns`,
-      JSON.stringify(columnState),
+      JSON.stringify(filteredColumnState),
     );
   },
   300,

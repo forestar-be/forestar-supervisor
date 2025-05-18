@@ -22,6 +22,7 @@ import CallIcon from '@mui/icons-material/Call';
 import HomeIcon from '@mui/icons-material/Home';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -37,6 +38,29 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
   const colorMode = useContext(ColorModeContext);
   const [header] = useState<HeaderProps>(headerData);
   const navigate = useNavigate();
+
+  // Calculate showTextInButton based on screen size
+  const isSm = useMediaQuery(theme.breakpoints.down('md'));
+  const showTextInButton = !isSm;
+
+  // Check if screen width is below 1270px
+  const isBelowCustomBreakpoint = useMediaQuery('(max-width:1270px)');
+
+  // Check if screen width is below 1200px to hide the title
+  const isBelowTitleBreakpoint = useMediaQuery('(max-width:1200px)');
+
+  // Check if screen width is below 960px to hide Accueil text
+  const isBelow960px = useMediaQuery('(max-width:960px)');
+
+  const buttonSx = {
+    whiteSpace: 'nowrap',
+    ...(showTextInButton
+      ? {}
+      : {
+          minWidth: 'unset',
+          '& .MuiButton-startIcon': { m: 0 },
+        }),
+  };
 
   return (
     <>
@@ -62,9 +86,16 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
           >
             <IconButton size="large" disabled>
               <Logo isDark={theme.palette.mode === 'dark'} />
-              <Box sx={{ display: { md: 'inline', xs: 'none' } }}>
+              <Box
+                sx={{
+                  display: {
+                    md: isBelowTitleBreakpoint ? 'none' : 'inline',
+                    xs: 'none',
+                  },
+                }}
+              >
                 <Typography
-                  variant="h6"
+                  variant={isBelowCustomBreakpoint ? 'body1' : 'h6'}
                   sx={{
                     flexGrow: 1,
                     color: theme.palette.text.primary,
@@ -72,6 +103,7 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                     textTransform: 'uppercase',
                     textDecoration: 'none',
                     marginLeft: '10px',
+                    fontSize: isBelowCustomBreakpoint ? '0.9rem' : undefined,
                   }}
                 >
                   {header.title}
@@ -99,8 +131,15 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
                 startIcon={<HomeIcon fontSize="medium" />}
                 variant="contained"
+                sx={{
+                  ...buttonSx,
+                  ...(isBelow960px && {
+                    minWidth: 'unset',
+                    '& .MuiButton-startIcon': { m: 0 },
+                  }),
+                }}
               >
-                Accueil
+                {showTextInButton && !isBelow960px && <Box>Accueil</Box>}
               </Button>
               <Button
                 component="a"
@@ -113,8 +152,9 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
                 startIcon={<CallIcon fontSize="medium" />}
                 variant="contained"
+                sx={buttonSx}
               >
-                Gestion des appels
+                {showTextInButton && <Box>Gestion des appels</Box>}
               </Button>
               <Button
                 component="a"
@@ -127,8 +167,9 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
                 startIcon={<InventoryIcon fontSize="medium" />}
                 variant="contained"
+                sx={buttonSx}
               >
-                Inventaire robots
+                {showTextInButton && <Box>Inventaire robots</Box>}
               </Button>
               <Button
                 component="a"
@@ -141,8 +182,9 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
                 startIcon={<ShoppingCartIcon fontSize="medium" />}
                 variant="contained"
+                sx={buttonSx}
               >
-                Bons de commande
+                {showTextInButton && <Box>Bons de commande</Box>}
               </Button>
               <IconButton
                 component="a"
