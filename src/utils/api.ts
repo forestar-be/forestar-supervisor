@@ -409,71 +409,34 @@ export const fetchPurchaseOrderById = (
 
 export const createPurchaseOrder = async (
   token: string,
-  orderData: PurchaseOrderFormData,
-  pdfBlob?: Blob,
+  formData: FormData,
 ): Promise<PurchaseOrder> => {
-  if (pdfBlob) {
-    // If we have a PDF blob, use FormData
-    const formData = new FormData();
-    // Add all order data as JSON
-    formData.append('orderData', JSON.stringify(orderData));
-    // Add PDF file
-    formData.append(
-      'pdf',
-      new File([pdfBlob], 'purchase_order.pdf', { type: 'application/pdf' }),
-    );
-
-    return apiRequest(
-      '/supervisor/purchase-orders',
-      'POST',
-      token,
-      formData,
-      {}, // No content-type header, browser will set it with boundary
-      false, // Don't stringify the body
-    );
-  } else {
-    // Standard JSON request without PDF
-    return apiRequest('/supervisor/purchase-orders', 'POST', token, orderData);
-  }
+  return apiRequest(
+    '/supervisor/purchase-orders',
+    'POST',
+    token,
+    formData,
+    {}, // No content-type header, browser will set it with boundary
+    false, // Don't stringify the body
+  );
 };
 
 export const updatePurchaseOrder = (
   token: string,
   id: number,
-  orderData: Partial<PurchaseOrderFormData>,
-  pdfBlob?: Blob,
+  formData: FormData,
 ): Promise<PurchaseOrder> => {
-  if (pdfBlob) {
-    // If we have a PDF blob, use FormData
-    const formData = new FormData();
-    // Add all order data as JSON
-    formData.append('orderData', JSON.stringify(orderData));
-    // Add PDF file
-    formData.append(
-      'pdf',
-      new File([pdfBlob], 'purchase_order.pdf', { type: 'application/pdf' }),
-    );
-
-    return apiRequest(
-      `/supervisor/purchase-orders/${id}`,
-      'PUT',
-      token,
-      formData,
-      {}, // No content-type header, browser will set it with boundary
-      false, // Don't stringify the body
-    );
-  } else {
-    // Standard JSON request without PDF
-    return apiRequest(
-      `/supervisor/purchase-orders/${id}`,
-      'PUT',
-      token,
-      orderData,
-    );
-  }
+  return apiRequest(
+    `/supervisor/purchase-orders/${id}`,
+    'PUT',
+    token,
+    formData,
+    {}, // No content-type header, browser will set it with boundary
+    false, // Don't stringify the body
+  );
 };
 
-export const updatePurchaseOrderStatus = (
+export const updatePurchaseOrderStatus = async (
   token: string,
   id: number,
   statusData: {
@@ -481,36 +444,54 @@ export const updatePurchaseOrderStatus = (
     isInstalled?: boolean;
     isInvoiced?: boolean;
     devis?: boolean;
+    clientSignature?: string;
   },
-  pdfBlob?: Blob,
+  pdfFile?: Blob,
 ): Promise<PurchaseOrder> => {
-  if (pdfBlob) {
-    // If we have a PDF, create FormData and send as multipart
+  try {
     const formData = new FormData();
-    formData.append('pdf', pdfBlob, 'purchase_order.pdf');
 
-    // Add status data
-    Object.entries(statusData).forEach(([key, value]) => {
-      formData.append(key, String(value));
-    });
-
-    return apiRequest(
-      `/supervisor/purchase-orders/${id}/status`,
-      'PATCH',
-      token,
-      formData,
-      {}, // No Content-Type - browser will set it with boundary
-      false, // Don't stringify the body
+    // Add status data as JSON
+    formData.append(
+      'hasAppointment',
+      statusData.hasAppointment?.toString() || '',
     );
-  }
+    formData.append('isInstalled', statusData.isInstalled?.toString() || '');
+    formData.append('isInvoiced', statusData.isInvoiced?.toString() || '');
+    formData.append('devis', statusData.devis?.toString() || '');
 
-  // Normal update without PDF
-  return apiRequest(
-    `/supervisor/purchase-orders/${id}/status`,
-    'PATCH',
-    token,
-    statusData,
-  );
+    // Add client signature if provided
+    if (statusData.clientSignature) {
+      formData.append('clientSignature', statusData.clientSignature);
+    }
+
+    // Add PDF file if provided
+    if (pdfFile) {
+      formData.append('pdf', pdfFile);
+    }
+
+    const response = await fetch(
+      `${API_URL}/supervisor/purchase-orders/${id}/status`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to update purchase order status: ${response.status}`,
+      );
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating purchase order status:', error);
+    throw error;
+  }
 };
 
 export const deletePurchaseOrder = (token: string, id: number): Promise<void> =>
@@ -518,6 +499,25 @@ export const deletePurchaseOrder = (token: string, id: number): Promise<void> =>
 
 export const getPurchaseOrderPdf = (token: string, id: number): Promise<Blob> =>
   apiRequest(`/supervisor/purchase-orders/${id}/pdf`, 'GET', token);
+
+// Function to get the invoice PDF
+export const getPurchaseOrderInvoice = (
+  token: string,
+  id: number,
+): Promise<Blob> =>
+  apiRequest(`/supervisor/purchase-orders/${id}/invoice`, 'GET', token);
+
+// Function to get a photo by index
+export const getPurchaseOrderPhoto = (
+  token: string,
+  id: number,
+  photoIndex: number,
+): Promise<Blob> =>
+  apiRequest(
+    `/supervisor/purchase-orders/${id}/photo/${photoIndex}`,
+    'GET',
+    token,
+  );
 
 export const isAuthenticatedGg = async (
   token: string,

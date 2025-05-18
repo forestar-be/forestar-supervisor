@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Document,
   Page,
@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
   PDFViewer,
+  Image,
 } from '@react-pdf/renderer';
 import {
   PurchaseOrder,
@@ -14,6 +15,8 @@ import {
 } from '../utils/types';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { useAuth } from '../hooks/AuthProvider';
+import { getPurchaseOrderPhoto } from '../utils/api';
 
 // Register fonts if needed
 // Font.register({
@@ -144,11 +147,47 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 70,
   },
+  signatureImage: {
+    width: '100%',
+    height: 100,
+    objectFit: 'contain',
+    marginTop: 5,
+  },
+  signatureDate: {
+    fontSize: 10,
+    marginTop: 5,
+    fontStyle: 'italic',
+  },
   noteText: {
     fontSize: 12,
     marginTop: 10,
     marginBottom: 10,
     lineHeight: 1.5,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    marginBottom: 15,
+    padding: 10,
+  },
+  photoContainer: {
+    width: '30%',
+    margin: '1.66%',
+    marginBottom: 15,
+    border: '1pt solid #ccc',
+    padding: 5,
+  },
+  photo: {
+    width: '100%',
+    height: 150,
+    objectFit: 'contain',
+    marginBottom: 5,
+  },
+  photoCaption: {
+    fontSize: 8,
+    textAlign: 'center',
+    marginTop: 5,
   },
 });
 
@@ -156,6 +195,18 @@ const styles = StyleSheet.create({
 const formatDate = (date: string | null | undefined): string => {
   if (!date) return '-';
   return new Date(date).toLocaleDateString('fr-FR');
+};
+
+// Format date with time to display in French format
+const formatDateWithTime = (date: string | null | undefined): string => {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('fr-FR', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 // Custom formatter for PDF prices to avoid issues with non-breaking spaces
@@ -173,24 +224,95 @@ const formatPriceForPdf = (price: number | null | undefined): string => {
 const ANTENNA_SUPPORT_PRICE = 50;
 // Define constant for placement price
 const PLACEMENT_PRICE = 200;
+// Define constant for wire price per meter
+const WIRE_PRICE_PER_METER = 1.3;
 
 interface PurchaseOrderPdfProps {
   purchaseOrder: PurchaseOrder;
 }
+
+// Helper function to convert blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
 
 // Component to display the PDF
 export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
   purchaseOrder,
 }) => {
   const { texts } = useSelector((state: RootState) => state.installationTexts);
+  const { token } = useAuth();
+  const [photoDataUrls, setPhotoDataUrls] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Fetch all photos when component mounts
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      if (!token || !purchaseOrder?.photosPaths?.length) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const photoPromises = purchaseOrder.photosPaths.map((_, index) =>
+          getPurchaseOrderPhoto(token, purchaseOrder.id, index),
+        );
+
+        const photoBlobs = await Promise.all(photoPromises);
+
+        // Convert blobs to base64 for React PDF
+        const base64Promises = photoBlobs.map((blob) => blobToBase64(blob));
+        const base64Photos = await Promise.all(base64Promises);
+
+        setPhotoDataUrls(base64Photos);
+      } catch (error) {
+        console.error('Error fetching photos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPhotos();
+
+    // No need to clean up base64 strings
+  }, [token, purchaseOrder]);
+
+  if (loading) {
+    return <div>Chargement des photos...</div>;
+  }
 
   return (
     <PDFViewer style={{ width: '100%', height: '100vh' }}>
       <PurchaseOrderPdfDocument
         purchaseOrder={purchaseOrder}
         installationTexts={texts}
+        photoDataUrls={photoDataUrls}
       />
     </PDFViewer>
+  );
+};
+
+// Function to render photos in a grid layout
+const renderPhotos = (photoUrls: string[]) => {
+  if (!photoUrls || photoUrls.length === 0) return null;
+
+  return (
+    <View style={styles.photoGrid}>
+      {photoUrls.map((photoUrl, index) => {
+        if (!photoUrl) return null;
+        return (
+          <View key={index} style={styles.photoContainer}>
+            <Image cache={false} src={photoUrl} style={styles.photo} />
+            <Text style={styles.photoCaption}>Photo {index + 1}</Text>
+          </View>
+        );
+      })}
+    </View>
   );
 };
 
@@ -198,11 +320,17 @@ export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
 export const PurchaseOrderPdfDocument: React.FC<{
   purchaseOrder: PurchaseOrder;
   installationTexts?: InstallationPreparationText[];
-}> = ({ purchaseOrder, installationTexts }) => {
+  photoDataUrls?: string[];
+}> = ({ purchaseOrder, installationTexts, photoDataUrls = [] }) => {
+  console.log('photoDataUrls', photoDataUrls);
   // Check if we need a third page for installation notes
   const hasInstallationNotes = !!purchaseOrder.installationNotes;
   const hasInstallationTexts =
     installationTexts && installationTexts.length > 0;
+
+  // Check if we have photos - filter out any empty URLs
+  const validPhotoUrls = photoDataUrls.filter((url) => !!url);
+  const hasPhotos = validPhotoUrls.length > 0;
 
   // Calculate total price
   const calculateTotalPrice = () => {
@@ -226,6 +354,11 @@ export const PurchaseOrderPdfDocument: React.FC<{
 
     if (purchaseOrder.hasPlacement) {
       total += PLACEMENT_PRICE;
+    }
+
+    // Add wire price if applicable
+    if (purchaseOrder.hasWire && purchaseOrder.wireLength) {
+      total += WIRE_PRICE_PER_METER * purchaseOrder.wireLength;
     }
 
     return total;
@@ -350,7 +483,7 @@ export const PurchaseOrderPdfDocument: React.FC<{
                 : ''}
             </Text>
           </View>
-          {purchaseOrder.serialNumber && (
+          {!purchaseOrder.devis && purchaseOrder.serialNumber && (
             <View style={styles.row}>
               <Text style={styles.label}>Numéro de série:</Text>
               <Text style={styles.value}>{purchaseOrder.serialNumber}</Text>
@@ -425,9 +558,56 @@ export const PurchaseOrderPdfDocument: React.FC<{
             </View>
           )}
         </View>
+
+        {/* Quote specific information */}
+        {purchaseOrder.devis && purchaseOrder.validUntil && (
+          <View>
+            <View style={styles.sectionTitle}>
+              <Text>INFORMATIONS DEVIS</Text>
+            </View>
+            <View style={styles.column}>
+              <View style={styles.row}>
+                <Text style={styles.label}>Date de validité:</Text>
+                <Text style={styles.value}>
+                  {formatDate(purchaseOrder.validUntil)}
+                </Text>
+              </View>
+              {purchaseOrder.bankAccountNumber && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Coordonnées bancaires:</Text>
+                  <Text style={styles.value}>
+                    {purchaseOrder.bankAccountNumber}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.row}>
+                <Text style={styles.noteText}>
+                  Pour confirmer ce devis, merci de verser l'acompte de{' '}
+                  {formatPriceForPdf(purchaseOrder.deposit)} sur le compte
+                  bancaire indiqué ci-dessus.
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
       </Page>
 
-      {/* Second page with summary */}
+      {/* Photos page */}
+      {hasPhotos && (
+        <Page size="A4" style={styles.page}>
+          {/* Header for consistency */}
+          <View style={styles.header}>
+            <Text style={styles.headerText}>FORESTAR</Text>
+          </View>
+
+          <View style={styles.sectionTitle}>
+            <Text>PHOTOS</Text>
+          </View>
+          {renderPhotos(validPhotoUrls)}
+        </Page>
+      )}
+
+      {/* Summary page */}
       <Page size="A4" style={styles.page}>
         {/* Header for consistency */}
         <View style={styles.header}>
@@ -532,7 +712,13 @@ export const PurchaseOrderPdfDocument: React.FC<{
                 <Text style={styles.tableCell}>1</Text>
               </View>
               <View style={styles.tableCol}>
-                <Text style={styles.tableCell}>-</Text>
+                <Text style={styles.tableCell}>
+                  {purchaseOrder.wireLength
+                    ? formatPriceForPdf(
+                        WIRE_PRICE_PER_METER * purchaseOrder.wireLength,
+                      )
+                    : '-'}
+                </Text>
               </View>
             </View>
           )}
@@ -614,10 +800,52 @@ export const PurchaseOrderPdfDocument: React.FC<{
             </View>
           </View>
         </View>
+
+        {/* Client Signature Section */}
+        {!purchaseOrder.devis && (
+          <View>
+            <View style={styles.sectionTitle}>
+              <Text>VALIDATION ET SIGNATURE</Text>
+            </View>
+
+            {purchaseOrder.clientSignature ? (
+              <View>
+                <View style={{ marginVertical: 10 }}>
+                  <Text style={{ fontSize: 12, marginBottom: 5 }}>
+                    Bon de commande validé et signé par le client:
+                  </Text>
+                  <Image
+                    src={purchaseOrder.clientSignature}
+                    style={styles.signatureImage}
+                  />
+                  {purchaseOrder.signatureTimestamp && (
+                    <Text style={styles.signatureDate}>
+                      Signature effectuée le{' '}
+                      {formatDateWithTime(purchaseOrder.signatureTimestamp)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.signature}>
+                <View style={styles.signatureBox}>
+                  <Text style={styles.signatureLabel}>
+                    Signature du client:
+                  </Text>
+                </View>
+                <View style={styles.signatureBox}>
+                  <Text style={styles.signatureLabel}>
+                    Signature du vendeur:
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
       </Page>
 
-      {/* Third page with installation preparation instructions */}
-      {hasInstallationTexts && !purchaseOrder.devis && (
+      {/* Installation preparation instructions page */}
+      {hasInstallationTexts && (
         <Page size="A4" style={styles.page}>
           {/* Header for consistency */}
           <View style={styles.header}>

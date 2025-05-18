@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+} from 'react';
 import {
   Box,
   Button,
@@ -10,13 +16,7 @@ import {
   Typography,
   useTheme,
   Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Card,
-  Fade,
+  useMediaQuery,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -27,18 +27,11 @@ import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SearchIcon from '@mui/icons-material/Search';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import ReceiptIcon from '@mui/icons-material/Receipt';
-import DescriptionIcon from '@mui/icons-material/Description';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
-import HandymanIcon from '@mui/icons-material/Handyman';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
+import SignatureCanvas from 'react-signature-canvas';
 import {
   ColDef,
   GridReadyEvent,
@@ -69,31 +62,41 @@ import { RootState } from '../store';
 import { useSelector } from 'react-redux';
 import { pdf } from '@react-pdf/renderer';
 import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
+import ConfirmDialog, {
+  ConfirmDialogType,
+} from '../components/dialogs/ConfirmDialog';
+import { SignatureDialog } from '../components/dialogs/SignatureDialog';
+
+// Add CSS for SignatureCanvas
+const signatureCanvasStyles = `
+  .signature-canvas {
+    touch-action: none;
+  }
+`;
 
 // PDF action types
 type PdfActionType = 'view' | 'download' | 'print';
 
-// Dialog state type with additional icon info
+// Dialog state type
 interface ConfirmDialogState {
   open: boolean;
   title: string;
   message: string;
   onConfirm: () => Promise<void>;
   isLoading: boolean;
-  type?:
-    | 'delete'
-    | 'warning'
-    | 'info'
-    | 'success'
-    | 'devis'
-    | 'bon'
-    | 'appointment'
-    | 'installation'
-    | 'invoice';
+  type?: ConfirmDialogType;
 }
 
-// Grid state key for purchase orders
+// Signature dialog state
+interface SignatureDialogState {
+  open: boolean;
+  orderId: number;
+  orderData: PurchaseOrder | null;
+  isLoading: boolean;
+}
+
 const PURCHASE_ORDERS_GRID_STATE_KEY = 'purchaseOrdersAgGridState';
+const CHECKBOX_CELL_WIDTH = 80;
 
 const PurchaseOrders: React.FC = () => {
   const { token } = useAuth();
@@ -110,7 +113,41 @@ const PurchaseOrders: React.FC = () => {
   const [loadingPdfIds, setLoadingPdfIds] = useState<Record<number, boolean>>(
     {},
   );
-  // Confirmation dialog state with type
+
+  // Media queries for responsive design
+  const isMediumScreen = useMediaQuery('(max-width:1400px)');
+  const isSmallScreen = useMediaQuery('(max-width:1200px)');
+  const isTablet = useMediaQuery('(max-width:768px)');
+  const isMobile = useMediaQuery('(max-width:480px)');
+
+  // Calculate showTextInButton based on screen size (false when xs)
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
+  const showTextInButton = !isXs;
+
+  // Button style based on showTextInButton
+  const buttonSx = {
+    whiteSpace: 'nowrap',
+    ...(showTextInButton
+      ? {}
+      : {
+          minWidth: 'unset',
+          '& .MuiButton-startIcon': { m: 0 },
+          '& .MuiButton-endIcon': { m: 0 },
+        }),
+  };
+
+  // Signature canvas reference
+  const signatureCanvasRef = useRef<SignatureCanvas>(null);
+
+  // Signature dialog state
+  const [signatureDialog, setSignatureDialog] = useState<SignatureDialogState>({
+    open: false,
+    orderId: 0,
+    orderData: null,
+    isLoading: false,
+  });
+
+  // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
     open: false,
     title: '',
@@ -121,10 +158,35 @@ const PurchaseOrders: React.FC = () => {
   });
 
   const gridRef = React.createRef<AgGridReact>();
-  const { items: inventoryItems } = useSelector(
-    (state: RootState) => state.robotInventory,
-  );
   const { texts } = useSelector((state: RootState) => state.installationTexts);
+
+  // Add resize handler to fit columns on window size change
+  useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout;
+
+    const handleResize = () => {
+      // Debounce resize event
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (gridRef.current && gridRef.current.api) {
+          gridRef.current.api.sizeColumnsToFit();
+        }
+      }, 250);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Initial sizing
+    if (gridRef.current && gridRef.current.api) {
+      gridRef.current.api.sizeColumnsToFit();
+    }
+
+    // Cleanup
+    return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [gridRef]);
 
   // Save page size to localStorage when it changes
   useEffect(() => {
@@ -169,7 +231,7 @@ const PurchaseOrders: React.FC = () => {
       title: string,
       message: string,
       onConfirm: () => Promise<void>,
-      type: ConfirmDialogState['type'] = 'info',
+      type: ConfirmDialogType = 'info',
     ) => {
       setConfirmDialog({
         open: true,
@@ -188,6 +250,115 @@ const PurchaseOrders: React.FC = () => {
     if (confirmDialog.isLoading) return; // Prevent closing during loading
     setConfirmDialog({ ...confirmDialog, open: false });
   }, [confirmDialog]);
+
+  // Generate the PDF for a purchase order
+  const generatePDF = useCallback(
+    async (order: PurchaseOrder) => {
+      try {
+        // Create the PDF document
+        const pdfBlob = await pdf(
+          <PurchaseOrderPdfDocument
+            purchaseOrder={order}
+            installationTexts={texts}
+          />,
+        ).toBlob();
+
+        return pdfBlob;
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        throw error;
+      }
+    },
+    [texts],
+  );
+
+  // Handle signature dialog close
+  const handleCloseSignatureDialog = useCallback(() => {
+    if (signatureDialog.isLoading) return; // Prevent closing during loading
+    setSignatureDialog({ ...signatureDialog, open: false });
+  }, [signatureDialog]);
+
+  // Handle signature submission
+  const handleSignatureSubmit = useCallback(async () => {
+    if (!signatureCanvasRef.current || !token || !signatureDialog.orderData) {
+      toast.error('Une erreur est survenue: références manquantes');
+      return;
+    }
+
+    // Check if signature pad is empty
+    if (signatureCanvasRef.current.isEmpty()) {
+      toast.error('Veuillez signer avant de continuer');
+      return;
+    }
+
+    try {
+      setSignatureDialog((prev) => ({ ...prev, isLoading: true }));
+
+      // Get the signature as base64 image
+      const signatureDataURL =
+        signatureCanvasRef.current.toDataURL('image/png');
+
+      console.log('Signature captured successfully');
+
+      // Update the order data with the signature
+      const updatedOrder = {
+        ...signatureDialog.orderData,
+        devis: false,
+        clientSignature: signatureDataURL,
+        signatureTimestamp: new Date().toISOString(),
+      };
+
+      // Generate new PDF with updated status
+      console.log('Generating PDF with signature...');
+      const pdfBlob = await generatePDF(updatedOrder);
+      console.log('PDF generated successfully');
+
+      // Send the update to the server
+      console.log('Sending update to server...');
+      await updatePurchaseOrderStatus(
+        token,
+        signatureDialog.orderId,
+        {
+          devis: false,
+          clientSignature: signatureDataURL,
+        },
+        pdfBlob,
+      );
+
+      console.log('Update sent to server successfully');
+
+      // Update local state
+      setPurchaseOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order.id === signatureDialog.orderId
+            ? {
+                ...order,
+                devis: false,
+                clientSignature: signatureDataURL,
+                signatureTimestamp: new Date().toISOString(),
+              }
+            : order,
+        ),
+      );
+
+      toast.success('Bon de commande validé avec signature');
+      setSignatureDialog((prev) => ({
+        ...prev,
+        open: false,
+        isLoading: false,
+      }));
+    } catch (error) {
+      console.error('Error submitting signature:', error);
+      toast.error('Erreur lors de la validation de la signature');
+      setSignatureDialog((prev) => ({ ...prev, isLoading: false }));
+    }
+  }, [
+    token,
+    signatureDialog.orderData,
+    signatureDialog.orderId,
+    generatePDF,
+    signatureCanvasRef,
+  ]);
 
   // Handle dialog confirmation
   const handleConfirmDialog = useCallback(async () => {
@@ -402,27 +573,6 @@ const PurchaseOrders: React.FC = () => {
     [handleEditPurchaseOrder, handleDeletePurchaseOrder, PdfActionButton],
   );
 
-  // Generate the PDF for a purchase order
-  const generatePDF = useCallback(
-    async (order: PurchaseOrder) => {
-      try {
-        // Create the PDF document
-        const pdfBlob = await pdf(
-          <PurchaseOrderPdfDocument
-            purchaseOrder={order}
-            installationTexts={texts}
-          />,
-        ).toBlob();
-
-        return pdfBlob;
-      } catch (error) {
-        console.error('Error generating PDF:', error);
-        throw error;
-      }
-    },
-    [texts],
-  );
-
   // Handle status change
   const handleStatusChange = useCallback(
     async (
@@ -633,28 +783,46 @@ const PurchaseOrders: React.FC = () => {
           }}
         >
           <Tooltip
-            title={order.devis ? 'Devis en cours' : 'Bon de commande finalisé'}
+            title={
+              order.devis
+                ? 'Cliquez pour finaliser le devis en bon de commande finalisé'
+                : 'Bon de commande finalisé'
+            }
             arrow
           >
             <Checkbox
               checked={!order.devis}
               onChange={(e) => {
-                const newValue = !e.target.checked;
-                const message = newValue
-                  ? 'Êtes-vous sûr de vouloir transformer ce bon de commande en devis ? Un nouveau PDF sera généré.'
-                  : 'Êtes-vous sûr de vouloir finaliser ce devis en bon de commande ? Un nouveau PDF sera généré.';
+                // Only allow converting from devis to bon de commande (when devis=true)
+                if (order.devis) {
+                  // Open signature dialog instead of confirmation dialog
+                  const handleShowSignatureDialog = async () => {
+                    try {
+                      // Get the full order details
+                      const orderDetail = await fetchPurchaseOrderById(
+                        token!,
+                        order.id,
+                      );
 
-                showConfirmDialog(
-                  newValue
-                    ? 'Transformer en devis'
-                    : 'Finaliser en bon de commande',
-                  message,
-                  async () => {
-                    await handleStatusChange(order.id, 'devis', newValue);
-                  },
-                  newValue ? 'devis' : 'bon',
-                );
+                      // Open signature dialog
+                      setSignatureDialog({
+                        open: true,
+                        orderId: order.id,
+                        orderData: orderDetail,
+                        isLoading: false,
+                      });
+                    } catch (error) {
+                      console.error('Error fetching order details:', error);
+                      toast.error(
+                        'Erreur lors du chargement des détails de la commande',
+                      );
+                    }
+                  };
+
+                  handleShowSignatureDialog();
+                }
               }}
+              disabled={!order.devis} // Disable checkbox when already a bon de commande
               sx={{
                 color: !order.devis
                   ? 'rgba(46, 125, 50, 0.8)'
@@ -668,7 +836,7 @@ const PurchaseOrders: React.FC = () => {
         </Box>
       );
     },
-    [handleStatusChange, showConfirmDialog],
+    [token],
   );
 
   // External filter functions for client search
@@ -701,23 +869,25 @@ const PurchaseOrders: React.FC = () => {
     [customerFilterText],
   );
 
-  // Column definitions
+  // Column definitions with responsive visibility
   const columnDefs = useMemo<ColDef[]>(
     () => [
       {
         headerName: 'Création',
         field: 'createdAt',
         sortable: true,
-        filter: true,
-        minWidth: 130,
-        maxWidth: 130,
+        filter: false,
+        minWidth: 105,
+        maxWidth: 105,
         valueFormatter: formatDate,
+        hide: isMobile, // Hide on mobile
       },
       {
         headerName: 'Client',
         field: 'clientName',
         sortable: true,
         filter: true,
+        minWidth: 130,
         valueGetter: (params) => {
           if (!params.data) return '';
           return `${params.data.clientFirstName} ${params.data.clientLastName}`;
@@ -727,6 +897,7 @@ const PurchaseOrders: React.FC = () => {
         headerName: 'Robot',
         field: 'robotName',
         sortable: true,
+        minWidth: 130,
         filter: true,
         valueGetter: (params) => {
           if (!params.data || !params.data.robotInventory) return '';
@@ -738,6 +909,7 @@ const PurchaseOrders: React.FC = () => {
         field: 'serialNumber',
         sortable: true,
         filter: true,
+        hide: isMediumScreen,
       },
       {
         headerName: 'Acompte',
@@ -745,6 +917,7 @@ const PurchaseOrders: React.FC = () => {
         sortable: true,
         filter: 'agNumberColumnFilter',
         valueFormatter: formatPrice,
+        hide: isSmallScreen, // Hide on small screens and below
       },
       {
         headerName: "Date d'installation",
@@ -752,14 +925,15 @@ const PurchaseOrders: React.FC = () => {
         sortable: true,
         filter: true,
         valueFormatter: formatDate,
+        hide: isSmallScreen,
       },
       {
-        headerName: 'Devis accepté',
+        headerName: 'Devis',
         field: 'devis',
-        sortable: true,
+        sortable: false,
         filter: false,
-        minWidth: 120,
-        maxWidth: 120,
+        minWidth: CHECKBOX_CELL_WIDTH,
+        maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: devisStatusCellRenderer,
         cellClass: 'no-focus-outline',
         headerTooltip:
@@ -772,12 +946,12 @@ const PurchaseOrders: React.FC = () => {
         }),
       },
       {
-        headerName: 'RDV pris',
+        headerName: 'RDV',
         field: 'hasAppointment',
-        sortable: true,
-        filter: true,
-        minWidth: 120,
-        maxWidth: 120,
+        sortable: false,
+        filter: false,
+        minWidth: CHECKBOX_CELL_WIDTH,
+        maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: appointmentStatusCellRenderer,
         cellClass: 'no-focus-outline',
         cellStyle: (params: any) => ({
@@ -790,10 +964,10 @@ const PurchaseOrders: React.FC = () => {
       {
         headerName: 'Installé',
         field: 'isInstalled',
-        sortable: true,
-        filter: true,
-        minWidth: 120,
-        maxWidth: 120,
+        sortable: false,
+        filter: false,
+        minWidth: CHECKBOX_CELL_WIDTH,
+        maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: installationStatusCellRenderer,
         cellClass: 'no-focus-outline',
         cellStyle: (params: any) => ({
@@ -806,10 +980,10 @@ const PurchaseOrders: React.FC = () => {
       {
         headerName: 'Facturé',
         field: 'isInvoiced',
-        sortable: true,
-        filter: true,
-        minWidth: 120,
-        maxWidth: 120,
+        sortable: false,
+        filter: false,
+        minWidth: CHECKBOX_CELL_WIDTH,
+        maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: invoiceStatusCellRenderer,
         cellClass: 'no-focus-outline',
         cellStyle: (params: any) => ({
@@ -837,6 +1011,9 @@ const PurchaseOrders: React.FC = () => {
       installationStatusCellRenderer,
       invoiceStatusCellRenderer,
       devisStatusCellRenderer,
+      isSmallScreen,
+      isMobile,
+      isMediumScreen,
     ],
   );
 
@@ -851,6 +1028,9 @@ const PurchaseOrders: React.FC = () => {
       const gridApi = params.api;
       // Setup event listeners to save grid state on changes
       setupGridStateEvents(gridApi, PURCHASE_ORDERS_GRID_STATE_KEY);
+
+      // Size columns to fit the grid width
+      gridApi.sizeColumnsToFit();
     },
     [loading],
   );
@@ -858,6 +1038,8 @@ const PurchaseOrders: React.FC = () => {
   // Handle first data rendered - load saved column state
   const handleFirstDataRendered = useCallback((params: any) => {
     onFirstDataRendered(params, PURCHASE_ORDERS_GRID_STATE_KEY);
+    // Make sure columns fit the grid width after state is restored
+    params.api.sizeColumnsToFit();
   }, []);
 
   // Handle opening Google Drive folder
@@ -887,182 +1069,34 @@ const PurchaseOrders: React.FC = () => {
   // Available page size options
   const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
 
-  // Get dialog icon based on type
-  const getDialogIcon = (type: ConfirmDialogState['type']) => {
-    switch (type) {
-      case 'delete':
-        return <DeleteIcon sx={{ fontSize: 60, color: 'error.main' }} />;
-      case 'warning':
-        return (
-          <WarningAmberIcon sx={{ fontSize: 60, color: 'warning.main' }} />
-        );
-      case 'success':
-        return (
-          <CheckCircleOutlineIcon
-            sx={{ fontSize: 60, color: 'success.main' }}
-          />
-        );
-      case 'devis':
-        return <DescriptionIcon sx={{ fontSize: 60, color: 'info.main' }} />;
-      case 'bon':
-        return <ReceiptIcon sx={{ fontSize: 60, color: 'success.main' }} />;
-      case 'appointment':
-        return (
-          <EventAvailableIcon sx={{ fontSize: 60, color: 'primary.main' }} />
-        );
-      case 'installation':
-        return <HandymanIcon sx={{ fontSize: 60, color: 'secondary.main' }} />;
-      case 'invoice':
-        return <ReceiptIcon sx={{ fontSize: 60, color: 'info.dark' }} />;
-      case 'info':
-      default:
-        return <HelpOutlineIcon sx={{ fontSize: 60, color: 'info.main' }} />;
-    }
-  };
-
-  // Get button color based on dialog type
-  const getDialogActionColor = (type: ConfirmDialogState['type']) => {
-    switch (type) {
-      case 'delete':
-        return 'error';
-      case 'warning':
-        return 'warning';
-      case 'devis':
-        return 'info';
-      case 'bon':
-        return 'success';
-      case 'appointment':
-      case 'installation':
-      case 'invoice':
-        return 'primary';
-      case 'success':
-      case 'info':
-      default:
-        return 'primary';
-    }
-  };
-
   if (loading) {
     return <Typography>Chargement...</Typography>;
   }
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Enhanced Confirmation Dialog */}
-      <Dialog
+      {/* Add global styles for signature canvas */}
+      <style>{signatureCanvasStyles}</style>
+
+      {/* Confirmation Dialog Component */}
+      <ConfirmDialog
         open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={handleConfirmDialog}
         onClose={handleCloseDialog}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-        disableEscapeKeyDown={confirmDialog.isLoading}
-        maxWidth="sm"
-        TransitionComponent={Fade}
-        TransitionProps={{ timeout: 300 }}
-      >
-        <DialogTitle
-          id="alert-dialog-title"
-          sx={{
-            textAlign: 'center',
-            fontWeight: 'bold',
-            pt: 3,
-            pb: 1,
-          }}
-        >
-          {confirmDialog.title}
-        </DialogTitle>
-        <DialogContent sx={{ px: 4, py: 2 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              mb: 2,
-            }}
-          >
-            <Fade in={true} timeout={500}>
-              <Box sx={{ mb: 3, mt: 1 }}>
-                {getDialogIcon(confirmDialog.type)}
-              </Box>
-            </Fade>
+        isLoading={confirmDialog.isLoading}
+        type={confirmDialog.type}
+      />
 
-            <Card
-              elevation={0}
-              sx={{
-                width: '100%',
-                backgroundColor: 'background.paper',
-                p: 2,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 2,
-              }}
-            >
-              <Typography
-                variant="body1"
-                align="center"
-                sx={{
-                  px: 2,
-                  fontWeight: 'medium',
-                }}
-              >
-                {confirmDialog.message}
-              </Typography>
-            </Card>
-          </Box>
-
-          {confirmDialog.isLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <CircularProgress size={32} />
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions
-          sx={{
-            justifyContent: 'center',
-            gap: 2,
-            pb: 3,
-            pt: 1,
-          }}
-        >
-          <Button
-            onClick={handleCloseDialog}
-            variant="outlined"
-            color="inherit"
-            disabled={confirmDialog.isLoading}
-            startIcon={<CancelOutlinedIcon />}
-            sx={{
-              minWidth: 120,
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                transform: 'scale(1.05)',
-              },
-            }}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirmDialog}
-            variant="contained"
-            color={getDialogActionColor(confirmDialog.type)}
-            disabled={confirmDialog.isLoading}
-            startIcon={
-              confirmDialog.isLoading ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <CheckCircleOutlineIcon />
-              )
-            }
-            sx={{
-              minWidth: 120,
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                transform: 'scale(1.05)',
-              },
-            }}
-          >
-            {confirmDialog.isLoading ? 'Traitement...' : 'Confirmer'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Signature Dialog Component */}
+      <SignatureDialog
+        open={signatureDialog.open}
+        orderData={signatureDialog.orderData}
+        isLoading={signatureDialog.isLoading}
+        onClose={handleCloseSignatureDialog}
+        onSubmit={handleSignatureSubmit}
+      />
 
       <Box
         sx={{
@@ -1073,12 +1107,21 @@ const PurchaseOrders: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 1,
         }}
       >
-        <Typography variant="h5" component="h1">
+        <Typography variant="h5" component="h1" sx={{ mb: { xs: 1, md: 0 } }}>
           Bons de commande
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            flexWrap: 'wrap',
+            width: { xs: '100%', md: 'auto' },
+          }}
+        >
           <Tooltip
             title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
             arrow
@@ -1089,8 +1132,9 @@ const PurchaseOrders: React.FC = () => {
               startIcon={<RestartAltIcon />}
               onClick={handleResetGrid}
               size="small"
+              sx={buttonSx}
             >
-              Réinitialiser
+              {showTextInButton && <Box>Réinitialiser</Box>}
             </Button>
           </Tooltip>
           <Tooltip title="Ouvrir le dossier Google Drive" arrow>
@@ -1099,8 +1143,9 @@ const PurchaseOrders: React.FC = () => {
               color="primary"
               startIcon={<FolderOpenIcon />}
               onClick={handleOpenGoogleDrive}
+              sx={buttonSx}
             >
-              Google Drive
+              {showTextInButton && <Box>Google Drive</Box>}
             </Button>
           </Tooltip>
           <TextField
@@ -1108,7 +1153,10 @@ const PurchaseOrders: React.FC = () => {
             label="Rechercher un client"
             variant="outlined"
             size="small"
-            sx={{ minWidth: 300 }}
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              minWidth: { xs: 100, sm: 200, md: 300 },
+            }}
             value={customerFilterText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setCustomerFilterText(e.target.value)
@@ -1125,8 +1173,9 @@ const PurchaseOrders: React.FC = () => {
               color="primary"
               startIcon={<AddIcon />}
               onClick={handleAddPurchaseOrder}
+              sx={buttonSx}
             >
-              Créer un devis ou bon de commande
+              {showTextInButton && <Box>Créer un bon de commande</Box>}
             </Button>
           </Tooltip>
         </Box>

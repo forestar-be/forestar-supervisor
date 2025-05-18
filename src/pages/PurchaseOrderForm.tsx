@@ -21,6 +21,10 @@ import {
   Card,
   CardActionArea,
   CardContent,
+  IconButton,
+  ImageList,
+  ImageListItem,
+  Tooltip,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -31,6 +35,8 @@ import {
   createPurchaseOrder,
   fetchPurchaseOrderById,
   updatePurchaseOrder,
+  getPurchaseOrderInvoice,
+  getPurchaseOrderPhoto,
 } from '../utils/api';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
@@ -38,7 +44,7 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { styled } from '@mui/material/styles';
 import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 import { pdf } from '@react-pdf/renderer';
-import { notifyError } from '../utils/notifications';
+import { notifyError, notifyLoading } from '../utils/notifications';
 import PDFMerger from 'pdf-merger-js/browser';
 import {
   PurchaseOrderFormData,
@@ -54,6 +60,10 @@ import { fetchInventorySummaryAsync } from '../store/robotInventorySlice';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -222,13 +232,26 @@ const PurchaseOrderForm: React.FC = () => {
     isInstalled: false,
     isInvoiced: false,
     devis: false,
+    validUntil: '',
+    bankAccountNumber: '',
   });
   const [selectedInvoice, setSelectedInvoice] = useState<File | null>(null);
+  const [existingInvoiceBlob, setExistingInvoiceBlob] = useState<Blob | null>(
+    null,
+  );
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
+  const [deleteInvoice, setDeleteInvoice] = useState<boolean>(false);
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(
     null,
   );
   const [typeDialogOpen, setTypeDialogOpen] = useState(!isEditing);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [photosToDelete, setPhotosToDelete] = useState<string[]>([]);
+  const [photoPreviewOpen, setPhotoPreviewOpen] = useState<boolean>(false);
+  const [previewPhoto, setPreviewPhoto] = useState<string>('');
+  const [photoBlobs, setPhotoBlobs] = useState<{ [path: string]: Blob }>({});
+  const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
+  const [selectedPhotoUrls, setSelectedPhotoUrls] = useState<string[]>([]);
 
   const { texts } = useSelector((state: RootState) => state.installationTexts);
   const { items: inventoryItems, loading: inventoryLoading } = useSelector(
@@ -256,7 +279,7 @@ const PurchaseOrderForm: React.FC = () => {
     }
   }, [token, inventoryItems.length, inventoryLoading, dispatch]);
 
-  // Fetch purchase order if editing
+  // Fetch purchase order and its invoice if editing
   useEffect(() => {
     const fetchPurchaseOrder = async () => {
       if (!token || !id) return;
@@ -270,6 +293,9 @@ const PurchaseOrderForm: React.FC = () => {
           antennaInventoryId: data.antennaInventoryId || null,
           shelterInventoryId: data.shelterInventoryId || null,
           devis: data.devis || false,
+          validUntil: data.validUntil || null,
+          bankAccountNumber: data.bankAccountNumber || null,
+          invoicePath: data.invoicePath || null,
         });
 
         setFormData({
@@ -295,7 +321,23 @@ const PurchaseOrderForm: React.FC = () => {
           isInstalled: data.isInstalled || false,
           isInvoiced: data.isInvoiced || false,
           devis: data.devis || false,
+          validUntil: data.validUntil || '',
+          bankAccountNumber: data.bankAccountNumber || '',
         });
+
+        // Download invoice if it exists
+        if (data.invoicePath) {
+          try {
+            const invoiceBlob = await getPurchaseOrderInvoice(
+              token,
+              parseInt(id),
+            );
+            setExistingInvoiceBlob(invoiceBlob);
+          } catch (error) {
+            console.error('Error downloading existing invoice:', error);
+            toast.error('Erreur lors du chargement de la facture existante');
+          }
+        }
       } catch (error) {
         console.error('Error fetching purchase order:', error);
         toast.error('Erreur lors du chargement du bon de commande');
@@ -308,6 +350,61 @@ const PurchaseOrderForm: React.FC = () => {
       fetchPurchaseOrder();
     }
   }, [token, id, isEditing]);
+
+  // Fetch photos when purchase order data is loaded
+  useEffect(() => {
+    const fetchPhotos = async () => {
+      if (!token || !id || !purchaseOrder?.photosPaths?.length) return;
+
+      setLoadingPhotos(true);
+      try {
+        const fetchedBlobs: { [path: string]: Blob } = {};
+
+        // Fetch each photo and store as blob
+        for (let i = 0; i < purchaseOrder.photosPaths.length; i++) {
+          const photoPath = purchaseOrder.photosPaths[i];
+          if (!photosToDelete.includes(photoPath)) {
+            const blob = await getPurchaseOrderPhoto(token, parseInt(id), i);
+            fetchedBlobs[photoPath] = blob;
+          }
+        }
+
+        setPhotoBlobs(fetchedBlobs);
+      } catch (error) {
+        console.error('Error fetching photos:', error);
+        toast.error('Erreur lors du chargement des photos');
+      } finally {
+        setLoadingPhotos(false);
+      }
+    };
+
+    fetchPhotos();
+
+    // Cleanup object URLs when component unmounts
+    return () => {
+      // If photoUrlCache has values, revoke each object URL
+      Object.values(photoUrlCache).forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, [token, id, purchaseOrder]);
+
+  // Cache for object URLs to prevent recreating them unnecessarily
+  const photoUrlCache: { [path: string]: string } = React.useMemo(
+    () => ({}),
+    [],
+  );
+
+  // Generate photo preview URL from blob
+  const getPhotoUrl = (photoPath: string): string => {
+    if (photoBlobs[photoPath]) {
+      if (!photoUrlCache[photoPath]) {
+        photoUrlCache[photoPath] = URL.createObjectURL(photoBlobs[photoPath]);
+      }
+      return photoUrlCache[photoPath];
+    }
+    return '';
+  };
 
   // Handle form field changes
   const handleChange = useCallback(
@@ -342,41 +439,31 @@ const PurchaseOrderForm: React.FC = () => {
 
   // Toggle between quote and purchase order
   const toggleDocumentType = () => {
+    // Only allow conversion from quote to purchase order
+    if (!formData.devis) {
+      return;
+    }
+
     // Dismiss any existing toast notifications
     toast.dismiss();
 
     setFormData((prev) => ({
       ...prev,
-      devis: !prev.devis,
+      devis: false,
     }));
-    toast.info(
-      !formData.devis ? 'Converti en devis' : 'Converti en bon de commande',
-    );
-  };
-
-  // Generate the PDF and return the blob
-  const generatePDF = async (order: PurchaseOrder) => {
-    try {
-      console.log('order', order);
-      console.log('texts', texts);
-      // Create the PDF document
-      const pdfBlob = await pdf(
-        <PurchaseOrderPdfDocument
-          purchaseOrder={order}
-          installationTexts={texts}
-        />,
-      ).toBlob();
-
-      return pdfBlob;
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      throw error;
-    }
+    toast.info('Converti en bon de commande');
   };
 
   // Merge PDFs if invoice is available
   const mergePDFs = async (orderPdfBlob: Blob): Promise<Blob> => {
-    if (!selectedInvoice) {
+    // Use the selected invoice if available, otherwise use the existing invoice blob if not marked for deletion
+    const invoiceToMerge = selectedInvoice
+      ? selectedInvoice
+      : !deleteInvoice && existingInvoiceBlob
+        ? existingInvoiceBlob
+        : null;
+
+    if (!invoiceToMerge) {
       return orderPdfBlob;
     }
 
@@ -386,8 +473,8 @@ const PurchaseOrderForm: React.FC = () => {
       // Add the order PDF
       await merger.add(orderPdfBlob);
 
-      // Add the invoice PDF if it exists
-      await merger.add(selectedInvoice);
+      // Add the invoice PDF
+      await merger.add(invoiceToMerge);
 
       // Set metadata if needed
       await merger.setMetadata({
@@ -404,9 +491,64 @@ const PurchaseOrderForm: React.FC = () => {
     }
   };
 
+  // View the invoice
+  const viewInvoice = useCallback(async () => {
+    if (!token || !id || !purchaseOrder?.invoicePath) return;
+
+    try {
+      // Show loading indicator
+      const loadingNotification = notifyLoading('Chargement de la facture...');
+
+      try {
+        let invoiceBlob;
+
+        // Use the already downloaded invoice blob if available
+        if (existingInvoiceBlob) {
+          invoiceBlob = existingInvoiceBlob;
+        } else {
+          // Otherwise fetch the invoice file with authentication
+          invoiceBlob = await getPurchaseOrderInvoice(token, parseInt(id));
+          // Store the blob for future use
+          setExistingInvoiceBlob(invoiceBlob);
+        }
+
+        loadingNotification.end();
+
+        // Create a URL for the blob
+        const blobUrl = URL.createObjectURL(invoiceBlob);
+
+        // Open the blob URL in a new tab
+        window.open(blobUrl, '_blank');
+
+        // Revoke the URL after a timeout to free memory
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+      } catch (error) {
+        console.error('Error downloading invoice:', error);
+
+        // Update loading notification to error
+        loadingNotification.error('Erreur lors du chargement de la facture');
+      }
+    } catch (error) {
+      console.error('Error with invoice notification:', error);
+      notifyError('Erreur lors du chargement de la facture');
+    }
+  }, [token, id, purchaseOrder, existingInvoiceBlob]);
+
+  // Delete the invoice
+  const handleDeleteInvoice = useCallback(() => {
+    if (!purchaseOrder?.invoicePath) return;
+
+    setDeleteInvoice(true);
+    setSelectedInvoice(null);
+    setExistingInvoiceBlob(null);
+    toast.info("La facture sera supprimée lors de l'enregistrement");
+  }, [purchaseOrder]);
+
   // Handle invoice file selection
   const handleInvoiceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInvoiceError(null);
+    setDeleteInvoice(false);
+
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
 
@@ -419,6 +561,90 @@ const PurchaseOrderForm: React.FC = () => {
 
       setSelectedInvoice(file);
     }
+  };
+
+  // Handle photo selection
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const newPhotos = Array.from(e.target.files);
+
+      // Create object URLs for the new photos for preview
+      const newUrls = newPhotos.map((photo) => URL.createObjectURL(photo));
+      setSelectedPhotoUrls((prev) => [...prev, ...newUrls]);
+
+      // Add new photos to the selected photos array
+      setSelectedPhotos((prev) => [...prev, ...newPhotos]);
+    }
+  };
+
+  // Handle photo deletion (for newly selected photos)
+  const handleRemoveSelectedPhoto = (index: number) => {
+    // Revoke the URL for this photo
+    if (selectedPhotoUrls[index]) {
+      URL.revokeObjectURL(selectedPhotoUrls[index]);
+    }
+
+    // Remove the photo from state
+    setSelectedPhotoUrls((prev) => prev.filter((_, i) => i !== index));
+    setSelectedPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle photo deletion (for existing photos)
+  const handleRemoveExistingPhoto = (photoPath: string) => {
+    setPhotosToDelete((prev) => [...prev, photoPath]);
+  };
+
+  // Handle photo preview
+  const handleOpenPhotoPreview = (photoUrl: string) => {
+    setPreviewPhoto(photoUrl);
+    setPhotoPreviewOpen(true);
+  };
+
+  // Add this helper function to convert a blob to base64
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // Add helper function to convert webp to jpeg
+  const convertWebpToJpeg = (imageBlob: Blob): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        // Create canvas and draw image
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        // Draw image to canvas
+        ctx.drawImage(img, 0, 0);
+
+        // Convert to jpeg blob
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert to JPEG'));
+            }
+          },
+          'image/jpeg',
+          0.9, // Quality
+        );
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(imageBlob);
+    });
   };
 
   // Handle form submission
@@ -438,6 +664,56 @@ const PurchaseOrderForm: React.FC = () => {
 
     try {
       setSaving(true);
+
+      // Collect all photo data for the PDF generation as base64 strings
+      const photoUrls: string[] = [];
+
+      // Convert existing photos to base64 if editing
+      if (isEditing && purchaseOrder?.photosPaths) {
+        for (const photoPath of purchaseOrder.photosPaths) {
+          if (!photosToDelete.includes(photoPath) && photoBlobs[photoPath]) {
+            try {
+              let processedBlob = photoBlobs[photoPath];
+
+              // Convert webp to jpeg if needed
+              const isWebP =
+                photoPath.toLowerCase().endsWith('.webp') ||
+                processedBlob.type === 'image/webp';
+
+              if (isWebP) {
+                processedBlob = await convertWebpToJpeg(processedBlob);
+              }
+
+              // Convert blob to base64
+              const base64String = await blobToBase64(processedBlob);
+              photoUrls.push(base64String);
+            } catch (err) {
+              console.error('Error converting blob to base64:', err);
+            }
+          }
+        }
+      }
+
+      // Convert newly selected photos to base64
+      for (const photo of selectedPhotos) {
+        try {
+          let processedPhoto = photo;
+
+          // Convert webp to jpeg if needed
+          const isWebP =
+            photo.name.toLowerCase().endsWith('.webp') ||
+            photo.type === 'image/webp';
+
+          if (isWebP) {
+            processedPhoto = (await convertWebpToJpeg(photo)) as File;
+          }
+
+          const base64String = await blobToBase64(processedPhoto);
+          photoUrls.push(base64String);
+        } catch (err) {
+          console.error('Error converting file to base64:', err);
+        }
+      }
 
       // Create updated order data (used for both new and edit cases)
       const updatedOrder: PurchaseOrder = {
@@ -467,8 +743,13 @@ const PurchaseOrderForm: React.FC = () => {
           formData.isInstalled || purchaseOrder?.isInstalled || false,
         isInvoiced: formData.isInvoiced || purchaseOrder?.isInvoiced || false,
         devis: formData.devis || purchaseOrder?.devis || false,
-        serialNumber:
-          formData.serialNumber || purchaseOrder?.serialNumber || '',
+        serialNumber: !formData.devis
+          ? formData.serialNumber || purchaseOrder?.serialNumber || ''
+          : '',
+        validUntil: formData.devis ? formData.validUntil || null : null,
+        bankAccountNumber: formData.devis
+          ? formData.bankAccountNumber || null
+          : null,
         orderPdfId: purchaseOrder?.orderPdfId || null,
         robotInventory: robots.find((r) => r.id === formData.robotInventoryId),
         plugin: formData.pluginInventoryId
@@ -480,21 +761,64 @@ const PurchaseOrderForm: React.FC = () => {
         shelter: formData.shelterInventoryId
           ? shelters.find((s) => s.id === formData.shelterInventoryId)
           : undefined,
+        deleteInvoice: deleteInvoice,
+        // Add photos paths for the PDF generation
+        photosPaths: isEditing
+          ? purchaseOrder?.photosPaths?.filter(
+              (path) => !photosToDelete.includes(path),
+            ) || []
+          : [],
       };
 
-      // Generate PDF with updated data
-      const pdfBlob = await generatePDF(updatedOrder);
+      // Generate PDF with updated data and photos
+      const pdfBlob = await pdf(
+        <PurchaseOrderPdfDocument
+          purchaseOrder={updatedOrder}
+          installationTexts={texts}
+          photoDataUrls={photoUrls}
+        />,
+      ).toBlob();
 
-      // Only merge with invoice if one is selected
-      const finalPdfBlob = selectedInvoice ? await mergePDFs(pdfBlob) : pdfBlob;
+      // Prepare form data for API request
+      const formDataForApi = new FormData();
+
+      // Add the order data as a JSON string
+      const orderDataWithFileOptions = {
+        ...formData,
+        deleteInvoice,
+        photosToDelete,
+        // Ensure validUntil is null if empty string
+        validUntil:
+          formData.validUntil && formData.validUntil.trim() !== ''
+            ? formData.validUntil
+            : null,
+      };
+      formDataForApi.append(
+        'orderData',
+        JSON.stringify(orderDataWithFileOptions),
+      );
+
+      // Add the merged PDF
+      const finalPdfBlob = await mergePDFs(pdfBlob);
+      formDataForApi.append('pdf', finalPdfBlob, 'order.pdf');
+
+      // Add the separate invoice if one is selected
+      if (selectedInvoice) {
+        formDataForApi.append('invoice', selectedInvoice, selectedInvoice.name);
+      }
+
+      // Add photos if any are selected
+      selectedPhotos.forEach((photo, index) => {
+        formDataForApi.append(`photos`, photo, photo.name);
+      });
 
       if (isEditing && id) {
         // Update existing purchase order
-        await updatePurchaseOrder(token, parseInt(id), formData, finalPdfBlob);
+        await updatePurchaseOrder(token, parseInt(id), formDataForApi);
         toast.success('Bon de commande mis à jour avec succès');
       } else {
         // Create new purchase order
-        await createPurchaseOrder(token, formData, finalPdfBlob);
+        await createPurchaseOrder(token, formDataForApi);
         toast.success('Bon de commande créé avec succès');
       }
 
@@ -523,6 +847,21 @@ const PurchaseOrderForm: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // Cleanup created URL objects when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up photo object URLs
+      Object.values(photoUrlCache).forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+
+      // Clean up selected photo URLs
+      selectedPhotoUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+    };
+  }, [photoUrlCache, selectedPhotoUrls]);
 
   if (loading || inventoryLoading) {
     return <Typography>Chargement...</Typography>;
@@ -681,6 +1020,21 @@ const PurchaseOrderForm: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Photo Preview Dialog */}
+      <Dialog
+        open={photoPreviewOpen}
+        onClose={() => setPhotoPreviewOpen(false)}
+        maxWidth="md"
+      >
+        <DialogContent sx={{ p: 0 }}>
+          <img
+            src={previewPhoto}
+            alt="Photo preview"
+            style={{ width: '100%', display: 'block' }}
+          />
+        </DialogContent>
+      </Dialog>
+
       <Paper sx={{ p: 3 }}>
         <Backdrop
           sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
@@ -712,18 +1066,18 @@ const PurchaseOrderForm: React.FC = () => {
             </Typography>
           </Box>
 
-          {/* Document Type Toggle Button */}
-          <Button
-            variant="outlined"
-            color={formData.devis ? 'info' : 'success'}
-            onClick={toggleDocumentType}
-            startIcon={<CompareArrowsIcon />}
-            sx={{ ml: 2 }}
-          >
-            {formData.devis
-              ? 'Convertir en bon de commande'
-              : 'Convertir en devis'}
-          </Button>
+          {/* Document Type Toggle Button - only show when it's a quote */}
+          {formData.devis && (
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={toggleDocumentType}
+              startIcon={<CompareArrowsIcon />}
+              sx={{ ml: 2 }}
+            >
+              Convertir en bon de commande
+            </Button>
+          )}
         </Box>
 
         <Box component="form" onSubmit={handleSubmit}>
@@ -781,12 +1135,14 @@ const PurchaseOrderForm: React.FC = () => {
               options={robotOptions}
               required
             />
-            <FormTextField
-              name="serialNumber"
-              label="Numéro de série"
-              value={formData.serialNumber}
-              onChange={handleChange}
-            />
+            {!formData.devis && (
+              <FormTextField
+                name="serialNumber"
+                label="Numéro de série"
+                value={formData.serialNumber}
+                onChange={handleChange}
+              />
+            )}
             <FormSelectField
               name="pluginInventoryId"
               label={
@@ -910,51 +1266,270 @@ const PurchaseOrderForm: React.FC = () => {
               />
             </Grid>
           </FormSection>
+          {!formData.devis ? (
+            <FormSection title="Facturation">
+              <Grid item xs={12}>
+                {!formData.devis ? (
+                  <>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Button
+                        component="label"
+                        variant="outlined"
+                        startIcon={<CloudUploadIcon />}
+                        color={invoiceError ? 'error' : 'primary'}
+                        sx={{ mr: 2 }}
+                        disabled={deleteInvoice}
+                      >
+                        {selectedInvoice
+                          ? selectedInvoice.name
+                          : isEditing &&
+                              purchaseOrder?.invoicePath &&
+                              !deleteInvoice
+                            ? 'Remplacer la facture'
+                            : 'Ajouter une facture (optionnel)'}
+                        <VisuallyHiddenInput
+                          type="file"
+                          onChange={handleInvoiceChange}
+                          accept="application/pdf"
+                        />
+                      </Button>
 
-          <FormSection title="Facturation">
-            <Grid item xs={12}>
-              {!formData.devis ? (
-                <>
-                  <Button
-                    component="label"
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                    color={invoiceError ? 'error' : 'primary'}
+                      {isEditing &&
+                        purchaseOrder?.invoicePath &&
+                        !deleteInvoice &&
+                        !selectedInvoice && (
+                          <>
+                            <Button
+                              variant="outlined"
+                              startIcon={<VisibilityIcon />}
+                              onClick={viewInvoice}
+                              sx={{ mr: 2 }}
+                            >
+                              Voir la facture
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              startIcon={<DeleteIcon />}
+                              onClick={handleDeleteInvoice}
+                              color="error"
+                            >
+                              Supprimer
+                            </Button>
+                          </>
+                        )}
+                    </Box>
+
+                    {(selectedInvoice ||
+                      (isEditing &&
+                        purchaseOrder?.invoicePath &&
+                        !deleteInvoice)) && (
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 1, color: 'text.secondary' }}
+                      >
+                        La facture sera fusionnée avec le bon de commande
+                      </Typography>
+                    )}
+
+                    {deleteInvoice && (
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 1, color: 'warning.main' }}
+                      >
+                        La facture existante sera supprimée lors de
+                        l'enregistrement
+                      </Typography>
+                    )}
+
+                    {invoiceError && (
+                      <Typography
+                        variant="body2"
+                        sx={{ mt: 1, color: 'error.main' }}
+                      >
+                        {invoiceError}
+                      </Typography>
+                    )}
+                  </>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary', fontStyle: 'italic' }}
                   >
-                    {selectedInvoice
-                      ? selectedInvoice.name
-                      : 'Ajouter une facture (optionnel)'}
-                    <VisuallyHiddenInput
-                      type="file"
-                      onChange={handleInvoiceChange}
-                      accept="application/pdf"
-                    />
-                  </Button>
-                  {selectedInvoice && (
-                    <Typography
-                      variant="body2"
-                      sx={{ mt: 1, color: 'text.secondary' }}
-                    >
-                      La facture sera fusionnée avec le bon de commande
-                    </Typography>
+                    L'ajout de facture n'est pas disponible pour un devis
+                  </Typography>
+                )}
+              </Grid>
+            </FormSection>
+          ) : (
+            <FormSection title="Détails du devis">
+              <Grid item xs={12} sm={6}>
+                <DatePicker
+                  label="Date de validité"
+                  value={
+                    formData.validUntil ? dayjs(formData.validUntil) : null
+                  }
+                  onChange={(newValue) =>
+                    handleChange(
+                      'validUntil',
+                      newValue ? newValue.toISOString() : '',
+                    )
+                  }
+                  slotProps={{ textField: { fullWidth: true, required: true } }}
+                />
+              </Grid>
+              <FormTextField
+                name="bankAccountNumber"
+                label="Numéro de compte bancaire"
+                value={formData.bankAccountNumber}
+                onChange={handleChange}
+                required
+              />
+            </FormSection>
+          )}
+
+          <FormSection title="Photos">
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  startIcon={<AddPhotoAlternateIcon />}
+                  sx={{ width: 'fit-content' }}
+                >
+                  Ajouter des photos
+                  <VisuallyHiddenInput
+                    type="file"
+                    onChange={handlePhotoChange}
+                    accept="image/*"
+                    multiple
+                  />
+                </Button>
+
+                {/* Show existing photos */}
+                {isEditing &&
+                  purchaseOrder?.photosPaths &&
+                  purchaseOrder.photosPaths.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle1" gutterBottom>
+                        Photos existantes:
+                      </Typography>
+                      {loadingPhotos ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        <ImageList
+                          sx={{ width: '100%', maxHeight: 300 }}
+                          cols={4}
+                          rowHeight={150}
+                        >
+                          {purchaseOrder.photosPaths
+                            .filter((path) => !photosToDelete.includes(path))
+                            .map((photoPath, index) => (
+                              <ImageListItem
+                                key={index}
+                                sx={{ position: 'relative' }}
+                              >
+                                {photoBlobs[photoPath] && (
+                                  <>
+                                    <img
+                                      src={getPhotoUrl(photoPath)}
+                                      alt={`Photo ${index + 1}`}
+                                      loading="lazy"
+                                      style={{
+                                        cursor: 'pointer',
+                                        height: '100%',
+                                        objectFit: 'cover',
+                                      }}
+                                      onClick={() =>
+                                        handleOpenPhotoPreview(
+                                          getPhotoUrl(photoPath),
+                                        )
+                                      }
+                                    />
+                                    <IconButton
+                                      sx={{
+                                        position: 'absolute',
+                                        top: 5,
+                                        right: 5,
+                                        backgroundColor:
+                                          'rgba(255, 255, 255, 0.7)',
+                                        '&:hover': {
+                                          backgroundColor:
+                                            'rgba(255, 255, 255, 0.9)',
+                                        },
+                                      }}
+                                      onClick={() =>
+                                        handleRemoveExistingPhoto(photoPath)
+                                      }
+                                      size="small"
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </>
+                                )}
+                              </ImageListItem>
+                            ))}
+                        </ImageList>
+                      )}
+                    </Box>
                   )}
-                  {invoiceError && (
-                    <Typography
-                      variant="body2"
-                      sx={{ mt: 1, color: 'error.main' }}
-                    >
-                      {invoiceError}
+
+                {/* Show newly selected photos */}
+                {selectedPhotos.length > 0 && (
+                  <Box>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Nouvelles photos à ajouter:
                     </Typography>
-                  )}
-                </>
-              ) : (
+                    <ImageList
+                      sx={{ width: '100%', maxHeight: 300 }}
+                      cols={4}
+                      rowHeight={150}
+                    >
+                      {selectedPhotos.map((photo, index) => (
+                        <ImageListItem
+                          key={index}
+                          sx={{ position: 'relative' }}
+                        >
+                          <img
+                            src={selectedPhotoUrls[index] || ''}
+                            alt={`Nouvelle photo ${index + 1}`}
+                            loading="lazy"
+                            style={{
+                              cursor: 'pointer',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                            onClick={() =>
+                              handleOpenPhotoPreview(selectedPhotoUrls[index])
+                            }
+                          />
+                          <IconButton
+                            sx={{
+                              position: 'absolute',
+                              top: 5,
+                              right: 5,
+                              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                              '&:hover': {
+                                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              },
+                            }}
+                            onClick={() => handleRemoveSelectedPhoto(index)}
+                            size="small"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </ImageListItem>
+                      ))}
+                    </ImageList>
+                  </Box>
+                )}
+
                 <Typography
                   variant="body2"
-                  sx={{ color: 'text.secondary', fontStyle: 'italic' }}
+                  sx={{ color: 'text.secondary', mt: 1 }}
                 >
-                  L'ajout de facture n'est pas disponible pour un devis
+                  Les photos seront incluses dans le PDF généré.
                 </Typography>
-              )}
+              </Box>
             </Grid>
           </FormSection>
 

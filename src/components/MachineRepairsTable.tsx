@@ -10,6 +10,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
 import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
@@ -56,6 +57,28 @@ const MachineRepairsTable: React.FC = () => {
     loadGridPageSize(MACHINE_REPAIRS_GRID_STATE_KEY, 20),
   );
 
+  // Media queries for responsive design
+  const isMediumScreen = useMediaQuery('(max-width:1400px)');
+  const isSmallScreen = useMediaQuery('(max-width:1200px)');
+  const isTablet = useMediaQuery('(max-width:768px)');
+  const isMobile = useMediaQuery('(max-width:480px)');
+
+  // Calculate showTextInButton based on screen size
+  const isXs = useMediaQuery(theme.breakpoints.down('sm'));
+  const showTextInButton = !isXs;
+
+  // Button style based on showTextInButton
+  const buttonSx = {
+    whiteSpace: 'nowrap',
+    ...(showTextInButton
+      ? {}
+      : {
+          minWidth: 'unset',
+          '& .MuiButton-startIcon': { m: 0 },
+          '& .MuiButton-endIcon': { m: 0 },
+        }),
+  };
+
   // Available page size options
   const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
 
@@ -91,6 +114,7 @@ const MachineRepairsTable: React.FC = () => {
     (node: IRowNode<MachineRepair>): boolean => {
       if (node.data) {
         const { first_name, last_name } = node.data;
+        const fullName = `${first_name || ''} ${last_name || ''}`.trim();
         const customerSearchWords = customerFilterText
           .toLowerCase()
           .normalize('NFD')
@@ -101,10 +125,8 @@ const MachineRepairsTable: React.FC = () => {
             .toLowerCase()
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '');
-        return customerSearchWords.every(
-          (word) =>
-            normalizeString(first_name || '').includes(word) ||
-            normalizeString(last_name || '').includes(word),
+        return customerSearchWords.every((word) =>
+          normalizeString(fullName).includes(word),
         );
       }
       return true;
@@ -163,6 +185,34 @@ const MachineRepairsTable: React.FC = () => {
     }
   }, []);
 
+  // Add resize handler to fit columns on window size change
+  useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout;
+
+    const handleResize = () => {
+      // Debounce resize event
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (gridRef.current && gridRef.current.api) {
+          gridRef.current.api.sizeColumnsToFit();
+        }
+      }, 250);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Initial sizing
+    if (gridRef.current && gridRef.current.api) {
+      gridRef.current.api.sizeColumnsToFit();
+    }
+
+    // Cleanup
+    return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [gridRef]);
+
   const columns: ColDef<MachineRepair>[] = [
     {
       headerName: '',
@@ -179,7 +229,6 @@ const MachineRepairsTable: React.FC = () => {
                 e.preventDefault();
                 navigate(`/reparation/${params.value}`);
               }}
-              // sx={{ paddingRight: 0 }}
             >
               <VisibilityIcon />
             </IconButton>
@@ -197,23 +246,17 @@ const MachineRepairsTable: React.FC = () => {
           </Tooltip>
         </>
       ),
-      // minWidth: 70,
-      width: 120,
-      // maxWidth: 110,
-      cellStyle: {
-        // paddingLeft: 0,
-        // paddingRight: 0,
-        // display: 'flex',
-        // flexDirection: 'row',
-        // alignItems: 'center',
-      },
+      minWidth: 120,
+      maxWidth: 120,
     },
     {
       headerName: 'N°',
       field: 'id' as keyof MachineRepair,
       sortable: true,
-      filter: true,
-      width: 70,
+      filter: false,
+      minWidth: 70,
+      maxWidth: 70,
+      hide: isMobile,
     },
     {
       headerName: 'État',
@@ -232,6 +275,7 @@ const MachineRepairsTable: React.FC = () => {
       field: 'client_call_times' as keyof MachineRepair,
       sortable: false,
       filter: true,
+      hide: isTablet,
       cellRenderer: (params: any) => {
         if (params.value && params.value.length) {
           const lastCall =
@@ -263,6 +307,7 @@ const MachineRepairsTable: React.FC = () => {
       field: 'machine_type_name' as keyof MachineRepair,
       sortable: true,
       filter: true,
+      hide: isSmallScreen,
     },
     {
       headerName: 'Type de robot',
@@ -270,6 +315,7 @@ const MachineRepairsTable: React.FC = () => {
       sortable: true,
       filter: true,
       valueFormatter: (params: any) => params.value || '-',
+      hide: isSmallScreen,
     },
     {
       headerName: 'Réparateur',
@@ -277,20 +323,17 @@ const MachineRepairsTable: React.FC = () => {
       sortable: true,
       filter: true,
       valueFormatter: (params: any) => params.value || 'Non affecté',
+      hide: isTablet,
     },
     {
-      headerName: 'Prénom',
-      field: 'first_name' as keyof MachineRepair,
+      headerName: 'Client',
       sortable: true,
       filter: true,
-      //  width: 130,
-    },
-    {
-      headerName: 'Nom',
-      field: 'last_name' as keyof MachineRepair,
-      sortable: true,
-      filter: true,
-      //   width: 130,
+      valueGetter: (params: any) => {
+        const firstName = params.data.first_name || '';
+        const lastName = params.data.last_name || '';
+        return `${firstName} ${lastName}`.trim();
+      },
     },
     {
       headerName: 'Date de création',
@@ -303,6 +346,7 @@ const MachineRepairsTable: React.FC = () => {
         new Date(params.value).toLocaleString('fr-FR'),
       comparator: (valueA: string, valueB: string) =>
         new Date(valueA).getTime() - new Date(valueB).getTime(),
+      hide: isMobile,
     },
   ];
 
@@ -317,12 +361,21 @@ const MachineRepairsTable: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 1,
         }}
       >
-        <Box>
-          <Typography variant="h6">Réparations/Entretiens</Typography>
-        </Box>
-        <Box display="flex" gap={2}>
+        <Typography variant="h5" component="h1" sx={{ mb: { xs: 1, md: 0 } }}>
+          Réparations/Entretiens
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            flexWrap: 'wrap',
+            width: { xs: '100%', md: 'auto' },
+          }}
+        >
           <Tooltip title="Réinitialiser le tableau" arrow>
             <Button
               variant="outlined"
@@ -330,8 +383,9 @@ const MachineRepairsTable: React.FC = () => {
               startIcon={<RestartAltIcon />}
               onClick={handleResetGrid}
               size="small"
+              sx={buttonSx}
             >
-              Réinitialiser
+              {showTextInButton && <Box>Réinitialiser</Box>}
             </Button>
           </Tooltip>
           <Tooltip title="Ouvrir le dossier Google Drive" arrow>
@@ -340,16 +394,20 @@ const MachineRepairsTable: React.FC = () => {
               color="primary"
               startIcon={<FolderOpenIcon />}
               onClick={handleOpenGoogleDrive}
+              sx={buttonSx}
             >
-              Google Drive
+              {showTextInButton && <Box>Google Drive</Box>}
             </Button>
           </Tooltip>
           <TextField
             id="search-client"
             label="Rechercher un client"
             variant="outlined"
-            sx={{ minWidth: 450 }}
             size="small"
+            sx={{
+              flex: { xs: 1, md: 'none' },
+              minWidth: { xs: 100, sm: 200, md: 450 },
+            }}
             value={customerFilterText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setCustomerFilterText(e.target.value)
@@ -383,6 +441,8 @@ const MachineRepairsTable: React.FC = () => {
           onGridReady={(params) => {
             // Setup event listeners to save grid state on changes
             setupGridStateEvents(params.api, MACHINE_REPAIRS_GRID_STATE_KEY);
+            // Size columns to fit the grid width
+            params.api.sizeColumnsToFit();
           }}
           onFirstDataRendered={handleFirstDataRendered}
           onPaginationChanged={(event) => {

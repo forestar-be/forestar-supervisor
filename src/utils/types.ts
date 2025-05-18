@@ -48,44 +48,41 @@ export interface PurchaseOrder {
   id: number;
   createdAt: string;
   updatedAt: string;
-
   clientFirstName: string;
   clientLastName: string;
   clientAddress: string;
   clientCity: string;
   clientPhone: string;
   deposit: number;
-
   robotInventoryId: number;
   robotInventory?: RobotInventory;
-  serialNumber?: string;
-
+  serialNumber: string | null;
   pluginInventoryId: number | null;
-  plugin?: RobotInventory;
-
   antennaInventoryId: number | null;
-  antenna?: RobotInventory;
-
   shelterInventoryId: number | null;
-  shelter?: RobotInventory;
-
+  plugin?: RobotInventory | null;
+  antenna?: RobotInventory | null;
+  shelter?: RobotInventory | null;
   hasWire: boolean;
   wireLength: number | null;
   hasAntennaSupport: boolean;
   hasPlacement: boolean;
-
   installationDate: string | null;
   needsInstaller: boolean;
   installationNotes: string | null;
-
-  // Status fields
   hasAppointment: boolean;
   isInstalled: boolean;
   isInvoiced: boolean;
   devis: boolean;
-
+  validUntil: string | null;
+  bankAccountNumber: string | null;
   orderPdfId: string | null;
+  invoicePath?: string | null;
+  photosPaths: string[];
+  clientSignature?: string | null;
+  signatureTimestamp?: string | null;
   eventId?: string | null;
+  deleteInvoice: boolean;
 }
 
 export interface PurchaseOrderFormData {
@@ -117,6 +114,14 @@ export interface PurchaseOrderFormData {
   isInstalled?: boolean;
   isInvoiced?: boolean;
   devis?: boolean;
+
+  // Quote specific fields
+  validUntil: string;
+  bankAccountNumber: string;
+
+  // File management
+  deleteInvoice?: boolean;
+  photosToDelete?: string[];
 }
 
 // Define the InventoryCategory enum
