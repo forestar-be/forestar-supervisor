@@ -22,6 +22,7 @@ import CallIcon from '@mui/icons-material/Call';
 import HomeIcon from '@mui/icons-material/Home';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 
@@ -40,20 +41,10 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
   const [header] = useState<HeaderProps>(headerData);
   const navigate = useNavigate();
 
-  // Calculate showTextInButton based on screen size
-  const isSm = useMediaQuery(theme.breakpoints.down('md'));
-  const showTextInButton = !isSm;
-
-  // Check if screen width is below 1270px
-  const isBelowCustomBreakpoint = useMediaQuery('(max-width:1270px)');
-
-  // Check if screen width is below 1200px to hide the title
-  const isBelowTitleBreakpoint = useMediaQuery('(max-width:1200px)');
-
-  // Check if screen width is below 960px to hide Accueil text
-  const isBelow960px = useMediaQuery('(max-width:960px)');
-
-  // Check if screen width is below 600px to switch to sidebar
+  const showTextInButton = !useMediaQuery('(max-width:1064px)');
+  const isBelowTitleSizeBreakpoint = useMediaQuery('(max-width:1420px)');
+  const isBelowTitleBreakpoint = useMediaQuery('(max-width:1285px)');
+  const isBelowTextHideHomeIconBreakpoint = useMediaQuery('(max-width:1350px)');
   const isExtraSmall = useMediaQuery('(max-width:600px)');
 
   const buttonSx = {
@@ -109,7 +100,7 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 }}
               >
                 <Typography
-                  variant={isBelowCustomBreakpoint ? 'body1' : 'h6'}
+                  variant={isBelowTitleSizeBreakpoint ? 'body1' : 'h6'}
                   sx={{
                     flexGrow: 1,
                     color: theme.palette.text.primary,
@@ -117,7 +108,7 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                     textTransform: 'uppercase',
                     textDecoration: 'none',
                     marginLeft: '10px',
-                    fontSize: isBelowCustomBreakpoint ? '0.9rem' : undefined,
+                    fontSize: isBelowTitleSizeBreakpoint ? '0.9rem' : undefined,
                   }}
                 >
                   {header.title}
@@ -147,13 +138,15 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 variant="contained"
                 sx={{
                   ...buttonSx,
-                  ...(isBelow960px && {
+                  ...(isBelowTextHideHomeIconBreakpoint && {
                     minWidth: 'unset',
                     '& .MuiButton-startIcon': { m: 0 },
                   }),
                 }}
               >
-                {showTextInButton && !isBelow960px && <Box>Accueil</Box>}
+                {showTextInButton && !isBelowTextHideHomeIconBreakpoint && (
+                  <Box>Accueil</Box>
+                )}
               </Button>
               <Button
                 component="a"
@@ -199,6 +192,21 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                 sx={buttonSx}
               >
                 {showTextInButton && <Box>Bons de commande</Box>}
+              </Button>
+              <Button
+                component="a"
+                href={`/calendrier`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/calendrier`);
+                }}
+                aria-label="Calendrier"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<CalendarMonthIcon fontSize="medium" />}
+                variant="contained"
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Calendrier</Box>}
               </Button>
               <IconButton
                 component="a"

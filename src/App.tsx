@@ -21,6 +21,7 @@ import Inventory from './pages/Inventory';
 import PurchaseOrders from './pages/PurchaseOrders';
 import PurchaseOrderForm from './pages/PurchaseOrderForm';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import DailyCalendar from './pages/DailyCalendar';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
 import { fetchInventorySummaryAsync } from './store/robotInventorySlice';
@@ -160,6 +161,10 @@ const App = (): JSX.Element => {
                               <Route
                                 path="/purchase-orders/edit/:id"
                                 element={<PurchaseOrderForm />}
+                              />
+                              <Route
+                                path="/calendrier"
+                                element={<DailyCalendar />}
                               />
                             </Routes>
                           </Provider>
