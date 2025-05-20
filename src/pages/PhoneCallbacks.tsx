@@ -26,6 +26,7 @@ import {
   useTheme,
   SelectChangeEvent,
   Tooltip,
+  useMediaQuery,
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import {
@@ -249,6 +250,11 @@ const PhoneCallbacks: React.FC = () => {
   );
   const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Media queries for responsive design
+  const isMediumScreen = useMediaQuery('(max-width:1030px)');
+  const isSmallScreen = useMediaQuery('(max-width:650px)');
+  const isExtraSmallScreen = useMediaQuery('(max-width:430px)');
 
   // Constante pour la hauteur des lignes du tableau
   const ROW_HEIGHT = 48;
@@ -530,24 +536,28 @@ const PhoneCallbacks: React.FC = () => {
         field: COLUMN_ID_CALLBACKS.CREATED_AT,
         valueFormatter: (params) => formatDate(params.value),
         flex: 1,
+        minWidth: 120,
         ...baseColumnConfig,
       },
       {
-        headerName: 'Nom du client',
+        headerName: 'Client',
         field: COLUMN_ID_CALLBACKS.CLIENT_NAME,
         flex: 1,
+        minWidth: 120,
         ...baseColumnConfig,
       },
       {
         headerName: 'Téléphone',
         field: COLUMN_ID_CALLBACKS.PHONE_NUMBER,
         flex: 1,
+        minWidth: 110,
         ...baseColumnConfig,
       },
       {
         headerName: 'Raison',
         field: COLUMN_ID_CALLBACKS.REASON,
         flex: 1,
+        minWidth: 100,
         cellRenderer: ReasonCellRenderer,
         ...baseColumnConfig,
       },
@@ -555,18 +565,21 @@ const PhoneCallbacks: React.FC = () => {
         headerName: 'Description',
         field: COLUMN_ID_CALLBACKS.DESCRIPTION,
         flex: 2,
+        minWidth: 150,
         ...baseColumnConfig,
       },
       {
         headerName: 'Responsable',
         field: COLUMN_ID_CALLBACKS.RESPONSIBLE_PERSON,
         flex: 1,
+        minWidth: 120,
         ...baseColumnConfig,
       },
       {
         headerName: 'Statut',
         field: COLUMN_ID_CALLBACKS.COMPLETED,
         flex: 1,
+        minWidth: 100,
         cellRenderer: StatusCellRenderer,
         ...baseColumnConfig,
       },
@@ -575,6 +588,7 @@ const PhoneCallbacks: React.FC = () => {
         sortable: false,
         filter: false,
         flex: 1.5,
+        minWidth: 130,
         cellRenderer: ActionsCellRenderer,
         cellRendererParams: {
           onToggleComplete: handleToggleComplete,
@@ -591,6 +605,84 @@ const PhoneCallbacks: React.FC = () => {
     fetchCallbacks();
   }, [fetchCallbacks]);
 
+  const filters = useMemo(() => {
+    // For extra small screens, use Select component instead of buttons
+    if (isExtraSmallScreen) {
+      return (
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <Select
+            value={
+              filterCompleted === undefined
+                ? 'all'
+                : filterCompleted
+                  ? 'completed'
+                  : 'pending'
+            }
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === 'all') handleFilterChange(undefined);
+              else if (value === 'pending') handleFilterChange(false);
+              else handleFilterChange(true);
+            }}
+            disabled={loading}
+          >
+            <MenuItem value="all">Tous</MenuItem>
+            <MenuItem value="pending">À faire</MenuItem>
+            <MenuItem value="completed">Terminés</MenuItem>
+          </Select>
+        </FormControl>
+      );
+    }
+
+    return (
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Tooltip title="Afficher tous les rappels" arrow placement="bottom">
+          <Button
+            size={isSmallScreen ? 'small' : 'medium'}
+            variant={filterCompleted === undefined ? 'contained' : 'outlined'}
+            onClick={() => handleFilterChange(undefined)}
+            disabled={loading}
+          >
+            Tous
+          </Button>
+        </Tooltip>
+        <Tooltip
+          title="Afficher uniquement les rappels à faire"
+          arrow
+          placement="bottom"
+        >
+          <Button
+            size={isSmallScreen ? 'small' : 'medium'}
+            variant={filterCompleted === false ? 'contained' : 'outlined'}
+            onClick={() => handleFilterChange(false)}
+            disabled={loading}
+          >
+            À faire
+          </Button>
+        </Tooltip>
+        <Tooltip
+          title="Afficher uniquement les rappels terminés"
+          arrow
+          placement="bottom"
+        >
+          <Button
+            variant={filterCompleted === true ? 'contained' : 'outlined'}
+            onClick={() => handleFilterChange(true)}
+            disabled={loading}
+          >
+            Terminés
+          </Button>
+        </Tooltip>
+      </Box>
+    );
+  }, [
+    filterCompleted,
+    loading,
+    handleFilterChange,
+    isSmallScreen,
+    isExtraSmallScreen,
+  ]);
+
   return (
     <Paper
       sx={{
@@ -604,94 +696,72 @@ const PhoneCallbacks: React.FC = () => {
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: !isMediumScreen ? 'center' : 'flex-start',
           padding: 2,
+          flexDirection: isMediumScreen ? 'column' : 'row',
         }}
       >
         {/* Partie gauche: titre et filtres */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h6" component="h6" sx={{ whiteSpace: 'nowrap' }}>
+          <Typography
+            variant="h6"
+            component="h6"
+            sx={{ whiteSpace: 'nowrap', pb: isMediumScreen ? 1 : 0 }}
+          >
             Gestion des rappels téléphoniques
           </Typography>
 
-          {/* Filtres à côté du titre */}
+          {!isMediumScreen && filters}
+        </Box>
+
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            ...(isMediumScreen && {
+              width: '100%',
+              justifyContent: 'space-between',
+            }),
+          }}
+        >
+          {isMediumScreen && filters}
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="Afficher tous les rappels" arrow placement="bottom">
+            <Tooltip
+              title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+              arrow
+              placement="left"
+            >
               <Button
-                variant={
-                  filterCompleted === undefined ? 'contained' : 'outlined'
-                }
-                onClick={() => handleFilterChange(undefined)}
-                disabled={loading}
+                variant="outlined"
+                color="secondary"
+                startIcon={!isSmallScreen ? <RestartAltIcon /> : undefined}
+                onClick={handleResetGrid}
+                size={isSmallScreen ? 'small' : 'medium'}
               >
-                Tous
+                {!isSmallScreen ? 'Réinitialiser' : <RestartAltIcon />}
               </Button>
             </Tooltip>
             <Tooltip
-              title="Afficher uniquement les rappels à faire"
+              title="Ajouter un nouveau rappel téléphonique"
               arrow
-              placement="bottom"
+              placement="left"
             >
               <Button
-                variant={filterCompleted === false ? 'contained' : 'outlined'}
-                onClick={() => handleFilterChange(false)}
+                variant="contained"
+                color="primary"
+                size={isSmallScreen ? 'small' : 'medium'}
+                startIcon={!isSmallScreen ? <AddIcon /> : undefined}
+                onClick={() => {
+                  setFormData(initialFormData);
+                  setEditingId(null);
+                  setDialogOpen(true);
+                }}
                 disabled={loading}
               >
-                À faire
-              </Button>
-            </Tooltip>
-            <Tooltip
-              title="Afficher uniquement les rappels terminés"
-              arrow
-              placement="bottom"
-            >
-              <Button
-                variant={filterCompleted === true ? 'contained' : 'outlined'}
-                onClick={() => handleFilterChange(true)}
-                disabled={loading}
-              >
-                Terminés
+                {!isSmallScreen ? 'Nouveau rappel' : <AddIcon />}
               </Button>
             </Tooltip>
           </Box>
-        </Box>
-
-        {/* Partie droite: boutons d'action */}
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Tooltip
-            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
-            arrow
-            placement="left"
-          >
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<RestartAltIcon />}
-              onClick={handleResetGrid}
-              size="small"
-            >
-              Réinitialiser
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title="Ajouter un nouveau rappel téléphonique"
-            arrow
-            placement="left"
-          >
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                setFormData(initialFormData);
-                setEditingId(null);
-                setDialogOpen(true);
-              }}
-              disabled={loading}
-            >
-              Nouveau rappel
-            </Button>
-          </Tooltip>
         </Box>
       </Box>
       {/* Tableau AG Grid */}

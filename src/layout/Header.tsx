@@ -23,6 +23,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import MenuIcon from '@mui/icons-material/Menu';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -52,6 +53,9 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
   // Check if screen width is below 960px to hide Accueil text
   const isBelow960px = useMediaQuery('(max-width:960px)');
 
+  // Check if screen width is below 600px to switch to sidebar
+  const isExtraSmall = useMediaQuery('(max-width:600px)');
+
   const buttonSx = {
     whiteSpace: 'nowrap',
     ...(showTextInButton
@@ -76,6 +80,16 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
         }}
       >
         <Toolbar sx={{ minHeight: 70 }}>
+          {isExtraSmall && (
+            <IconButton
+              onClick={onSidebarOpen}
+              aria-label="Menu"
+              color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+              edge="start"
+            >
+              <MenuIcon fontSize="medium" />
+            </IconButton>
+          )}
           <Link
             href="/"
             sx={{ textDecoration: 'none' }}
@@ -118,7 +132,7 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
               display: { lg: 'flex', md: 'none', xs: 'none' },
             }}
           ></Box>
-          {auth.token && (
+          {auth.token && !isExtraSmall && (
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 component="a"
@@ -200,6 +214,19 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
                   <SettingsIcon fontSize="medium" />
                 </Tooltip>
               </IconButton>
+              <IconButton
+                onClick={auth.logOut}
+                aria-label="Déconnexion"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+              >
+                <Tooltip title="Déconnexion">
+                  <LogoutIcon fontSize="medium" />
+                </Tooltip>
+              </IconButton>
+            </Box>
+          )}
+          {auth.token && isExtraSmall && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <IconButton
                 onClick={auth.logOut}
                 aria-label="Déconnexion"
