@@ -580,3 +580,33 @@ export const reorderInstallationTexts = (
     token,
     { textIds },
   );
+
+// Calendar API functions
+export interface Calendar {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  title: string;
+  description?: string;
+  start: string;
+  end: string;
+  location?: string;
+}
+
+export const fetchCalendars = (token: string): Promise<Calendar[]> =>
+  apiRequest('/supervisor/calendars', 'GET', token);
+
+export const fetchCalendarEvents = (
+  token: string,
+  calendarIds: string[],
+  date: string,
+): Promise<CalendarEvent[]> =>
+  apiRequest('/supervisor/calendar-events', 'POST', token, {
+    calendarIds,
+    date,
+  });
