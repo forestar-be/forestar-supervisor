@@ -97,6 +97,8 @@ interface SignatureDialogState {
 
 const PURCHASE_ORDERS_GRID_STATE_KEY = 'purchaseOrdersAgGridState';
 const CHECKBOX_CELL_WIDTH = 80;
+// Available page size options
+const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
 
 const PurchaseOrders: React.FC = () => {
   const { token } = useAuth();
@@ -1066,11 +1068,20 @@ const PurchaseOrders: React.FC = () => {
     );
   }, [showConfirmDialog]);
 
-  // Available page size options
-  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
-
   if (loading) {
-    return <Typography>Chargement...</Typography>;
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100%',
+          p: 4,
+        }}
+      >
+        <CircularProgress size={100} />
+      </Box>
+    );
   }
 
   return (

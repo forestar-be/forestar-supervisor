@@ -19,6 +19,7 @@ import {
   Chip,
   Switch,
   FormControlLabel,
+  useMediaQuery,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -90,6 +91,7 @@ const Inventory: React.FC = () => {
   );
   const [hideZeroQuantity, setHideZeroQuantity] = useState(false);
   const gridRef = React.createRef<AgGridReact>();
+  const isMediumScreen = useMediaQuery('(max-width:920px)');
 
   // Save page size to localStorage when it changes
   useEffect(() => {
@@ -460,6 +462,7 @@ const Inventory: React.FC = () => {
         sortable: true,
         filter: true,
         flex: 1,
+        minWidth: 120,
         valueFormatter: (params) => params.value || '-',
       },
       {
@@ -468,6 +471,7 @@ const Inventory: React.FC = () => {
         sortable: true,
         filter: true,
         flex: 2,
+        minWidth: 180,
       },
       {
         headerName: 'Catégorie',
@@ -475,6 +479,7 @@ const Inventory: React.FC = () => {
         sortable: true,
         filter: true,
         flex: 1,
+        minWidth: 130,
         cellRenderer: categoryCellRenderer,
       },
       {
@@ -483,6 +488,7 @@ const Inventory: React.FC = () => {
         sortable: true,
         filter: 'agNumberColumnFilter',
         flex: 1,
+        minWidth: 150,
         valueFormatter: formatPrice,
       },
       {
@@ -491,6 +497,7 @@ const Inventory: React.FC = () => {
         sortable: true,
         filter: 'agNumberColumnFilter',
         flex: 1,
+        minWidth: 150,
         valueFormatter: formatPrice,
       },
       {
@@ -499,6 +506,7 @@ const Inventory: React.FC = () => {
         sortable: false,
         filter: false,
         flex: 1,
+        minWidth: 130,
         cellRenderer: quantityCellRenderer,
       },
       {
@@ -507,6 +515,7 @@ const Inventory: React.FC = () => {
         sortable: false,
         filter: false,
         flex: 1,
+        minWidth: 170,
         cellRenderer: actionCellRenderer,
       },
     ],
@@ -538,6 +547,18 @@ const Inventory: React.FC = () => {
   const handleFirstDataRendered = useCallback((params: any) => {
     onFirstDataRendered(params, INVENTORY_GRID_STATE_KEY);
   }, []);
+
+  // Apply sizeColumnsToFit on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (gridRef.current && gridRef.current.api) {
+        gridRef.current.api.sizeColumnsToFit();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [gridRef]);
 
   // Update the grid when year changes
   useEffect(() => {
@@ -578,9 +599,18 @@ const Inventory: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          rowGap: 1,
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexWrap: 'wrap',
+          }}
+        >
           <Typography variant="h5" component="h1" sx={{ mr: 4 }}>
             Inventaire
           </Typography>
@@ -611,7 +641,7 @@ const Inventory: React.FC = () => {
             label="Masquer éléments sans stock"
           />
           {hasUnsavedChanges && (
-            <>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'nowrap' }}>
               <Tooltip title="Enregistrer les modifications" arrow>
                 <Button
                   variant="contained"
@@ -630,7 +660,7 @@ const Inventory: React.FC = () => {
                   Annuler
                 </Button>
               </Tooltip>
-            </>
+            </Box>
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -641,21 +671,22 @@ const Inventory: React.FC = () => {
             <Button
               variant="outlined"
               color="secondary"
-              startIcon={<RestartAltIcon />}
+              startIcon={!isMediumScreen ? <RestartAltIcon /> : undefined}
               onClick={handleResetGrid}
-              size="small"
+              size={isMediumScreen ? 'small' : 'medium'}
             >
-              Réinitialiser
+              {isMediumScreen ? <RestartAltIcon /> : 'Réinitialiser'}
             </Button>
           </Tooltip>
           <Tooltip title="Ajouter un élément" arrow>
             <Button
               variant="contained"
               color="primary"
-              startIcon={<AddIcon />}
+              startIcon={!isMediumScreen ? <AddIcon /> : undefined}
               onClick={handleAddItem}
+              size={!isMediumScreen ? 'small' : 'medium'}
             >
-              Ajouter
+              {isMediumScreen ? <AddIcon /> : 'Ajouter'}
             </Button>
           </Tooltip>
         </Box>
