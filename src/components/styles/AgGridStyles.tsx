@@ -1,7 +1,7 @@
-import { styled } from '@mui/material/styles';
+import { Box, styled } from '@mui/material';
 
 // Styled component for the AG Grid with primary color headers
-export const StyledAgGridWrapper = styled('div')(({ theme }) => ({
+export const StyledAgGridWrapper = styled(Box)(({ theme }) => ({
   height: '100%',
   width: '100%',
   '& .ag-header-viewport': {
@@ -49,5 +49,30 @@ export const StyledAgGridWrapper = styled('div')(({ theme }) => ({
   // Make sure the column menu popup also uses consistent colors for icons
   '& .ag-header-column-menu .ag-icon': {
     color: `${theme.palette.primary.contrastText} !important`,
+  },
+  '& .ag-paging-panel': {
+    height: 'auto',
+    minHeight: '40px',
+    padding: '0 12px',
+    [theme.breakpoints.down('sm')]: {
+      '& .ag-picker-field .ag-label': {
+        display: 'none',
+      },
+      '& .ag-paging-row-summary-panel': {
+        display: 'none',
+      },
+    },
+  },
+  // Highlight the selected rows
+  '& .ag-row-selected': {
+    backgroundColor: theme.palette.action.selected,
+  },
+  // Add box shadow for cells that are being edited
+  '& .ag-cell-inline-editing': {
+    boxShadow: `0 0 0 2px ${theme.palette.primary.main}`,
+  },
+  // Remove outline from cells with focus (checkboxes)
+  '& .ag-cell.no-focus-outline:focus': {
+    outline: 'none',
   },
 }));
