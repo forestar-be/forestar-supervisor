@@ -117,8 +117,8 @@ const PurchaseOrders: React.FC = () => {
   // Media queries for responsive design
   const isMediumScreen = useMediaQuery('(max-width:1400px)');
   const isSmallScreen = useMediaQuery('(max-width:1200px)');
-  const isTablet = useMediaQuery('(max-width:768px)');
   const isMobile = useMediaQuery('(max-width:480px)');
+  const isHeaderCompact = useMediaQuery('(max-width:1175px)');
 
   // Calculate showTextInButton based on screen size (false when xs)
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
@@ -1105,67 +1105,111 @@ const PurchaseOrders: React.FC = () => {
           pl: 2,
           pr: 2,
           display: 'flex',
+          flexDirection: isHeaderCompact ? 'column' : 'row',
           justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
+          alignItems: isHeaderCompact ? 'stretch' : 'center',
           gap: 1,
         }}
       >
-        <Typography variant="h5" component="h1" sx={{ mb: { xs: 1, md: 0 } }}>
-          Bons de commande
-        </Typography>
+        {/* First row/section: Title and action buttons */}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            width: isHeaderCompact ? '100%' : 'auto',
+          }}
+        >
+          <Typography variant="h5" component="h1">
+            Bons de commande
+          </Typography>
+          {isHeaderCompact && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip
+                title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+                arrow
+              >
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<RestartAltIcon />}
+                  onClick={handleResetGrid}
+                  size="small"
+                  sx={buttonSx}
+                >
+                  {showTextInButton && <Box>Réinitialiser</Box>}
+                </Button>
+              </Tooltip>
+              <Tooltip title="Ouvrir le dossier Google Drive" arrow>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<FolderOpenIcon />}
+                  onClick={handleOpenGoogleDrive}
+                  sx={buttonSx}
+                >
+                  {showTextInButton && <Box>Google Drive</Box>}
+                </Button>
+              </Tooltip>
+            </Box>
+          )}
+        </Box>
+
+        {/* Second row/section: Search, buttons (when not compact), and add button */}
         <Box
           sx={{
             display: 'flex',
             gap: 1,
-            flexWrap: 'wrap',
-            width: { xs: '100%', md: 'auto' },
+            width: isHeaderCompact ? '100%' : 'auto',
+            flex: isHeaderCompact ? 'none' : 1,
+            justifyContent: isHeaderCompact ? 'space-between' : 'flex-end',
           }}
         >
-          <Tooltip
-            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
-            arrow
-          >
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<RestartAltIcon />}
-              onClick={handleResetGrid}
-              size="small"
-              sx={buttonSx}
-            >
-              {showTextInButton && <Box>Réinitialiser</Box>}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Ouvrir le dossier Google Drive" arrow>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<FolderOpenIcon />}
-              onClick={handleOpenGoogleDrive}
-              sx={buttonSx}
-            >
-              {showTextInButton && <Box>Google Drive</Box>}
-            </Button>
-          </Tooltip>
+          {!isHeaderCompact && (
+            <>
+              <Tooltip
+                title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+                arrow
+              >
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<RestartAltIcon />}
+                  onClick={handleResetGrid}
+                  size="small"
+                  sx={buttonSx}
+                >
+                  {showTextInButton && <Box>Réinitialiser</Box>}
+                </Button>
+              </Tooltip>
+              <Tooltip title="Ouvrir le dossier Google Drive" arrow>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<FolderOpenIcon />}
+                  onClick={handleOpenGoogleDrive}
+                  sx={buttonSx}
+                >
+                  {showTextInButton && <Box>Google Drive</Box>}
+                </Button>
+              </Tooltip>
+            </>
+          )}
           <TextField
             id="search-client"
             label="Rechercher un client"
             variant="outlined"
             size="small"
             sx={{
-              flex: { xs: 1, md: 'none' },
-              minWidth: { xs: 100, sm: 200, md: 300 },
+              flex: 1,
+              maxWidth: 900,
+              minWidth: { xs: 100, sm: 200 },
             }}
             value={customerFilterText}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setCustomerFilterText(e.target.value)
             }
-            slotProps={{
-              input: {
-                endAdornment: <SearchIcon />,
-              },
-            }}
+            slotProps={{ input: { endAdornment: <SearchIcon /> } }}
           />
           <Tooltip title="Créer un devis ou bon de commande" arrow>
             <Button
