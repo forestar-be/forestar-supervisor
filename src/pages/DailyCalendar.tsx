@@ -251,6 +251,7 @@ const DailyCalendar: React.FC = () => {
           >
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <ToggleButtonGroup
+                color="primary"
                 value={viewMode}
                 exclusive
                 onChange={(e, newValue) => {
@@ -260,27 +261,19 @@ const DailyCalendar: React.FC = () => {
                 }}
                 size="small"
                 aria-label="mode d'affichage"
-                sx={{
-                  '& .MuiToggleButtonGroup-grouped': {
-                    border: 1,
-                    borderColor: 'divider',
-                  },
-                  '& .Mui-selected': {
-                    backgroundColor: 'primary.main',
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'primary.dark',
-                      color: 'white',
-                    },
-                  },
-                }}
               >
-                <Tooltip arrow title="Afficher les événements sous forme de tableau">
+                <Tooltip
+                  arrow
+                  title="Afficher les événements sous forme de tableau"
+                >
                   <ToggleButton value="table" aria-label="vue tableau">
                     <TableViewIcon sx={{ mr: 0.5 }} /> Tableau
                   </ToggleButton>
                 </Tooltip>
-                <Tooltip arrow title="Afficher les événements dans une vue chronologique">
+                <Tooltip
+                  arrow
+                  title="Afficher les événements dans une vue chronologique"
+                >
                   <ToggleButton value="timeline" aria-label="vue chronologie">
                     <TimelineIcon sx={{ mr: 0.5 }} /> Chronologie
                   </ToggleButton>
