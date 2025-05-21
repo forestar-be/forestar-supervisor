@@ -19,7 +19,6 @@ import {
   Alert,
   Tooltip,
   Grid,
-  Switch,
   IconButton,
   Dialog,
   DialogTitle,
@@ -27,6 +26,7 @@ import {
   DialogActions,
   Chip,
 } from '@mui/material';
+import { ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import PrintIcon from '@mui/icons-material/Print';
@@ -34,6 +34,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import DescriptionIcon from '@mui/icons-material/Description';
+import TableViewIcon from '@mui/icons-material/TableView';
+import TimelineIcon from '@mui/icons-material/Timeline';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/fr';
 import { useAuth } from '../hooks/AuthProvider';
@@ -248,18 +250,42 @@ const DailyCalendar: React.FC = () => {
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Typography component="span" sx={{ mr: 1 }}>
-                Vue:
-              </Typography>
-              <Switch
-                checked={viewMode === 'timeline'}
-                onChange={() =>
-                  setViewMode(viewMode === 'table' ? 'timeline' : 'table')
-                }
-              />
-              <Typography component="span" sx={{ ml: 1 }}>
-                {viewMode === 'table' ? 'Tableau' : 'Timeline'}
-              </Typography>
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(e, newValue) => {
+                  if (newValue !== null) {
+                    setViewMode(newValue);
+                  }
+                }}
+                size="small"
+                aria-label="mode d'affichage"
+                sx={{
+                  '& .MuiToggleButtonGroup-grouped': {
+                    border: 1,
+                    borderColor: 'divider',
+                  },
+                  '& .Mui-selected': {
+                    backgroundColor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                      color: 'white',
+                    },
+                  },
+                }}
+              >
+                <Tooltip arrow title="Afficher les événements sous forme de tableau">
+                  <ToggleButton value="table" aria-label="vue tableau">
+                    <TableViewIcon sx={{ mr: 0.5 }} /> Tableau
+                  </ToggleButton>
+                </Tooltip>
+                <Tooltip arrow title="Afficher les événements dans une vue chronologique">
+                  <ToggleButton value="timeline" aria-label="vue chronologie">
+                    <TimelineIcon sx={{ mr: 0.5 }} /> Chronologie
+                  </ToggleButton>
+                </Tooltip>
+              </ToggleButtonGroup>
             </Box>
           </Grid>
         </Grid>

@@ -107,7 +107,9 @@ const App = (): JSX.Element => {
       <Helmet
         titleTemplate="%s | Forestar Shop Atelier"
         defaultTitle="Forestar Shop Atelier"
-      />
+      >
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <ColorModeContext.Provider value={colorMode}>
         <ThemeProvider theme={getTheme(mode)}>
           <CssBaseline />
