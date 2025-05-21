@@ -22,11 +22,18 @@ import {
   Switch,
   IconButton,
   Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import PrintIcon from '@mui/icons-material/Print';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import DescriptionIcon from '@mui/icons-material/Description';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/fr';
 import { useAuth } from '../hooks/AuthProvider';
@@ -40,54 +47,8 @@ import CalendarPdf from '../components/calendar/CalendarPdf';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { pdf } from '@react-pdf/renderer';
 
-// Mock data for development
-const mockCalendars: Calendar[] = [
-  { id: 'cal1', name: 'Bureau', color: '#4285F4' },
-  { id: 'cal2', name: 'Personnel', color: '#0F9D58' },
-  { id: 'cal3', name: 'Équipe technique', color: '#DB4437' },
-  { id: 'cal4', name: 'Livraisons', color: '#F4B400' },
-];
-
-const mockEvents: CalendarEvent[] = [
-  {
-    id: 'evt1',
-    calendarId: 'cal1',
-    title: "Réunion d'équipe",
-    start: '2023-06-15T09:00:00',
-    end: '2023-06-15T10:30:00',
-    location: 'Bureau principal',
-  },
-  {
-    id: 'evt2',
-    calendarId: 'cal1',
-    title: 'Point commercial',
-    start: '2023-06-15T14:00:00',
-    end: '2023-06-15T15:00:00',
-  },
-  {
-    id: 'evt3',
-    calendarId: 'cal2',
-    title: 'Déjeuner',
-    start: '2023-06-15T12:00:00',
-    end: '2023-06-15T13:30:00',
-    location: 'Restaurant du coin',
-  },
-  {
-    id: 'evt4',
-    calendarId: 'cal3',
-    title: 'Installation client A',
-    start: '2023-06-15T08:00:00',
-    end: '2023-06-15T12:00:00',
-    location: 'Chez client A',
-  },
-  {
-    id: 'evt5',
-    calendarId: 'cal4',
-    title: 'Livraison composants',
-    start: '2023-06-15T16:00:00',
-    end: '2023-06-15T16:30:00',
-  },
-];
+// Flag to control location display
+const WITH_LOCATION = false;
 
 const DailyCalendar: React.FC = () => {
   const theme = useTheme();
@@ -100,15 +61,17 @@ const DailyCalendar: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
 
   // Load calendars on component mount
   useEffect(() => {
     const loadCalendars = async () => {
       try {
         setLoading(true);
-        // For development, use mock data
-        // const data = await fetchCalendars(auth.token);
-        const data = mockCalendars;
+        const data = await fetchCalendars(auth.token);
         setCalendars(data);
         // Select all calendars by default
         setSelectedCalendars(data.map((cal) => cal.id));
@@ -133,11 +96,10 @@ const DailyCalendar: React.FC = () => {
 
       try {
         setLoading(true);
-        // For development, use mock data
-        // const data = await fetchCalendarEvents(auth.token, selectedCalendars, selectedDate.format('YYYY-MM-DD'));
-        // Filter mock events by selected calendars
-        const data = mockEvents.filter((event) =>
-          selectedCalendars.includes(event.calendarId),
+        const data = await fetchCalendarEvents(
+          auth.token,
+          selectedCalendars,
+          selectedDate.format('YYYY-MM-DD'),
         );
         setEvents(data);
       } catch (err) {
@@ -235,9 +197,25 @@ const DailyCalendar: React.FC = () => {
   };
 
   const formatEventTime = (start: string, end: string): string => {
+    // Check for all-day events (dates without time or spanning multiple days)
     const startDate = dayjs(start);
     const endDate = dayjs(end);
+
+    // Check if the event spans multiple days or if it's a date without time
+    if (start.length <= 10 && end.length <= 10) {
+      return 'Toute la journée';
+    }
+
     return `${startDate.format('HH:mm')} - ${endDate.format('HH:mm')}`;
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setEventDialogOpen(true);
+  };
+
+  const handleCloseEventDialog = () => {
+    setEventDialogOpen(false);
   };
 
   return (
@@ -443,14 +421,23 @@ const DailyCalendar: React.FC = () => {
                       <TableCell>Horaire</TableCell>
                       <TableCell>Événement</TableCell>
                       <TableCell>Calendrier</TableCell>
-                      <TableCell>Lieu</TableCell>
+                      {WITH_LOCATION && <TableCell>Lieu</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {getEventsByTime().map((event) => {
                       const calendar = getCalendarById(event.calendarId);
                       return (
-                        <TableRow key={event.id}>
+                        <TableRow
+                          key={event.id}
+                          onClick={() => handleEventClick(event)}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
                           <TableCell>
                             {formatEventTime(event.start, event.end)}
                           </TableCell>
@@ -469,7 +456,9 @@ const DailyCalendar: React.FC = () => {
                               {calendar?.name}
                             </Box>
                           </TableCell>
-                          <TableCell>{event.location || '-'}</TableCell>
+                          {WITH_LOCATION && (
+                            <TableCell>{event.location || '-'}</TableCell>
+                          )}
                         </TableRow>
                       );
                     })}
@@ -478,6 +467,60 @@ const DailyCalendar: React.FC = () => {
               </TableContainer>
             ) : (
               <Box sx={{ position: 'relative', mt: 2 }}>
+                {/* All-day events section */}
+                <Box
+                  sx={{
+                    mb: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 0.5,
+                  }}
+                >
+                  {getEventsByTime()
+                    .filter(
+                      (event) =>
+                        event.start.length <= 10 && event.end.length <= 10,
+                    )
+                    .map((event) => {
+                      const calendar = getCalendarById(event.calendarId);
+                      return (
+                        <Box
+                          key={event.id}
+                          onClick={() => handleEventClick(event)}
+                          sx={{
+                            backgroundColor: calendar
+                              ? `${calendar.color}22`
+                              : '#eee',
+                            borderLeft: `4px solid ${calendar?.color || '#ccc'}`,
+                            padding: 1,
+                            borderRadius: 1,
+                            overflow: 'hidden',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                            cursor: 'pointer',
+                            '&:hover': {
+                              boxShadow: '0 3px 6px rgba(0,0,0,0.16)',
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                          }}
+                        >
+                          <Typography variant="body2" fontWeight="bold" noWrap>
+                            {event.title}
+                          </Typography>
+                          {WITH_LOCATION && event.location && (
+                            <Typography
+                              variant="caption"
+                              display="block"
+                              color="text.secondary"
+                              noWrap
+                            >
+                              {event.location}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })}
+                </Box>
+
                 {/* Timeline View */}
                 <Box
                   sx={{
@@ -509,60 +552,78 @@ const DailyCalendar: React.FC = () => {
                     ))}
                   </Box>
                   <Box sx={{ flexGrow: 1, position: 'relative', ml: 1 }}>
-                    {getEventsByTime().map((event) => {
-                      const calendar = getCalendarById(event.calendarId);
+                    {getEventsByTime()
+                      .filter(
+                        (event) =>
+                          !(event.start.length <= 10 && event.end.length <= 10),
+                      )
+                      .map((event) => {
+                        const calendar = getCalendarById(event.calendarId);
 
-                      // Calculate position
-                      const startHour =
-                        dayjs(event.start).hour() +
-                        dayjs(event.start).minute() / 60;
-                      const endHour =
-                        dayjs(event.end).hour() +
-                        dayjs(event.end).minute() / 60;
-                      const top = (startHour - 7) * 50; // Start at 7:00
-                      const height = (endHour - startHour) * 50;
+                        // Calculate position
+                        const startHour =
+                          dayjs(event.start).hour() +
+                          dayjs(event.start).minute() / 60;
+                        const endHour =
+                          dayjs(event.end).hour() +
+                          dayjs(event.end).minute() / 60;
+                        const top = (startHour - 7) * 50; // Start at 7:00
+                        const height = (endHour - startHour) * 50;
 
-                      return (
-                        <Box
-                          key={event.id}
-                          sx={{
-                            position: 'absolute',
-                            top: `${top}px`,
-                            left: '5px',
-                            width: 'calc(100% - 10px)',
-                            height: `${height}px`,
-                            backgroundColor: calendar
-                              ? `${calendar.color}22`
-                              : '#eee',
-                            borderLeft: `4px solid ${calendar?.color || '#ccc'}`,
-                            padding: 1,
-                            borderRadius: 1,
-                            overflow: 'hidden',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-                            '&:hover': {
-                              boxShadow: '0 3px 6px rgba(0,0,0,0.16)',
-                            },
-                          }}
-                        >
-                          <Typography variant="body2" fontWeight="bold" noWrap>
-                            {event.title}
-                          </Typography>
-                          <Typography variant="caption" display="block" noWrap>
-                            {formatEventTime(event.start, event.end)}
-                          </Typography>
-                          {event.location && (
+                        return (
+                          <Box
+                            key={event.id}
+                            onClick={() => handleEventClick(event)}
+                            sx={{
+                              position: 'absolute',
+                              top: `${top}px`,
+                              left: '5px',
+                              width: 'calc(100% - 10px)',
+                              height: `${height}px`,
+                              backgroundColor: calendar
+                                ? `${calendar.color}22`
+                                : '#eee',
+                              borderLeft: `4px solid ${calendar?.color || '#ccc'}`,
+                              padding: 1,
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                              cursor: 'pointer',
+                              '&:hover': {
+                                boxShadow: '0 3px 6px rgba(0,0,0,0.16)',
+                                backgroundColor: calendar
+                                  ? `${calendar.color}33`
+                                  : theme.palette.action.hover,
+                              },
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              fontWeight="bold"
+                              noWrap
+                            >
+                              {event.title}
+                            </Typography>
                             <Typography
                               variant="caption"
                               display="block"
-                              color="text.secondary"
                               noWrap
                             >
-                              {event.location}
+                              {formatEventTime(event.start, event.end)}
                             </Typography>
-                          )}
-                        </Box>
-                      );
-                    })}
+                            {WITH_LOCATION && event.location && (
+                              <Typography
+                                variant="caption"
+                                display="block"
+                                color="text.secondary"
+                                noWrap
+                              >
+                                {event.location}
+                              </Typography>
+                            )}
+                          </Box>
+                        );
+                      })}
                   </Box>
                 </Box>
               </Box>
@@ -590,6 +651,116 @@ const DailyCalendar: React.FC = () => {
             </PDFViewer>
           </Box>
         </Box>
+      </Dialog>
+
+      {/* Event Detail Dialog */}
+      <Dialog
+        open={eventDialogOpen}
+        onClose={handleCloseEventDialog}
+        fullWidth
+        maxWidth="sm"
+      >
+        {selectedEvent && (
+          <>
+            <Box
+              sx={{
+                position: 'relative',
+                p: 3,
+                pb: 0,
+                backgroundColor: (() => {
+                  const calendar = getCalendarById(selectedEvent.calendarId);
+                  return calendar ? `${calendar.color}22` : undefined;
+                })(),
+                borderBottom: (() => {
+                  const calendar = getCalendarById(selectedEvent.calendarId);
+                  return `4px solid ${calendar?.color || theme.palette.primary.main}`;
+                })(),
+              }}
+            >
+              <DialogTitle sx={{ p: 0, fontSize: '1.5rem' }}>
+                {selectedEvent.title}
+              </DialogTitle>
+              <Box sx={{ my: 1 }}>
+                <Chip
+                  size="small"
+                  label={(() => {
+                    const calendar = getCalendarById(selectedEvent.calendarId);
+                    return calendar?.name || 'Calendrier';
+                  })()}
+                  sx={{
+                    backgroundColor: (() => {
+                      const calendar = getCalendarById(
+                        selectedEvent.calendarId,
+                      );
+                      return calendar ? calendar.color : undefined;
+                    })(),
+                    color: '#fff',
+                    mr: 1,
+                  }}
+                />
+              </Box>
+            </Box>
+            <DialogContent sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Box
+                    sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}
+                  >
+                    <ScheduleIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                      {selectedEvent.start.length <= 10 &&
+                      selectedEvent.end.length <= 10
+                        ? `Toute la journée - Du ${dayjs(selectedEvent.start).format('DD/MM/YYYY')} au ${dayjs(selectedEvent.end).format('DD/MM/YYYY')}`
+                        : `${dayjs(selectedEvent.start).format('DD/MM/YYYY HH:mm')} - ${dayjs(selectedEvent.end).format('DD/MM/YYYY HH:mm')}`}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                {WITH_LOCATION && selectedEvent.location && (
+                  <Grid item xs={12}>
+                    <Box
+                      sx={{ display: 'flex', alignItems: 'flex-start', mb: 2 }}
+                    >
+                      <LocationOnIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {selectedEvent.location}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                )}
+
+                {selectedEvent.description && (
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <DescriptionIcon
+                        sx={{ mr: 1, color: 'text.secondary' }}
+                      />
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                          Description
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            whiteSpace: 'pre-wrap',
+                            backgroundColor: theme.palette.background.default,
+                            p: 2,
+                            borderRadius: 1,
+                          }}
+                        >
+                          {selectedEvent.description}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseEventDialog}>Fermer</Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
 
       {/* Print-only styles */}

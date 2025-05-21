@@ -606,7 +606,8 @@ export const fetchCalendarEvents = (
   calendarIds: string[],
   date: string,
 ): Promise<CalendarEvent[]> =>
-  apiRequest('/supervisor/calendar-events', 'POST', token, {
-    calendarIds,
-    date,
-  });
+  apiRequest(
+    `/supervisor/calendar-events?calendarIds=${calendarIds.join(',')}&date=${date}`,
+    'GET',
+    token,
+  );

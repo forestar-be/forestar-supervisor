@@ -10,6 +10,9 @@ import {
 import { Calendar, CalendarEvent } from '../../utils/api';
 import dayjs from 'dayjs';
 
+// Flag to control location display
+const WITH_LOCATION = false;
+
 // Define styles for the PDF document
 const styles = StyleSheet.create({
   page: {
@@ -61,6 +64,12 @@ const styles = StyleSheet.create({
     display: 'flex',
     alignItems: 'center',
   },
+  eventRow: {
+    flexDirection: 'column',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+    paddingVertical: 8,
+  },
   tableHeader: {
     backgroundColor: '#F5F5F5',
     fontWeight: 'bold',
@@ -73,13 +82,14 @@ const styles = StyleSheet.create({
     width: '15%',
   },
   eventCell: {
-    width: '40%',
+    width: WITH_LOCATION ? '40%' : '50%',
   },
   calendarCell: {
-    width: '20%',
+    width: WITH_LOCATION ? '20%' : '35%',
   },
   locationCell: {
     width: '25%',
+    display: WITH_LOCATION ? 'flex' : 'none',
   },
   noEvents: {
     fontSize: 12,
@@ -106,6 +116,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 3,
   },
+  eventMainInfo: {
+    flexDirection: 'row',
+    width: '100%',
+  },
+  descriptionContainer: {
+    marginTop: 4,
+    marginLeft: 15,
+    paddingLeft: 5,
+    borderLeftWidth: 1,
+    borderLeftColor: '#CCCCCC',
+  },
+  descriptionText: {
+    fontSize: 9,
+    color: '#444444',
+    fontStyle: 'italic',
+  },
+  eventLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
 });
 
 interface CalendarPdfProps {
@@ -125,6 +156,19 @@ const formatTime = (isoString: string) => {
 // Format date from ISO string to full date
 const formatDate = (isoString: string) => {
   return dayjs(isoString).format('dddd D MMMM YYYY');
+};
+
+// Check if an event is all-day
+const isAllDayEvent = (start: string, end: string): boolean => {
+  return start.length <= 10 && end.length <= 10;
+};
+
+// Format event time display
+const formatEventTime = (start: string, end: string): string => {
+  if (isAllDayEvent(start, end)) {
+    return 'Toute la journée';
+  }
+  return `${formatTime(start)} - ${formatTime(end)}`;
 };
 
 const CalendarPdf: React.FC<CalendarPdfProps> = ({
@@ -189,7 +233,11 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
               <Text style={[styles.tableCell, styles.calendarCell]}>
                 Calendrier
               </Text>
-              <Text style={[styles.tableCell, styles.locationCell]}>Lieu</Text>
+              {WITH_LOCATION && (
+                <Text style={[styles.tableCell, styles.locationCell]}>
+                  Lieu
+                </Text>
+              )}
             </View>
 
             {sortedEvents.map((event) => {
@@ -197,19 +245,30 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
                 (cal) => cal.id === event.calendarId,
               );
               return (
-                <View style={styles.tableRow} key={event.id}>
-                  <Text style={[styles.tableCell, styles.timeCell]}>
-                    {formatTime(event.start)} - {formatTime(event.end)}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.eventCell]}>
-                    {event.title}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.calendarCell]}>
-                    {calendar?.name || '-'}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.locationCell]}>
-                    {event.location || '-'}
-                  </Text>
+                <View style={styles.eventRow} key={event.id}>
+                  <View style={styles.eventMainInfo}>
+                    <Text style={[styles.tableCell, styles.timeCell]}>
+                      {formatEventTime(event.start, event.end)}
+                    </Text>
+                    <Text style={[styles.tableCell, styles.eventCell]}>
+                      {event.title}
+                    </Text>
+                    <Text style={[styles.tableCell, styles.calendarCell]}>
+                      {calendar?.name || '-'}
+                    </Text>
+                    <Text style={[styles.tableCell, styles.locationCell]}>
+                      {WITH_LOCATION ? event.location || '-' : '-'}
+                    </Text>
+                  </View>
+
+                  {event.description && (
+                    <View style={styles.descriptionContainer}>
+                      <Text style={styles.eventLabel}>Description:</Text>
+                      <Text style={styles.descriptionText}>
+                        {event.description}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               );
             })}
