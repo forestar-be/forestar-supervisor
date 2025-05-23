@@ -26,6 +26,7 @@ interface ConfigState {
     'Prix hivernage': string;
     États: string;
     'URL drive bons de commande': string;
+    'Numéro de compte bancaire': string;
     [key: string]: string;
   };
   loading: boolean;
@@ -50,6 +51,7 @@ const initialState: ConfigState = {
     'Prix hivernage': '0',
     États: '{}',
     'URL drive bons de commande': '',
+    'Numéro de compte bancaire': '',
   },
   loading: false,
   error: null,
