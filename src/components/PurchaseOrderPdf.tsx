@@ -584,7 +584,8 @@ export const PurchaseOrderPdfDocument: React.FC<{
                 <Text style={styles.noteText}>
                   Pour confirmer ce devis, merci de verser l'acompte de{' '}
                   {formatPriceForPdf(purchaseOrder.deposit)} sur le compte
-                  bancaire indiqué ci-dessus.
+                  bancaire indiqué ci-dessus. La commande prendra cours à la
+                  réception de l'acompte.
                 </Text>
               </View>
             </View>
@@ -785,7 +786,7 @@ export const PurchaseOrderPdfDocument: React.FC<{
           <View style={[styles.tableRow, { backgroundColor: '#f0f0f0' }]}>
             <View style={styles.tableCol}>
               <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
-                RESTE À PAYER
+                RESTE À PAYER APRÈS L'INSTALLATION
               </Text>
             </View>
             <View style={styles.tableCol}>
@@ -800,48 +801,6 @@ export const PurchaseOrderPdfDocument: React.FC<{
             </View>
           </View>
         </View>
-
-        {/* Client Signature Section */}
-        {!purchaseOrder.devis && (
-          <View>
-            <View style={styles.sectionTitle}>
-              <Text>VALIDATION ET SIGNATURE</Text>
-            </View>
-
-            {purchaseOrder.clientSignature ? (
-              <View>
-                <View style={{ marginVertical: 10 }}>
-                  <Text style={{ fontSize: 12, marginBottom: 5 }}>
-                    Bon de commande validé et signé par le client:
-                  </Text>
-                  <Image
-                    src={purchaseOrder.clientSignature}
-                    style={styles.signatureImage}
-                  />
-                  {purchaseOrder.signatureTimestamp && (
-                    <Text style={styles.signatureDate}>
-                      Signature effectuée le{' '}
-                      {formatDateWithTime(purchaseOrder.signatureTimestamp)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.signature}>
-                <View style={styles.signatureBox}>
-                  <Text style={styles.signatureLabel}>
-                    Signature du client:
-                  </Text>
-                </View>
-                <View style={styles.signatureBox}>
-                  <Text style={styles.signatureLabel}>
-                    Signature du vendeur:
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
       </Page>
 
       {/* Installation preparation instructions page */}
@@ -856,6 +815,46 @@ export const PurchaseOrderPdfDocument: React.FC<{
           <View style={styles.column}>
             {installationTexts?.map((text) => renderInstallationText(text))}
           </View>
+        </Page>
+      )}
+
+      {/* Signature page - moved after installation texts */}
+      {!purchaseOrder.devis && (
+        <Page size="A4" style={styles.page}>
+          {/* Header for consistency */}
+          <View style={styles.header}>
+            <Text style={styles.headerText}>FORESTAR</Text>
+          </View>
+
+          <View style={styles.sectionTitle}>
+            <Text>VALIDATION ET SIGNATURE</Text>
+          </View>
+
+          {purchaseOrder.clientSignature ? (
+            <View>
+              <View style={{ marginVertical: 10 }}>
+                <Text style={{ fontSize: 12, marginBottom: 5 }}>
+                  Bon de commande validé et signé par le client:
+                </Text>
+                <Image
+                  src={purchaseOrder.clientSignature}
+                  style={styles.signatureImage}
+                />
+                {purchaseOrder.signatureTimestamp && (
+                  <Text style={styles.signatureDate}>
+                    Signature effectuée le{' '}
+                    {formatDateWithTime(purchaseOrder.signatureTimestamp)}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.signature}>
+              <View style={styles.signatureBox}>
+                <Text style={styles.signatureLabel}>Signature du client:</Text>
+              </View>
+            </View>
+          )}
         </Page>
       )}
     </Document>

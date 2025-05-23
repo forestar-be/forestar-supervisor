@@ -257,6 +257,9 @@ const PurchaseOrderForm: React.FC = () => {
   const { items: inventoryItems, loading: inventoryLoading } = useSelector(
     (state: RootState) => state.robotInventory,
   );
+  const { config: configData } = useSelector(
+    (state: RootState) => state.config,
+  );
 
   // Filter items by category
   const robots = inventoryItems.filter(
@@ -433,6 +436,12 @@ const PurchaseOrderForm: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       devis: type === 'devis',
+      // Set bank account number from config if it's a quote
+      ...(type === 'devis' &&
+      configData &&
+      configData['Numéro de compte bancaire']
+        ? { bankAccountNumber: configData['Numéro de compte bancaire'] }
+        : {}),
     }));
     setTypeDialogOpen(false);
   };
@@ -862,6 +871,16 @@ const PurchaseOrderForm: React.FC = () => {
       });
     };
   }, [photoUrlCache, selectedPhotoUrls]);
+
+  // Effect to set the bank account number from config when creating a new purchase order
+  useEffect(() => {
+    if (!isEditing && configData && configData['Numéro de compte bancaire']) {
+      setFormData((prev) => ({
+        ...prev,
+        bankAccountNumber: configData['Numéro de compte bancaire'],
+      }));
+    }
+  }, [isEditing, configData]);
 
   if (loading || inventoryLoading) {
     return <Typography>Chargement...</Typography>;
