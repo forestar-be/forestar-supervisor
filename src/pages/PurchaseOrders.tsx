@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-} from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -31,7 +25,7 @@ import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
-import SignatureCanvas from 'react-signature-canvas';
+
 import {
   ColDef,
   GridReadyEvent,
@@ -65,15 +59,6 @@ import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 import ConfirmDialog, {
   ConfirmDialogType,
 } from '../components/dialogs/ConfirmDialog';
-import { SignatureDialog } from '../components/dialogs/SignatureDialog';
-
-// Add CSS for SignatureCanvas
-const signatureCanvasStyles = `
-  .signature-canvas {
-    touch-action: none;
-  }
-`;
-
 // PDF action types
 type PdfActionType = 'view' | 'download' | 'print';
 
@@ -85,14 +70,6 @@ interface ConfirmDialogState {
   onConfirm: () => Promise<void>;
   isLoading: boolean;
   type?: ConfirmDialogType;
-}
-
-// Signature dialog state
-interface SignatureDialogState {
-  open: boolean;
-  orderId: number;
-  orderData: PurchaseOrder | null;
-  isLoading: boolean;
 }
 
 const PURCHASE_ORDERS_GRID_STATE_KEY = 'purchaseOrdersAgGridState';
@@ -137,17 +114,6 @@ const PurchaseOrders: React.FC = () => {
           '& .MuiButton-endIcon': { m: 0 },
         }),
   };
-
-  // Signature canvas reference
-  const signatureCanvasRef = useRef<SignatureCanvas>(null);
-
-  // Signature dialog state
-  const [signatureDialog, setSignatureDialog] = useState<SignatureDialogState>({
-    open: false,
-    orderId: 0,
-    orderData: null,
-    isLoading: false,
-  });
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
@@ -273,94 +239,6 @@ const PurchaseOrders: React.FC = () => {
     },
     [texts],
   );
-
-  // Handle signature dialog close
-  const handleCloseSignatureDialog = useCallback(() => {
-    if (signatureDialog.isLoading) return; // Prevent closing during loading
-    setSignatureDialog({ ...signatureDialog, open: false });
-  }, [signatureDialog]);
-
-  // Handle signature submission
-  const handleSignatureSubmit = useCallback(async () => {
-    if (!signatureCanvasRef.current || !token || !signatureDialog.orderData) {
-      toast.error('Une erreur est survenue: références manquantes');
-      return;
-    }
-
-    // Check if signature pad is empty
-    if (signatureCanvasRef.current.isEmpty()) {
-      toast.error('Veuillez signer avant de continuer');
-      return;
-    }
-
-    try {
-      setSignatureDialog((prev) => ({ ...prev, isLoading: true }));
-
-      // Get the signature as base64 image
-      const signatureDataURL =
-        signatureCanvasRef.current.toDataURL('image/png');
-
-      console.log('Signature captured successfully');
-
-      // Update the order data with the signature
-      const updatedOrder = {
-        ...signatureDialog.orderData,
-        devis: false,
-        clientSignature: signatureDataURL,
-        signatureTimestamp: new Date().toISOString(),
-      };
-
-      // Generate new PDF with updated status
-      console.log('Generating PDF with signature...');
-      const pdfBlob = await generatePDF(updatedOrder);
-      console.log('PDF generated successfully');
-
-      // Send the update to the server
-      console.log('Sending update to server...');
-      await updatePurchaseOrderStatus(
-        token,
-        signatureDialog.orderId,
-        {
-          devis: false,
-          clientSignature: signatureDataURL,
-        },
-        pdfBlob,
-      );
-
-      console.log('Update sent to server successfully');
-
-      // Update local state
-      setPurchaseOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order.id === signatureDialog.orderId
-            ? {
-                ...order,
-                devis: false,
-                clientSignature: signatureDataURL,
-                signatureTimestamp: new Date().toISOString(),
-              }
-            : order,
-        ),
-      );
-
-      toast.success('Bon de commande validé avec signature');
-      setSignatureDialog((prev) => ({
-        ...prev,
-        open: false,
-        isLoading: false,
-      }));
-    } catch (error) {
-      console.error('Error submitting signature:', error);
-      toast.error('Erreur lors de la validation de la signature');
-      setSignatureDialog((prev) => ({ ...prev, isLoading: false }));
-    }
-  }, [
-    token,
-    signatureDialog.orderData,
-    signatureDialog.orderId,
-    generatePDF,
-    signatureCanvasRef,
-  ]);
 
   // Handle dialog confirmation
   const handleConfirmDialog = useCallback(async () => {
@@ -797,31 +675,8 @@ const PurchaseOrders: React.FC = () => {
               onChange={(e) => {
                 // Only allow converting from devis to bon de commande (when devis=true)
                 if (order.devis) {
-                  // Open signature dialog instead of confirmation dialog
-                  const handleShowSignatureDialog = async () => {
-                    try {
-                      // Get the full order details
-                      const orderDetail = await fetchPurchaseOrderById(
-                        token!,
-                        order.id,
-                      );
-
-                      // Open signature dialog
-                      setSignatureDialog({
-                        open: true,
-                        orderId: order.id,
-                        orderData: orderDetail,
-                        isLoading: false,
-                      });
-                    } catch (error) {
-                      console.error('Error fetching order details:', error);
-                      toast.error(
-                        'Erreur lors du chargement des détails de la commande',
-                      );
-                    }
-                  };
-
-                  handleShowSignatureDialog();
+                  // Rediriger vers la page de signature au lieu d'ouvrir une popup
+                  navigate(`/purchase-orders/signature/${order.id}`);
                 }
               }}
               disabled={!order.devis} // Disable checkbox when already a bon de commande
@@ -838,7 +693,7 @@ const PurchaseOrders: React.FC = () => {
         </Box>
       );
     },
-    [token],
+    [navigate],
   );
 
   // External filter functions for client search
@@ -930,7 +785,7 @@ const PurchaseOrders: React.FC = () => {
         hide: isSmallScreen,
       },
       {
-        headerName: 'Devis',
+        headerName: 'Signé',
         field: 'devis',
         sortable: false,
         filter: false,
@@ -938,8 +793,6 @@ const PurchaseOrders: React.FC = () => {
         maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: devisStatusCellRenderer,
         cellClass: 'no-focus-outline',
-        headerTooltip:
-          'Cochez si le devis est transformé en bon de commande finalisé',
         cellStyle: (params: any) => ({
           backgroundColor:
             params.data && !params.data.devis
@@ -1086,9 +939,6 @@ const PurchaseOrders: React.FC = () => {
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Add global styles for signature canvas */}
-      <style>{signatureCanvasStyles}</style>
-
       {/* Confirmation Dialog Component */}
       <ConfirmDialog
         open={confirmDialog.open}
@@ -1098,15 +948,6 @@ const PurchaseOrders: React.FC = () => {
         onClose={handleCloseDialog}
         isLoading={confirmDialog.isLoading}
         type={confirmDialog.type}
-      />
-
-      {/* Signature Dialog Component */}
-      <SignatureDialog
-        open={signatureDialog.open}
-        orderData={signatureDialog.orderData}
-        isLoading={signatureDialog.isLoading}
-        onClose={handleCloseSignatureDialog}
-        onSubmit={handleSignatureSubmit}
       />
 
       <Box

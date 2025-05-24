@@ -113,7 +113,7 @@ const MachineRepairsTable: React.FC = () => {
   const doesExternalFilterPass = useCallback(
     (node: IRowNode<MachineRepair>): boolean => {
       if (node.data) {
-        const { first_name, last_name } = node.data;
+        const { first_name, last_name, phone } = node.data;
         const fullName = `${first_name || ''} ${last_name || ''}`.trim();
         const customerSearchWords = customerFilterText
           .toLowerCase()
@@ -125,8 +125,12 @@ const MachineRepairsTable: React.FC = () => {
             .toLowerCase()
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '');
-        return customerSearchWords.every((word) =>
-          normalizeString(fullName).includes(word),
+
+        // Check if any of the search words match either the full name or the phone number
+        return customerSearchWords.every(
+          (word) =>
+            normalizeString(fullName).includes(word) ||
+            (phone && normalizeString(phone).includes(word)),
         );
       }
       return true;
@@ -249,15 +253,15 @@ const MachineRepairsTable: React.FC = () => {
       minWidth: 120,
       maxWidth: 120,
     },
-    {
-      headerName: 'N°',
-      field: 'id' as keyof MachineRepair,
-      sortable: true,
-      filter: false,
-      minWidth: 70,
-      maxWidth: 70,
-      hide: isMobile,
-    },
+    // {
+    //   headerName: 'N°',
+    //   field: 'id' as keyof MachineRepair,
+    //   sortable: true,
+    //   filter: false,
+    //   minWidth: 70,
+    //   maxWidth: 70,
+    //   hide: isMobile,
+    // },
     {
       headerName: 'État',
       field: 'state' as keyof MachineRepair,
@@ -336,6 +340,14 @@ const MachineRepairsTable: React.FC = () => {
       },
     },
     {
+      headerName: 'Téléphone',
+      field: 'phone',
+      sortable: true,
+      filter: true,
+      minWidth: 120,
+      valueFormatter: (params: any) => params.value || '-',
+    },
+    {
       headerName: 'Date de création',
       field: 'createdAt' as keyof MachineRepair,
       sortable: true,
@@ -401,7 +413,7 @@ const MachineRepairsTable: React.FC = () => {
           </Tooltip>
           <TextField
             id="search-client"
-            label="Rechercher un client"
+            label="Rechercher un client ou téléphone"
             variant="outlined"
             size="small"
             sx={{
