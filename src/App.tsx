@@ -14,12 +14,12 @@ import AuthRoute from './components/AuthRoute';
 import AuthProvider, { useAuth } from './hooks/AuthProvider';
 import SingleRepair from './pages/SingleRepair';
 import Settings from './pages/Settings';
-import { PDFViewer } from '@react-pdf/renderer';
-import MyDocument from './components/repair/Document';
+
 import PhoneCallbacks from './pages/PhoneCallbacks';
 import Inventory from './pages/Inventory';
 import PurchaseOrders from './pages/PurchaseOrders';
 import PurchaseOrderForm from './pages/PurchaseOrderForm';
+import PurchaseOrderSignature from './pages/PurchaseOrderSignature';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import DailyCalendar from './pages/DailyCalendar';
 import { useAppDispatch } from './store/hooks';
@@ -151,7 +151,7 @@ const App = (): JSX.Element => {
                               <Route
                                 path="/inventaire-robots"
                                 element={<Inventory />}
-                              />
+                              />{' '}
                               <Route
                                 path="/purchase-orders"
                                 element={<PurchaseOrders />}
@@ -163,6 +163,10 @@ const App = (): JSX.Element => {
                               <Route
                                 path="/purchase-orders/edit/:id"
                                 element={<PurchaseOrderForm />}
+                              />
+                              <Route
+                                path="/purchase-orders/signature/:id"
+                                element={<PurchaseOrderSignature />}
                               />
                               <Route
                                 path="/calendrier"

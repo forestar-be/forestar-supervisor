@@ -747,11 +747,11 @@ const PurchaseOrderForm: React.FC = () => {
         needsInstaller: formData.needsInstaller,
         installationNotes: formData.installationNotes || null,
         hasAppointment:
-          formData.hasAppointment || purchaseOrder?.hasAppointment || false,
+          formData.hasAppointment ?? purchaseOrder?.hasAppointment ?? false,
         isInstalled:
-          formData.isInstalled || purchaseOrder?.isInstalled || false,
-        isInvoiced: formData.isInvoiced || purchaseOrder?.isInvoiced || false,
-        devis: formData.devis || purchaseOrder?.devis || false,
+          formData.isInstalled ?? purchaseOrder?.isInstalled ?? false,
+        isInvoiced: formData.isInvoiced ?? purchaseOrder?.isInvoiced ?? false,
+        devis: formData.devis ?? purchaseOrder?.devis ?? false,
         serialNumber: !formData.devis
           ? formData.serialNumber || purchaseOrder?.serialNumber || ''
           : '',

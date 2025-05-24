@@ -16,7 +16,7 @@ import ColorModeContext from '../utils/ColorModeContext';
 import headerData from '../config/header.json';
 import { Logo } from '../components/Logo';
 import { useAuth } from '../hooks/AuthProvider';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import CallIcon from '@mui/icons-material/Call';
 import HomeIcon from '@mui/icons-material/Home';
@@ -34,12 +34,15 @@ export interface HeaderProps {
   title: string;
 }
 
-const Header = ({ onSidebarOpen }: Props): JSX.Element => {
+const HIDE_HEADER_PATHS = ['/purchase-orders/signature'];
+
+const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
   const theme = useTheme();
   const auth = useAuth();
   const colorMode = useContext(ColorModeContext);
   const [header] = useState<HeaderProps>(headerData);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const showTextInButton = !useMediaQuery('(max-width:1064px)');
   const isBelowTitleSizeBreakpoint = useMediaQuery('(max-width:1420px)');
@@ -56,6 +59,13 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element => {
           '& .MuiButton-startIcon': { m: 0 },
         }),
   };
+
+  // Hide header if current path starts with any prefix in HIDE_HEADER_PATHS
+  if (
+    HIDE_HEADER_PATHS.some((prefix) => location.pathname.startsWith(prefix))
+  ) {
+    return null;
+  }
 
   return (
     <>
