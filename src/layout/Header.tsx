@@ -25,6 +25,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
+import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -190,10 +191,25 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
               </Button>
               <Button
                 component="a"
-                href={`/purchase-orders`}
+                href={`/devis`}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                   e.preventDefault();
-                  navigate(`/purchase-orders`);
+                  navigate(`/devis`);
+                }}
+                aria-label="Devis"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<RequestQuoteIcon fontSize="medium" />}
+                variant="contained"
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Devis</Box>}
+              </Button>
+              <Button
+                component="a"
+                href={`/bons-commande`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/bons-commande`);
                 }}
                 aria-label="Bons de commande"
                 color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}

@@ -64,6 +64,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import ConfirmDialog from '../components/dialogs/ConfirmDialog';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -252,6 +253,7 @@ const PurchaseOrderForm: React.FC = () => {
   const [photoBlobs, setPhotoBlobs] = useState<{ [path: string]: Blob }>({});
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [selectedPhotoUrls, setSelectedPhotoUrls] = useState<string[]>([]);
+  const [convertDialogOpen, setConvertDialogOpen] = useState<boolean>(false);
 
   const { texts } = useSelector((state: RootState) => state.installationTexts);
   const { items: inventoryItems, loading: inventoryLoading } = useSelector(
@@ -453,14 +455,32 @@ const PurchaseOrderForm: React.FC = () => {
       return;
     }
 
-    // Dismiss any existing toast notifications
-    toast.dismiss();
+    // Show confirmation dialog instead of immediate conversion
+    setConvertDialogOpen(true);
+  };
 
-    setFormData((prev) => ({
-      ...prev,
-      devis: false,
-    }));
-    toast.info('Converti en bon de commande');
+  // Handle the actual conversion after confirmation
+  const handleConfirmConversion = async () => {
+    try {
+      // Dismiss any existing toast notifications
+      toast.dismiss();
+
+      setFormData((prev) => ({
+        ...prev,
+        devis: false,
+      }));
+
+      setConvertDialogOpen(false);
+      toast.info('Converti en bon de commande');
+    } catch (error) {
+      console.error('Error during conversion:', error);
+      toast.error('Erreur lors de la conversion');
+    }
+  };
+
+  // Close the conversion dialog
+  const handleCloseConvertDialog = () => {
+    setConvertDialogOpen(false);
   };
 
   // Merge PDFs if invoice is available
@@ -1053,6 +1073,17 @@ const PurchaseOrderForm: React.FC = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Conversion Confirmation Dialog */}
+      <ConfirmDialog
+        open={convertDialogOpen}
+        title="Convertir en bon de commande"
+        message="Êtes-vous sûr de vouloir convertir ce devis en bon de commande SANS SIGNATURE CLIENT ? Cette action est irréversible."
+        onConfirm={handleConfirmConversion}
+        onClose={handleCloseConvertDialog}
+        isLoading={false}
+        type="bon"
+      />
 
       <Paper sx={{ p: 3 }}>
         <Backdrop
