@@ -18,6 +18,8 @@ import Settings from './pages/Settings';
 import PhoneCallbacks from './pages/PhoneCallbacks';
 import Inventory from './pages/Inventory';
 import PurchaseOrders from './pages/PurchaseOrders';
+import DevisPage from './pages/DevisPage';
+import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import PurchaseOrderForm from './pages/PurchaseOrderForm';
 import PurchaseOrderSignature from './pages/PurchaseOrderSignature';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -155,6 +157,11 @@ const App = (): JSX.Element => {
                               <Route
                                 path="/purchase-orders"
                                 element={<PurchaseOrders />}
+                              />
+                              <Route path="/devis" element={<DevisPage />} />
+                              <Route
+                                path="/bons-commande"
+                                element={<PurchaseOrdersPage />}
                               />
                               <Route
                                 path="/purchase-orders/create"
