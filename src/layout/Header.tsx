@@ -45,11 +45,11 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const showTextInButton = !useMediaQuery('(max-width:1064px)');
-  const isBelowTitleSizeBreakpoint = useMediaQuery('(max-width:1420px)');
-  const isBelowTitleBreakpoint = useMediaQuery('(max-width:1285px)');
-  const isBelowTextHideHomeIconBreakpoint = useMediaQuery('(max-width:1350px)');
-  const isExtraSmall = useMediaQuery('(max-width:600px)');
+  const showTextInButton = !useMediaQuery('(max-width:1164px)');
+  const isBelowTitleSizeBreakpoint = useMediaQuery('(max-width:1520px)');
+  const isBelowTitleBreakpoint = useMediaQuery('(max-width:1385px)');
+  const isBelowTextHideHomeIconBreakpoint = useMediaQuery('(max-width:1450px)');
+  const isExtraSmall = useMediaQuery('(max-width:700px)');
 
   const buttonSx = {
     whiteSpace: 'nowrap',

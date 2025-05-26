@@ -1,7 +1,6 @@
 import React from 'react';
 import OrdersGrid from '../components/OrdersGrid';
 
-// Clé pour stocker l'état de la grille des bons de commande
 const PURCHASE_ORDERS_GRID_STATE_KEY = 'purchaseOrdersAgGridState';
 
 const PurchaseOrdersPage: React.FC = () => {
