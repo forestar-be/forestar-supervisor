@@ -50,7 +50,7 @@ import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { pdf } from '@react-pdf/renderer';
 
 // Flag to control location display
-const WITH_LOCATION = false;
+const WITH_LOCATION = true;
 
 const DailyCalendar: React.FC = () => {
   const theme = useTheme();
