@@ -11,7 +11,7 @@ import { Calendar, CalendarEvent } from '../../utils/api';
 import dayjs from 'dayjs';
 
 // Flag to control location display
-const WITH_LOCATION = false;
+const WITH_LOCATION = true;
 
 // Define styles for the PDF document
 const styles = StyleSheet.create({
@@ -91,6 +91,24 @@ const styles = StyleSheet.create({
     width: '25%',
     display: WITH_LOCATION ? 'flex' : 'none',
   },
+  // Landscape specific styles
+  tableCellLandscape: {
+    padding: 5,
+    fontSize: 11,
+  },
+  timeCellLandscape: {
+    width: '12%',
+  },
+  eventCellLandscape: {
+    width: WITH_LOCATION ? '45%' : '58%',
+  },
+  calendarCellLandscape: {
+    width: WITH_LOCATION ? '18%' : '30%',
+  },
+  locationCellLandscape: {
+    width: '25%',
+    display: WITH_LOCATION ? 'flex' : 'none',
+  },
   noEvents: {
     fontSize: 12,
     marginTop: 20,
@@ -146,6 +164,7 @@ interface CalendarPdfProps {
   selectedCalendarIds: string[];
   isDarkMode?: boolean;
   title?: string;
+  orientation?: 'portrait' | 'landscape';
 }
 
 // Format time from ISO string to HH:MM
@@ -178,6 +197,7 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
   selectedCalendarIds,
   isDarkMode = false,
   title = 'FORESTAR',
+  orientation = 'portrait',
 }) => {
   // Filter calendars to only show selected ones
   const selectedCalendars = calendars.filter((cal) =>
@@ -193,10 +213,17 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
   const logoPath = isDarkMode
     ? '/images/logo/logo-dark-70x70.png'
     : '/images/logo/logo-70x70.png';
+  // Adjust styles based on orientation
+  const pageStyles = {
+    ...styles.page,
+    ...(orientation === 'landscape'
+      ? { paddingTop: 20, paddingBottom: 20 }
+      : {}),
+  };
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" orientation={orientation} style={pageStyles}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <Image style={styles.logo} src={logoPath} />
@@ -221,20 +248,57 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
               </View>
             ))}
           </View>
-        </View>
-
+        </View>{' '}
         {sortedEvents.length > 0 ? (
           <View style={styles.table}>
             <View style={[styles.tableRow, styles.tableHeader]}>
-              <Text style={[styles.tableCell, styles.timeCell]}>Horaire</Text>
-              <Text style={[styles.tableCell, styles.eventCell]}>
+              <Text
+                style={[
+                  orientation === 'landscape'
+                    ? styles.tableCellLandscape
+                    : styles.tableCell,
+                  orientation === 'landscape'
+                    ? styles.timeCellLandscape
+                    : styles.timeCell,
+                ]}
+              >
+                Horaire
+              </Text>
+              <Text
+                style={[
+                  orientation === 'landscape'
+                    ? styles.tableCellLandscape
+                    : styles.tableCell,
+                  orientation === 'landscape'
+                    ? styles.eventCellLandscape
+                    : styles.eventCell,
+                ]}
+              >
                 Événement
               </Text>
-              <Text style={[styles.tableCell, styles.calendarCell]}>
+              <Text
+                style={[
+                  orientation === 'landscape'
+                    ? styles.tableCellLandscape
+                    : styles.tableCell,
+                  orientation === 'landscape'
+                    ? styles.calendarCellLandscape
+                    : styles.calendarCell,
+                ]}
+              >
                 Calendrier
               </Text>
               {WITH_LOCATION && (
-                <Text style={[styles.tableCell, styles.locationCell]}>
+                <Text
+                  style={[
+                    orientation === 'landscape'
+                      ? styles.tableCellLandscape
+                      : styles.tableCell,
+                    orientation === 'landscape'
+                      ? styles.locationCellLandscape
+                      : styles.locationCell,
+                  ]}
+                >
                   Lieu
                 </Text>
               )}
@@ -247,16 +311,52 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
               return (
                 <View style={styles.eventRow} key={event.id}>
                   <View style={styles.eventMainInfo}>
-                    <Text style={[styles.tableCell, styles.timeCell]}>
+                    <Text
+                      style={[
+                        orientation === 'landscape'
+                          ? styles.tableCellLandscape
+                          : styles.tableCell,
+                        orientation === 'landscape'
+                          ? styles.timeCellLandscape
+                          : styles.timeCell,
+                      ]}
+                    >
                       {formatEventTime(event.start, event.end)}
                     </Text>
-                    <Text style={[styles.tableCell, styles.eventCell]}>
+                    <Text
+                      style={[
+                        orientation === 'landscape'
+                          ? styles.tableCellLandscape
+                          : styles.tableCell,
+                        orientation === 'landscape'
+                          ? styles.eventCellLandscape
+                          : styles.eventCell,
+                      ]}
+                    >
                       {event.title}
                     </Text>
-                    <Text style={[styles.tableCell, styles.calendarCell]}>
+                    <Text
+                      style={[
+                        orientation === 'landscape'
+                          ? styles.tableCellLandscape
+                          : styles.tableCell,
+                        orientation === 'landscape'
+                          ? styles.calendarCellLandscape
+                          : styles.calendarCell,
+                      ]}
+                    >
                       {calendar?.name || '-'}
                     </Text>
-                    <Text style={[styles.tableCell, styles.locationCell]}>
+                    <Text
+                      style={[
+                        orientation === 'landscape'
+                          ? styles.tableCellLandscape
+                          : styles.tableCell,
+                        orientation === 'landscape'
+                          ? styles.locationCellLandscape
+                          : styles.locationCell,
+                      ]}
+                    >
                       {WITH_LOCATION ? event.location || '-' : '-'}
                     </Text>
                   </View>
@@ -278,7 +378,6 @@ const CalendarPdf: React.FC<CalendarPdfProps> = ({
             Aucun événement pour cette journée.
           </Text>
         )}
-
         <Text
           style={styles.footer}
           render={({ pageNumber, totalPages }) =>
