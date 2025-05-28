@@ -25,6 +25,10 @@ import {
   DialogContent,
   DialogActions,
   Chip,
+  Radio,
+  RadioGroup,
+  FormLabel,
+  FormControl,
 } from '@mui/material';
 import { ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -36,6 +40,9 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TableViewIcon from '@mui/icons-material/TableView';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PageLandscapeIcon from '@mui/icons-material/ViewDay';
+import PagePortraitIcon from '@mui/icons-material/ViewArray';
 import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/fr';
 import { useAuth } from '../hooks/AuthProvider';
@@ -48,6 +55,7 @@ import {
 import CalendarPdf from '../components/calendar/CalendarPdf';
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { pdf } from '@react-pdf/renderer';
+window.Buffer = window.Buffer || require('buffer').Buffer;
 
 // Flag to control location display
 const WITH_LOCATION = true;
@@ -67,6 +75,16 @@ const DailyCalendar: React.FC = () => {
     null,
   );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [pdfOrientation, setPdfOrientation] = useState<
+    'portrait' | 'landscape'
+  >(() => {
+    // Load from localStorage or default to 'portrait'
+    const savedOrientation = localStorage.getItem('pdfOrientation');
+    return savedOrientation === 'landscape' || savedOrientation === 'portrait'
+      ? (savedOrientation as 'portrait' | 'landscape')
+      : 'portrait';
+  });
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   // Load calendars on component mount
   useEffect(() => {
@@ -142,6 +160,7 @@ const DailyCalendar: React.FC = () => {
           calendars={calendars}
           events={events}
           selectedCalendarIds={selectedCalendars}
+          orientation={pdfOrientation}
         />,
       ).toBlob();
 
@@ -220,6 +239,20 @@ const DailyCalendar: React.FC = () => {
     setEventDialogOpen(false);
   };
 
+  const handleOpenSettingsDialog = () => {
+    setSettingsDialogOpen(true);
+  };
+
+  const handleCloseSettingsDialog = () => {
+    setSettingsDialogOpen(false);
+  };
+
+  const handleOrientationChange = (orientation: 'portrait' | 'landscape') => {
+    setPdfOrientation(orientation);
+    localStorage.setItem('pdfOrientation', orientation);
+    setSettingsDialogOpen(false);
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -288,8 +321,25 @@ const DailyCalendar: React.FC = () => {
         {/* Calendar Selection */}
         <Grid item xs={12} md={3}>
           <Paper sx={{ p: 2, height: '100%' }}>
-            <Typography variant="h6" gutterBottom>
-              Calendriers
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span>Calendriers</span>
+              <Tooltip title="Paramètres PDF" arrow>
+                <IconButton
+                  size="small"
+                  onClick={handleOpenSettingsDialog}
+                  color="primary"
+                >
+                  <SettingsIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Typography>
             <Box
               sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}
@@ -376,6 +426,7 @@ const DailyCalendar: React.FC = () => {
                         calendars={calendars}
                         events={events}
                         selectedCalendarIds={selectedCalendars}
+                        orientation={pdfOrientation}
                       />
                     }
                     fileName={`Calendrier-${selectedDate.format('YYYY-MM-DD')}.pdf`}
@@ -400,6 +451,37 @@ const DailyCalendar: React.FC = () => {
                   </PDFDownloadLink>
                 </Box>
               )}
+
+              <Box
+                sx={{
+                  mt: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Format PDF :{' '}
+                  {pdfOrientation === 'portrait' ? 'Portrait' : 'Paysage'}
+                  {pdfOrientation === 'portrait' ? (
+                    <PagePortraitIcon
+                      sx={{
+                        ml: 0.5,
+                        fontSize: '0.875rem',
+                        verticalAlign: 'middle',
+                      }}
+                    />
+                  ) : (
+                    <PageLandscapeIcon
+                      sx={{
+                        ml: 0.5,
+                        fontSize: '0.875rem',
+                        verticalAlign: 'middle',
+                      }}
+                    />
+                  )}
+                </Typography>
+              </Box>
             </Box>
           </Paper>
         </Grid>
@@ -666,6 +748,7 @@ const DailyCalendar: React.FC = () => {
                 calendars={calendars}
                 events={events}
                 selectedCalendarIds={selectedCalendars}
+                orientation={pdfOrientation}
               />
             </PDFViewer>
           </Box>
@@ -799,6 +882,46 @@ const DailyCalendar: React.FC = () => {
           }
         }
       `}</style>
+
+      {/* PDF Settings Dialog */}
+      <Dialog open={settingsDialogOpen} onClose={handleCloseSettingsDialog}>
+        <DialogTitle>Paramètres du PDF</DialogTitle>
+        <DialogContent>
+          <FormControl component="fieldset" sx={{ mt: 1 }}>
+            <FormLabel component="legend">Orientation</FormLabel>
+            <RadioGroup
+              value={pdfOrientation}
+              onChange={(e) =>
+                handleOrientationChange(
+                  e.target.value as 'portrait' | 'landscape',
+                )
+              }
+            >
+              <FormControlLabel
+                value="portrait"
+                control={<Radio />}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <PagePortraitIcon sx={{ mr: 1 }} /> Portrait
+                  </Box>
+                }
+              />
+              <FormControlLabel
+                value="landscape"
+                control={<Radio />}
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <PageLandscapeIcon sx={{ mr: 1 }} /> Paysage
+                  </Box>
+                }
+              />
+            </RadioGroup>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSettingsDialog}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
