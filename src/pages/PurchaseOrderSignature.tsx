@@ -201,7 +201,7 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
 
   // Retour à la page des bons de commande
   const handleBack = useCallback(() => {
-    navigate('/bons-commande');
+    navigate('/devis');
   }, [navigate]);
 
   // Générer le PDF
