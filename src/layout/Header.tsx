@@ -26,6 +26,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
+import HeaderClient from './HeaderClient';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -33,9 +34,10 @@ interface Props {
 
 export interface HeaderProps {
   title: string;
+  clientTitle: string;
 }
 
-const HIDE_HEADER_PATHS = ['/purchase-orders/signature'];
+const CLIENT_PATH = ['/devis/client', '/devis/client/signature'];
 
 const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
   const theme = useTheme();
@@ -60,12 +62,9 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
           '& .MuiButton-startIcon': { m: 0 },
         }),
   };
-
-  // Hide header if current path starts with any prefix in HIDE_HEADER_PATHS
-  if (
-    HIDE_HEADER_PATHS.some((prefix) => location.pathname.startsWith(prefix))
-  ) {
-    return null;
+  // Render client header for client paths
+  if (CLIENT_PATH.some((prefix) => location.pathname.startsWith(prefix))) {
+    return <HeaderClient onSidebarOpen={onSidebarOpen} />;
   }
 
   return (

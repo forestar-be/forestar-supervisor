@@ -33,7 +33,7 @@ const DevisPage: React.FC = () => {
               color="primary"
               size="small"
               startIcon={<CreateIcon />}
-              onClick={() => navigate(`/purchase-orders/signature/${order.id}`)}
+              onClick={() => navigate(`/devis/signature/${order.id}`)}
               sx={{ whiteSpace: 'nowrap' }}
             >
               Signer
@@ -51,7 +51,7 @@ const DevisPage: React.FC = () => {
       isDevis={true}
       gridStateKey={DEVIS_GRID_STATE_KEY}
       addButtonText="Créer un devis"
-      addButtonPath="/purchase-orders/create?type=devis"
+      addButtonPath="/bons-commande/create?type=devis"
       includeSignedColumn={true}
       customDevisCell={DevisSignatureCell}
     />

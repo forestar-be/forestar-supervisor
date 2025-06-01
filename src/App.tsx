@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { HelmetProvider, Helmet } from 'react-helmet-async';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -17,12 +17,11 @@ import Settings from './pages/Settings';
 
 import PhoneCallbacks from './pages/PhoneCallbacks';
 import Inventory from './pages/Inventory';
-import PurchaseOrders from './pages/PurchaseOrders';
 import DevisPage from './pages/DevisPage';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import PurchaseOrderForm from './pages/PurchaseOrderForm';
 import PurchaseOrderSignature from './pages/PurchaseOrderSignature';
-import PrivacyPolicy from './pages/PrivacyPolicy';
+import ClientDevisSignature from './pages/ClientDevisSignature';
 import DailyCalendar from './pages/DailyCalendar';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
@@ -122,67 +121,57 @@ const App = (): JSX.Element => {
                 adapterLocale={'fr'}
               >
                 <Layout>
-                  <ToastContainer />
+                  <ToastContainer />{' '}
                   <Routes>
                     <Route path="/login" element={<Login />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                    <Route
+                      path="/devis/client/signature"
+                      element={<ClientDevisSignature />}
+                    />
                     <Route element={<AuthRoute />}>
                       <Route
                         path="/connection-google"
                         element={<LoginGoogle />}
                       />
                       <Route
-                        path="/*"
+                        path="/"
                         element={
                           <Provider store={store}>
                             <InitStoreLoader />
-                            <Routes>
-                              <Route path="/" element={<Home />} />
-                              <Route
-                                path="/reparation/:id"
-                                element={<SingleRepair />}
-                              />
-                              <Route
-                                path="/parametres"
-                                element={<Settings />}
-                              />
-                              <Route
-                                path="/appels"
-                                element={<PhoneCallbacks />}
-                              />
-                              <Route
-                                path="/inventaire-robots"
-                                element={<Inventory />}
-                              />{' '}
-                              <Route
-                                path="/purchase-orders"
-                                element={<PurchaseOrders />}
-                              />
-                              <Route path="/devis" element={<DevisPage />} />
-                              <Route
-                                path="/bons-commande"
-                                element={<PurchaseOrdersPage />}
-                              />
-                              <Route
-                                path="/purchase-orders/create"
-                                element={<PurchaseOrderForm />}
-                              />
-                              <Route
-                                path="/purchase-orders/edit/:id"
-                                element={<PurchaseOrderForm />}
-                              />
-                              <Route
-                                path="/purchase-orders/signature/:id"
-                                element={<PurchaseOrderSignature />}
-                              />
-                              <Route
-                                path="/calendrier"
-                                element={<DailyCalendar />}
-                              />
-                            </Routes>
+                            <Outlet />
                           </Provider>
                         }
-                      />
+                      >
+                        <Route index element={<Home />} />
+                        <Route
+                          path="reparation/:id"
+                          element={<SingleRepair />}
+                        />
+                        <Route path="parametres" element={<Settings />} />
+                        <Route path="appels" element={<PhoneCallbacks />} />
+                        <Route
+                          path="inventaire-robots"
+                          element={<Inventory />}
+                        />
+                        <Route path="devis" element={<DevisPage />} />
+                        <Route
+                          path="bons-commande"
+                          element={<PurchaseOrdersPage />}
+                        />
+                        <Route
+                          path="bons-commande/create"
+                          element={<PurchaseOrderForm />}
+                        />
+                        <Route
+                          path="bons-commande/edit/:id"
+                          element={<PurchaseOrderForm />}
+                        />
+                        <Route
+                          path="devis/signature/:id"
+                          element={<PurchaseOrderSignature />}
+                        />
+                        <Route path="calendrier" element={<DailyCalendar />} />
+                      </Route>
                     </Route>
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>

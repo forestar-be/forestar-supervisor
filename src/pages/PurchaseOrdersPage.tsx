@@ -10,7 +10,7 @@ const PurchaseOrdersPage: React.FC = () => {
       isDevis={false}
       gridStateKey={PURCHASE_ORDERS_GRID_STATE_KEY}
       addButtonText="Créer un bon de commande"
-      addButtonPath="/purchase-orders/create?type=order"
+      addButtonPath="/bons-commande/create?type=order"
       includeSignedColumn={false}
     />
   );

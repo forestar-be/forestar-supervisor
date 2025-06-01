@@ -3,12 +3,27 @@ import {
   InventoryPlan,
   InventorySummary,
   PurchaseOrder,
-  PurchaseOrderFormData,
   RobotInventory,
   InstallationPreparationText,
 } from './types';
 
 const API_URL = process.env.REACT_APP_API_URL;
+
+export class HttpError extends Error {
+  constructor(
+    public message: string,
+    public status: number,
+  ) {
+    super(message);
+    this.name = 'HttpError';
+
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export const isHttpError = (error: any): error is HttpError => {
+  return error && error.name === 'HttpError';
+};
 
 const apiRequest = async (
   endpoint: string,
@@ -69,10 +84,11 @@ const apiRequest = async (
   if (!response.ok) {
     console.error(`${response.statusText} ${response.status}`, data);
     if (typeof data === 'string' && data) {
-      throw new Error(data);
+      throw new HttpError(data, response.status);
     }
-    throw new Error(
+    throw new HttpError(
       data?.message || `${response.statusText} ${response.status}`,
+      response.status,
     );
   }
 
@@ -395,7 +411,56 @@ export const updateInventoryPlans = (
 ): Promise<{ message: string; count: number }> =>
   apiRequest('/supervisor/inventory-plans/batch', 'POST', token, { plans });
 
-// Purchase Orders API functions
+// Client endpoints pour la signature des devis
+export const fetchClientDevis = (
+  token: string,
+  id: string,
+): Promise<{
+  purchaseOrder: PurchaseOrder;
+  installationPreparationTexts: InstallationPreparationText[];
+}> =>
+  apiRequest(`/client/purchase-orders/devis/signature?id=${id}`, 'GET', token);
+
+export const getClientDevisPdf = (token: string, id: string): Promise<Blob> =>
+  apiRequest(
+    `/client/purchase-orders/devis/signature/pdf?id=${id}`,
+    'GET',
+    token,
+  );
+
+export const updateClientDevisStatus = async (
+  token: string,
+  id: string,
+  statusData: {
+    devis?: boolean;
+    clientSignature?: string;
+  },
+  pdfFile?: Blob,
+): Promise<PurchaseOrder> => {
+  const formData = new FormData();
+
+  if (statusData.devis !== undefined) {
+    formData.append('devis', statusData.devis.toString());
+  }
+
+  if (statusData.clientSignature) {
+    formData.append('clientSignature', statusData.clientSignature);
+  }
+
+  if (pdfFile) {
+    formData.append('pdf', pdfFile, 'order.pdf');
+  }
+
+  return apiRequest(
+    `/client/purchase-orders/devis/signature/status?id=${id}`,
+    'PATCH',
+    token,
+    formData,
+    {},
+    false,
+  );
+};
+
 export const fetchPurchaseOrders = (
   token: string,
 ): Promise<{ data: PurchaseOrder[] }> =>
@@ -516,6 +581,17 @@ export const getPurchaseOrderPhoto = (
   apiRequest(
     `/supervisor/purchase-orders/${id}/photo/${photoIndex}`,
     'GET',
+    token,
+  );
+
+// Function to send devis signature email
+export const sendDevisSignatureEmail = (
+  token: string,
+  id: number,
+): Promise<{ message: string }> =>
+  apiRequest(
+    `/supervisor/purchase-orders/${id}/send-devis-signature-email`,
+    'POST',
     token,
   );
 

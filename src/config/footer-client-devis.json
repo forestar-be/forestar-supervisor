@@ -1,0 +1,19 @@
+{
+    "copyright": "Forestar",
+    "TVA": "BE0806-685-256",
+    "entreprise": "Forestar Shop",
+    "adresse": "160 Chaussée d'ecaussinnes, 7090 Braine le comte, Belgique",
+    "email": "info@forestar.be",
+    "telephone": "+3267830706",
+    "signature_electronique": {
+        "certification": "Ce document constitue une preuve légale de signature électronique conformément à la législation européenne eIDAS",
+        "confidentialite": "Toutes les données personnelles sont traitées conformément au RGPD",
+        "securite": "Signature électronique sécurisée et horodatée"
+    },
+    "mentions_legales": [
+        "Les conditions générales de vente ont été acceptées par le client",
+        "Ce bon de commande a valeur contractuelle après signature",
+        "Délai de rétractation légal applicable conformément à la législation en vigueur",
+        "Document conservé électroniquement conformément aux législations applicables"
+    ]
+}
