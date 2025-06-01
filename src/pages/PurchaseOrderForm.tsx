@@ -27,7 +27,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/AuthProvider';
 import { toast } from 'react-toastify';
 import dayjs from 'dayjs';
@@ -205,6 +205,8 @@ const PurchaseOrderForm: React.FC = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
   const isEditing = !!id;
   const dispatch = useAppDispatch();
 
@@ -233,7 +235,7 @@ const PurchaseOrderForm: React.FC = () => {
     hasAppointment: false,
     isInstalled: false,
     isInvoiced: false,
-    devis: false,
+    devis: typeParam === 'devis', // Set initial value based on URL parameter
     validUntil: '',
     bankAccountNumber: '',
   });
@@ -246,7 +248,9 @@ const PurchaseOrderForm: React.FC = () => {
   const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(
     null,
   );
-  const [typeDialogOpen, setTypeDialogOpen] = useState(!isEditing);
+  const [typeDialogOpen, setTypeDialogOpen] = useState(
+    !isEditing && !typeParam,
+  );
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [photosToDelete, setPhotosToDelete] = useState<string[]>([]);
   const [photoPreviewOpen, setPhotoPreviewOpen] = useState<boolean>(false);
@@ -854,16 +858,16 @@ const PurchaseOrderForm: React.FC = () => {
         await updatePurchaseOrder(token, parseInt(id), formDataForApi);
         toast.success(
           formData.devis
-        ? 'Devis mis à jour avec succès'
-        : 'Bon de commande mis à jour avec succès'
+            ? 'Devis mis à jour avec succès'
+            : 'Bon de commande mis à jour avec succès',
         );
       } else {
         // Create new purchase order
         await createPurchaseOrder(token, formDataForApi);
         toast.success(
           formData.devis
-        ? 'Devis créé avec succès'
-        : 'Bon de commande créé avec succès'
+            ? 'Devis créé avec succès'
+            : 'Bon de commande créé avec succès',
         );
       }
 
@@ -914,13 +918,18 @@ const PurchaseOrderForm: React.FC = () => {
 
   // Effect to set the bank account number from config when creating a new purchase order
   useEffect(() => {
-    if (!isEditing && configData && configData['Numéro de compte bancaire']) {
+    if (
+      !isEditing &&
+      typeParam === 'devis' &&
+      configData &&
+      configData['Numéro de compte bancaire']
+    ) {
       setFormData((prev) => ({
         ...prev,
         bankAccountNumber: configData['Numéro de compte bancaire'],
       }));
     }
-  }, [isEditing, configData]);
+  }, [isEditing, typeParam, configData]);
 
   if (loading || inventoryLoading) {
     return <Typography>Chargement...</Typography>;
@@ -1124,7 +1133,9 @@ const PurchaseOrderForm: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Button
               startIcon={<ArrowBackIcon />}
-              onClick={() => navigate('/bons-commande')}
+              onClick={() =>
+                navigate(formData.devis ? '/devis' : '/bons-commande')
+              }
               sx={{ mr: 2 }}
             >
               Retour
