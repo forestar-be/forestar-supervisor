@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
@@ -15,11 +15,14 @@ import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import PhoneIcon from '@mui/icons-material/Phone';
+import LightModeIcon from '@mui/icons-material/LightMode';
+import DarkModeIcon from '@mui/icons-material/DarkMode';
 import headerData from '../config/header.json';
 import contactData from '../config/contact.json';
 import { Logo } from '../components/Logo';
-import { useNavigate } from 'react-router-dom';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import { Divider } from '@mui/material';
+import ColorModeContext from '../utils/ColorModeContext';
 
 export interface HeaderProps {
   title: string;
@@ -33,9 +36,9 @@ interface Props {
 const HeaderClient = ({ onSidebarOpen }: Props = {}): JSX.Element => {
   const theme = useTheme();
   const [header] = useState<HeaderProps>(headerData);
-  const navigate = useNavigate();
   const isBelowTitleSizeBreakpoint = useMediaQuery('(max-width:500px)');
   const isBelowTitleBreakpoint = useMediaQuery('(max-width:300px)');
+  const colorMode = useContext(ColorModeContext);
 
   // Contact popup state
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -154,6 +157,31 @@ const HeaderClient = ({ onSidebarOpen }: Props = {}): JSX.Element => {
               </List>
             </Paper>
           </Popover>
+        </Box>
+        <Divider
+          orientation="vertical"
+          sx={{
+            height: 32,
+            marginX: 2,
+            display: { lg: 'flex', md: 'none', xs: 'none' },
+          }}
+        />
+        <Box sx={{ display: 'flex' }}>
+          <IconButton
+            onClick={colorMode.toggleColorMode}
+            aria-label="Theme Mode"
+            color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+          >
+            {theme.palette.mode === 'dark' ? (
+              <Tooltip title="Passer en mode clair">
+                <LightModeIcon fontSize="medium" />
+              </Tooltip>
+            ) : (
+              <Tooltip title="Passer en mode sombre">
+                <DarkModeIcon fontSize="medium" />
+              </Tooltip>
+            )}
+          </IconButton>
         </Box>
       </Toolbar>
     </AppBar>
