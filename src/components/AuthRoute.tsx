@@ -1,10 +1,15 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/AuthProvider';
 
 const AuthRoute = () => {
   const auth = useAuth();
-  if (!auth.token) return <Navigate to="/login" />;
+  const location = useLocation();
+
+  if (!auth.token) {
+    return <Navigate to="/login" state={{ from: location }} />;
+  }
+
   return <Outlet />;
 };
 

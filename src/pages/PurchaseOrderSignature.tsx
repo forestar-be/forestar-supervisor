@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -20,11 +26,15 @@ import {
   fetchPurchaseOrderById,
   getPurchaseOrderPdf,
   updatePurchaseOrderStatus,
+  fetchClientDevis,
+  getClientDevisPdf,
+  updateClientDevisStatus,
+  isHttpError,
 } from '../utils/api';
-import { PurchaseOrder } from '../utils/types';
+import { InstallationPreparationText, PurchaseOrder } from '../utils/types';
 import { pdf } from '@react-pdf/renderer';
 import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
-import { useSelector } from 'react-redux';
+import { connect } from 'react-redux';
 import { RootState } from '../store';
 
 // Styles pour le canvas de signature
@@ -34,61 +44,144 @@ const signatureCanvasStyles = `
   }
 `;
 
-const PurchaseOrderSignature: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const { token } = useAuth();
+interface PurchaseOrderSignatureProps {
+  isClientMode?: boolean;
+  clientToken?: string;
+  onSignatureSuccess?: () => void;
+  setErrorLoading?: (err: boolean) => void;
+  setErrorType?: (
+    type: 'not_found' | 'unauthorized' | 'general' | null,
+  ) => void;
+  idClientMode?: string | null;
+  // Add props from Redux (will be empty if not connected)
+  reduxInstallationTexts?: InstallationPreparationText[];
+}
+
+const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
+  isClientMode = false,
+  clientToken = null,
+  onSignatureSuccess,
+  idClientMode = null,
+  setErrorLoading = () => {},
+  setErrorType = () => {},
+  reduxInstallationTexts = [],
+}) => {
+  const { id: idNonClientMode } = useParams<{ id: string }>();
+  const authContext = useAuth();
+  const token = isClientMode ? clientToken : authContext.token;
   const navigate = useNavigate();
   const signatureCanvasRef = useRef<SignatureCanvas>(null);
-  const { texts } = useSelector((state: RootState) => state.installationTexts);
 
   // États
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [clientInstallationTexts, setClientInstallationTexts] = useState<
+    InstallationPreparationText[]
+  >([]);
+
+  const id = useMemo(() => {
+    return isClientMode ? idClientMode : idNonClientMode;
+  }, [isClientMode, idClientMode, idNonClientMode]);
 
   // Récupérer les données de la commande et le PDF
   useEffect(() => {
     let currentPdfUrl: string | null = null;
-
     const fetchOrderData = async () => {
+      setErrorLoading(false);
+      setErrorType(null);
       if (!token || !id) {
-        navigate('/purchase-orders');
+        if (!isClientMode) {
+          navigate('/bons-commande');
+        }
+        console.error('Token ou ID manquant');
+        setErrorType('unauthorized');
+        setErrorLoading(true);
         return;
       }
 
       try {
         setLoading(true);
         // Récupérer les données de la commande
-        const orderData = await fetchPurchaseOrderById(token, parseInt(id));
+        const orderData = await (isClientMode
+          ? (async () => {
+              const { installationPreparationTexts, purchaseOrder } =
+                await fetchClientDevis(token, id);
+              // Store installation texts from client API
+              setClientInstallationTexts(installationPreparationTexts);
+              return purchaseOrder;
+            })()
+          : fetchPurchaseOrderById(token, parseInt(id)));
 
         if (!orderData) {
           toast.error('Commande introuvable');
-          navigate('/purchase-orders');
+          if (!isClientMode) {
+            navigate('/bons-commande');
+          }
+          setLoading(false);
           return;
         }
 
         if (!orderData.devis) {
-          toast.error("Cette commande n'est pas un devis");
-          navigate('/purchase-orders');
+          if (!isClientMode) {
+            toast.error("Cette commande n'est pas un devis");
+            navigate('/bons-commande');
+          } else {
+            if (
+              onSignatureSuccess &&
+              orderData.signatureTimestamp &&
+              orderData.clientSignature
+            ) {
+              onSignatureSuccess();
+            }
+          }
+          setLoading(false);
           return;
         }
 
         setOrder(orderData);
 
         // Récupérer le PDF
-        const pdfBlob = await getPurchaseOrderPdf(token, parseInt(id));
+        let pdfBlob;
+
+        if (isClientMode) {
+          // Utiliser l'API client pour récupérer le PDF
+          pdfBlob = await getClientDevisPdf(token, id);
+        } else {
+          // Utiliser l'API standard
+          pdfBlob = await getPurchaseOrderPdf(token, parseInt(id));
+        }
+
         currentPdfUrl = URL.createObjectURL(pdfBlob);
         setPdfUrl(currentPdfUrl);
       } catch (error) {
         console.error('Error fetching order data:', error);
-        toast.error('Erreur lors du chargement des données de la commande');
-        navigate('/purchase-orders');
+        if (!isClientMode) {
+          toast.error('Erreur lors du chargement des données de la commande');
+          navigate('/bons-commande');
+        } else {
+          if (isHttpError(error)) {
+            if (error.status === 404) {
+              setErrorType('not_found');
+            } else if (error.status === 401) {
+              setErrorType('unauthorized');
+            } else {
+              setErrorType('general');
+            }
+          } else {
+            setErrorType('general');
+          }
+        }
+
+        // Activer l'état d'erreur après avoir défini le type
+        if (setErrorLoading) {
+          setErrorLoading(true);
+        }
       } finally {
         setLoading(false);
       }
     };
-
     fetchOrderData();
 
     // Nettoyage à la désinscription
@@ -97,7 +190,7 @@ const PurchaseOrderSignature: React.FC = () => {
         URL.revokeObjectURL(currentPdfUrl);
       }
     };
-  }, [token, id, navigate]);
+  }, [token, id, isClientMode]);
 
   // Effacer la signature
   const clearSignature = useCallback(() => {
@@ -108,18 +201,23 @@ const PurchaseOrderSignature: React.FC = () => {
 
   // Retour à la page des bons de commande
   const handleBack = useCallback(() => {
-    navigate('/purchase-orders');
+    navigate('/bons-commande');
   }, [navigate]);
 
   // Générer le PDF
   const generatePDF = useCallback(
     async (updatedOrder: PurchaseOrder) => {
       try {
+        // Use client installation texts when in client mode, otherwise use Redux texts
+        const installationTexts = isClientMode
+          ? clientInstallationTexts
+          : reduxInstallationTexts;
+
         // Créer le document PDF
         const pdfBlob = await pdf(
           <PurchaseOrderPdfDocument
             purchaseOrder={updatedOrder}
-            installationTexts={texts}
+            installationTexts={installationTexts}
           />,
         ).toBlob();
 
@@ -129,7 +227,7 @@ const PurchaseOrderSignature: React.FC = () => {
         throw error;
       }
     },
-    [texts],
+    [reduxInstallationTexts, clientInstallationTexts, isClientMode],
   );
 
   // Soumettre la signature
@@ -167,28 +265,56 @@ const PurchaseOrderSignature: React.FC = () => {
 
       // Envoyer la mise à jour au serveur
       console.log('Envoi de la mise à jour au serveur...');
-      await updatePurchaseOrderStatus(
-        token,
-        parseInt(id),
-        {
-          devis: false,
-          clientSignature: signatureDataURL,
-        },
-        pdfBlob,
-      );
+
+      if (isClientMode) {
+        // Utiliser l'API client
+        await updateClientDevisStatus(
+          token,
+          id,
+          {
+            devis: false,
+            clientSignature: signatureDataURL,
+          },
+          pdfBlob,
+        );
+      } else {
+        // Utiliser l'API standard
+        await updatePurchaseOrderStatus(
+          token,
+          parseInt(id),
+          {
+            devis: false,
+            clientSignature: signatureDataURL,
+          },
+          pdfBlob,
+        );
+        toast.success('Bon de commande validé avec signature');
+      }
 
       console.log('Mise à jour envoyée au serveur avec succès');
-      toast.success('Bon de commande validé avec signature');
 
-      // Rediriger vers la liste des bons de commande
-      navigate('/purchase-orders');
+      // Gérer le succès selon le mode
+      if (isClientMode && onSignatureSuccess) {
+        onSignatureSuccess();
+      } else {
+        // Rediriger vers la liste des bons de commande
+        navigate('/bons-commande');
+      }
     } catch (error) {
       console.error('Error submitting signature:', error);
       toast.error('Erreur lors de la validation de la signature');
     } finally {
       setSubmitting(false);
     }
-  }, [token, order, id, generatePDF, navigate]);
+  }, [
+    token,
+    order,
+    id,
+    generatePDF,
+    navigate,
+    isClientMode,
+    onSignatureSuccess,
+  ]);
 
   if (loading) {
     return (
@@ -213,34 +339,37 @@ const PurchaseOrderSignature: React.FC = () => {
       {/* Ajouter les styles globaux pour le canvas de signature */}
       <style>{signatureCanvasStyles}</style>
 
-      {/* En-tête */}
-      <Box
-        sx={{
-          mb: 2,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          sx={{ mb: 1 }}
-        >
-          Retour
-        </Button>
-        <Typography
-          variant="h5"
-          component="h1"
-          sx={{ textAlign: 'center', flex: 1 }}
-        >
-          Validation du Devis
-        </Typography>
-        <Box sx={{ width: 100 }} /> {/* Espace pour équilibrer l'en-tête */}
-      </Box>
-
-      <Divider sx={{ mb: 2 }} />
+      {!isClientMode && (
+        <>
+          <Box
+            sx={{
+              mb: 2,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={handleBack}
+              sx={{ mb: 1 }}
+            >
+              Retour
+            </Button>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{ textAlign: 'center', flex: 1 }}
+            >
+              Validation du Devis
+            </Typography>
+            {!isClientMode && <Box sx={{ width: 100 }} />}{' '}
+            {/* Espace pour équilibrer l'en-tête */}
+          </Box>
+          <Divider sx={{ mb: 2 }} />
+        </>
+      )}
 
       <Grid container spacing={2} sx={{ flex: 1, mb: 2 }}>
         {/* Colonne gauche: Visualisation du PDF */}
@@ -260,7 +389,7 @@ const PurchaseOrderSignature: React.FC = () => {
               gutterBottom
               sx={{ fontWeight: 'bold' }}
             >
-              Aperçu du document
+              {!isClientMode ? 'Aperçu du document' : 'Devis à signer'}
             </Typography>
 
             <Box
@@ -393,4 +522,29 @@ const PurchaseOrderSignature: React.FC = () => {
   );
 };
 
-export default PurchaseOrderSignature;
+// Two different exports:
+// 1. A connected component for Supervisor mode
+// 2. The pure component for Client mode
+
+// mapStateToProps function to extract installationTexts from Redux state
+const mapStateToProps = (state: RootState) => ({
+  reduxInstallationTexts: state.installationTexts.texts,
+});
+
+// Connected component with Redux for Supervisor mode
+const ConnectedPurchaseOrderSignature = connect(mapStateToProps)(
+  PurchaseOrderSignature,
+);
+
+// Export the appropriate component based on the isClientMode prop
+const PurchaseOrderSignatureExport = (props: PurchaseOrderSignatureProps) => {
+  if (props.isClientMode) {
+    // Use the pure component without Redux connection in client mode
+    return <PurchaseOrderSignature {...props} />;
+  } else {
+    // Use the Redux-connected component in supervisor mode
+    return <ConnectedPurchaseOrderSignature {...props} />;
+  }
+};
+
+export default PurchaseOrderSignatureExport;

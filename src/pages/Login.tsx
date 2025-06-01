@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/AuthProvider';
 import {
   TextField,
@@ -9,22 +9,28 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { notifyError } from '../utils/notifications';
 
 const Login = (): JSX.Element => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const { token, loginAction } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const from = useMemo(
+    () => location.state?.from?.pathname || '/',
+    [location.state],
+  );
 
   useEffect(() => {
     if (token) {
-      navigate('/');
+      navigate(from);
     }
-  }, [navigate, token]);
+  }, [token, navigate, from]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

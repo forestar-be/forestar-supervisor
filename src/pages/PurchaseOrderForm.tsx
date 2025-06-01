@@ -216,6 +216,7 @@ const PurchaseOrderForm: React.FC = () => {
     clientAddress: '',
     clientCity: '',
     clientPhone: '',
+    clientEmail: '',
     deposit: 0,
     robotInventoryId: 0,
     serialNumber: '',
@@ -302,13 +303,13 @@ const PurchaseOrderForm: React.FC = () => {
           bankAccountNumber: data.bankAccountNumber || null,
           invoicePath: data.invoicePath || null,
         });
-
         setFormData({
           clientFirstName: data.clientFirstName,
           clientLastName: data.clientLastName,
           clientAddress: data.clientAddress,
           clientCity: data.clientCity,
           clientPhone: data.clientPhone,
+          clientEmail: data.clientEmail || '',
           deposit: data.deposit,
           robotInventoryId: data.robotInventoryId,
           serialNumber: data.serialNumber || '',
@@ -679,15 +680,21 @@ const PurchaseOrderForm: React.FC = () => {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
-
-    // Form validation
+    if (!token) return; // Form validation
     if (
       !formData.clientFirstName ||
       !formData.clientLastName ||
+      !formData.clientEmail ||
       !formData.robotInventoryId
     ) {
       toast.error('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    // Email validation
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(formData.clientEmail)) {
+      toast.error('Veuillez fournir une adresse email valide');
       return;
     }
 
@@ -754,6 +761,7 @@ const PurchaseOrderForm: React.FC = () => {
         clientAddress: formData.clientAddress,
         clientCity: formData.clientCity,
         clientPhone: formData.clientPhone,
+        clientEmail: formData.clientEmail,
         deposit: formData.deposit,
         robotInventoryId: formData.robotInventoryId,
         pluginInventoryId: formData.pluginInventoryId,
@@ -844,17 +852,29 @@ const PurchaseOrderForm: React.FC = () => {
       if (isEditing && id) {
         // Update existing purchase order
         await updatePurchaseOrder(token, parseInt(id), formDataForApi);
-        toast.success('Bon de commande mis à jour avec succès');
+        toast.success(
+          formData.devis
+        ? 'Devis mis à jour avec succès'
+        : 'Bon de commande mis à jour avec succès'
+        );
       } else {
         // Create new purchase order
         await createPurchaseOrder(token, formDataForApi);
-        toast.success('Bon de commande créé avec succès');
+        toast.success(
+          formData.devis
+        ? 'Devis créé avec succès'
+        : 'Bon de commande créé avec succès'
+        );
       }
 
       // Update inventory data in the Redux store
       dispatch(fetchInventorySummaryAsync(token));
 
-      navigate('/purchase-orders');
+      if (formData.devis) {
+        navigate('/devis');
+      } else {
+        navigate('/bons-commande');
+      }
     } catch (error) {
       console.error('Error saving purchase order:', error);
 
@@ -1104,7 +1124,7 @@ const PurchaseOrderForm: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Button
               startIcon={<ArrowBackIcon />}
-              onClick={() => navigate('/purchase-orders')}
+              onClick={() => navigate('/bons-commande')}
               sx={{ mr: 2 }}
             >
               Retour
@@ -1159,12 +1179,19 @@ const PurchaseOrderForm: React.FC = () => {
               label="Ville"
               value={formData.clientCity}
               onChange={handleChange}
-            />
+            />{' '}
             <FormTextField
               name="clientPhone"
               label="Téléphone"
               value={formData.clientPhone}
               onChange={handleChange}
+            />
+            <FormTextField
+              name="clientEmail"
+              label="Email"
+              value={formData.clientEmail}
+              onChange={handleChange}
+              required
             />
             <FormTextField
               name="deposit"
@@ -1586,7 +1613,7 @@ const PurchaseOrderForm: React.FC = () => {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
             <Button
               variant="outlined"
-              onClick={() => navigate('/purchase-orders')}
+              onClick={() => navigate('/bons-commande')}
             >
               Annuler
             </Button>

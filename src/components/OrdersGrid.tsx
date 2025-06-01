@@ -21,6 +21,7 @@ import PrintIcon from '@mui/icons-material/Print';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SearchIcon from '@mui/icons-material/Search';
+import EmailIcon from '@mui/icons-material/Email';
 import { useNavigate } from 'react-router-dom';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -43,6 +44,7 @@ import {
   getPurchaseOrderPdf,
   updatePurchaseOrderStatus,
   fetchPurchaseOrderById,
+  sendDevisSignatureEmail,
 } from '../utils/api';
 import {
   onFirstDataRendered,
@@ -210,7 +212,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
   // Handle edit purchase order
   const handleEditPurchaseOrder = useCallback(
     (id: number) => {
-      navigate(`/purchase-orders/edit/${id}`);
+      navigate(`/bons-commande/edit/${id}`);
     },
     [navigate],
   );
@@ -630,7 +632,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
   const invoiceStatusCellRenderer = useCallback(
     (params: ICellRendererParams) => {
       if (!params.data) return null;
-      const order = params.data as PurchaseOrder;
+      const order = params.data;
 
       return (
         <Box
@@ -641,36 +643,131 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
             justifyContent: 'center',
           }}
         >
-          <Checkbox
-            checked={order.isInvoiced}
-            onChange={(e) => {
-              const newValue = e.target.checked;
-              const message = newValue
-                ? 'Confirmer que la facture a été émise ?'
-                : "Indiquer que la facture n'a pas encore été émise ?";
-
-              showConfirmDialog(
-                newValue ? 'Confirmer facturation' : 'Annuler facturation',
-                message,
-                async () => {
-                  await handleStatusChange(order.id, 'isInvoiced', newValue);
+          <Tooltip title="Facturé" arrow>
+            <Checkbox
+              sx={{
+                color: order.isInvoiced
+                  ? 'rgba(46, 125, 50, 0.8)'
+                  : 'rgba(211, 47, 47, 0.8)',
+                '&.Mui-checked': {
+                  color: 'rgba(46, 125, 50, 0.8)',
                 },
-                'invoice',
-              );
-            }}
-            sx={{
-              color: order.isInvoiced
-                ? 'rgba(46, 125, 50, 0.8)'
-                : 'rgba(211, 47, 47, 0.8)',
-              '&.Mui-checked': {
-                color: 'rgba(46, 125, 50, 0.8)',
-              },
-            }}
-          />
+              }}
+              checked={!!order.isInvoiced}
+              onChange={async (e) => {
+                e.stopPropagation();
+                const newValue = e.target.checked;
+                if (newValue === true) {
+                  // Show confirmation dialog for enabling invoice status
+                  showConfirmDialog(
+                    'Confirmer la facturation',
+                    'Voulez-vous marquer ce bon de commande comme facturé ?',
+                    async () => {
+                      await handleStatusChange(
+                        order.id,
+                        'isInvoiced',
+                        newValue,
+                      );
+                    },
+                    'invoice',
+                  );
+                } else {
+                  // Show confirmation dialog for disabling invoice status
+                  showConfirmDialog(
+                    'Retirer la facturation',
+                    'Voulez-vous marquer ce bon de commande comme non facturé ?',
+                    async () => {
+                      await handleStatusChange(
+                        order.id,
+                        'isInvoiced',
+                        newValue,
+                      );
+                    },
+                    'invoice',
+                  );
+                }
+              }}
+            />
+          </Tooltip>
         </Box>
       );
     },
     [handleStatusChange, showConfirmDialog],
+  );
+
+  // Email status cell renderer for devis
+  const emailStatusCellRenderer = useCallback(
+    (params: ICellRendererParams) => {
+      if (!params.data) return null;
+      const order = params.data;
+
+      const handleSendEmail = async () => {
+        if (!token) return;
+
+        try {
+          await sendDevisSignatureEmail(token, order.id);
+
+          // Update local state
+          setPurchaseOrders((prevOrders) =>
+            prevOrders.map((prevOrder) =>
+              prevOrder.id === order.id
+                ? { ...prevOrder, emailDevisSent: true }
+                : prevOrder,
+            ),
+          );
+
+          toast.success('Email de signature du devis envoyé avec succès.');
+        } catch (error) {
+          toast.error("Erreur lors de l'envoi de l'email.");
+          console.error('Failed to send email:', error);
+        }
+      };
+
+      return (
+        <Box
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Tooltip
+            title={
+              order.emailDevisSent
+                ? 'Email déjà envoyé'
+                : 'Envoyer un email de signature'
+            }
+            arrow
+          >
+            <Button
+              variant="outlined"
+              color="primary"
+              size="small"
+              startIcon={<EmailIcon />}
+              onClick={(e) => {
+                e.stopPropagation();
+
+                const message = order.emailDevisSent
+                  ? `Un email a déjà été envoyé à ${order.clientEmail}. Voulez-vous l'envoyer à nouveau ?`
+                  : `Voulez-vous envoyer un email de signature à ${order.clientEmail} ?`;
+
+                showConfirmDialog(
+                  "Envoi d'email de signature",
+                  message,
+                  handleSendEmail,
+                  'info',
+                );
+              }}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {order.emailDevisSent ? 'Renvoyer' : 'Envoyer'}
+            </Button>
+          </Tooltip>
+        </Box>
+      );
+    },
+    [token, showConfirmDialog, setPurchaseOrders],
   );
 
   // External filter functions for client search
@@ -743,7 +840,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         field: 'serialNumber',
         sortable: true,
         filter: true,
-        hide: isMediumScreen,
+        hide: isMediumScreen || isDevis,
       },
       {
         headerName: 'Acompte',
@@ -766,6 +863,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         field: 'hasAppointment',
         sortable: false,
         filter: false,
+        hide: isDevis,
         minWidth: CHECKBOX_CELL_WIDTH,
         maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: appointmentStatusCellRenderer,
@@ -782,6 +880,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         field: 'isInstalled',
         sortable: false,
         filter: false,
+        hide: isDevis,
         minWidth: CHECKBOX_CELL_WIDTH,
         maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: installationStatusCellRenderer,
@@ -798,6 +897,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         field: 'isInvoiced',
         sortable: false,
         filter: false,
+        hide: isDevis,
         minWidth: CHECKBOX_CELL_WIDTH,
         maxWidth: CHECKBOX_CELL_WIDTH,
         cellRenderer: invoiceStatusCellRenderer,
@@ -823,6 +923,20 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         cellRenderer: customDevisCell,
         cellClass: 'no-focus-outline',
       });
+
+      // Add Email column only for Devis
+      if (isDevis) {
+        columns.push({
+          headerName: 'Email client',
+          field: 'emailDevisSent',
+          sortable: false,
+          filter: false,
+          minWidth: 150,
+          maxWidth: 150,
+          cellRenderer: emailStatusCellRenderer,
+          cellClass: 'no-focus-outline',
+        });
+      }
     }
 
     // Add status columns
@@ -844,11 +958,13 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
     appointmentStatusCellRenderer,
     installationStatusCellRenderer,
     invoiceStatusCellRenderer,
+    emailStatusCellRenderer,
     customDevisCell,
     isSmallScreen,
     isMobile,
     isMediumScreen,
     includeSignedColumn,
+    isDevis,
   ]);
 
   const onGridReady = useCallback(

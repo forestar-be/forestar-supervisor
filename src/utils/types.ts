@@ -53,6 +53,7 @@ export interface PurchaseOrder {
   clientAddress: string;
   clientCity: string;
   clientPhone: string;
+  clientEmail: string;
   deposit: number;
   robotInventoryId: number;
   robotInventory?: RobotInventory;
@@ -83,6 +84,7 @@ export interface PurchaseOrder {
   signatureTimestamp?: string | null;
   eventId?: string | null;
   deleteInvoice: boolean;
+  emailDevisSent?: boolean;
 }
 
 export interface PurchaseOrderFormData {
@@ -91,6 +93,7 @@ export interface PurchaseOrderFormData {
   clientAddress: string;
   clientCity: string;
   clientPhone: string;
+  clientEmail: string;
   deposit: number;
 
   robotInventoryId: number;
