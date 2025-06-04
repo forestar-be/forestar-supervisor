@@ -1,11 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Document,
   Page,
   Text,
   View,
   StyleSheet,
-  PDFViewer,
   Image,
 } from '@react-pdf/renderer';
 import {
@@ -13,10 +12,6 @@ import {
   InstallationPreparationText,
   InstallationTextType,
 } from '../utils/types';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
-import { useAuth } from '../hooks/AuthProvider';
-import { getPurchaseOrderPhoto } from '../utils/api';
 
 // Register fonts if needed
 // Font.register({
@@ -227,76 +222,6 @@ const PLACEMENT_PRICE = 200;
 // Define constant for wire price per meter
 const WIRE_PRICE_PER_METER = 1.3;
 
-interface PurchaseOrderPdfProps {
-  purchaseOrder: PurchaseOrder;
-}
-
-// Helper function to convert blob to base64
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
-
-// Component to display the PDF
-export const PurchaseOrderPdfViewer: React.FC<PurchaseOrderPdfProps> = ({
-  purchaseOrder,
-}) => {
-  const { texts } = useSelector((state: RootState) => state.installationTexts);
-  const { token } = useAuth();
-  const [photoDataUrls, setPhotoDataUrls] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  // Fetch all photos when component mounts
-  useEffect(() => {
-    const fetchPhotos = async () => {
-      if (!token || !purchaseOrder?.photosPaths?.length) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const photoPromises = purchaseOrder.photosPaths.map((_, index) =>
-          getPurchaseOrderPhoto(token, purchaseOrder.id, index),
-        );
-
-        const photoBlobs = await Promise.all(photoPromises);
-
-        // Convert blobs to base64 for React PDF
-        const base64Promises = photoBlobs.map((blob) => blobToBase64(blob));
-        const base64Photos = await Promise.all(base64Promises);
-
-        setPhotoDataUrls(base64Photos);
-      } catch (error) {
-        console.error('Error fetching photos:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPhotos();
-
-    // No need to clean up base64 strings
-  }, [token, purchaseOrder]);
-
-  if (loading) {
-    return <div>Chargement des photos...</div>;
-  }
-
-  return (
-    <PDFViewer style={{ width: '100%', height: '100vh' }}>
-      <PurchaseOrderPdfDocument
-        purchaseOrder={purchaseOrder}
-        installationTexts={texts}
-        photoDataUrls={photoDataUrls}
-      />
-    </PDFViewer>
-  );
-};
-
 // Function to render photos in a grid layout
 const renderPhotos = (photoUrls: string[]) => {
   if (!photoUrls || photoUrls.length === 0) return null;
@@ -322,7 +247,6 @@ export const PurchaseOrderPdfDocument: React.FC<{
   installationTexts?: InstallationPreparationText[];
   photoDataUrls?: string[];
 }> = ({ purchaseOrder, installationTexts, photoDataUrls = [] }) => {
-  console.log('photoDataUrls', photoDataUrls);
   // Check if we need a third page for installation notes
   const hasInstallationNotes = !!purchaseOrder.installationNotes;
   const hasInstallationTexts =
@@ -588,6 +512,23 @@ export const PurchaseOrderPdfDocument: React.FC<{
                   réception de l'acompte.
                 </Text>
               </View>
+            </View>
+          </View>
+        )}
+        {!purchaseOrder.devis && purchaseOrder.bankAccountNumber && (
+          <View>
+            <View style={styles.sectionTitle}>
+              <Text>INFORMATIONS DE PAIEMENT</Text>
+            </View>
+            <View style={styles.column}>
+              {purchaseOrder.bankAccountNumber && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Coordonnées bancaires:</Text>
+                  <Text style={styles.value}>
+                    {purchaseOrder.bankAccountNumber}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -860,5 +801,3 @@ export const PurchaseOrderPdfDocument: React.FC<{
     </Document>
   );
 };
-
-export default PurchaseOrderPdfViewer;

@@ -577,9 +577,12 @@ export const getPurchaseOrderPhoto = (
   token: string,
   id: number,
   photoIndex: number,
+  isClientMode = false,
 ): Promise<Blob> =>
   apiRequest(
-    `/supervisor/purchase-orders/${id}/photo/${photoIndex}`,
+    !isClientMode
+      ? `/supervisor/purchase-orders/${id}/photo/${photoIndex}`
+      : `/client/purchase-orders/devis/signature/photo/${photoIndex}?id=${id}`,
     'GET',
     token,
   );

@@ -46,6 +46,7 @@ import {
   fetchPurchaseOrderById,
   sendDevisSignatureEmail,
 } from '../utils/api';
+import { fetchPurchaseOrderPhotosAsBase64 } from '../utils/purchaseOrderUtils';
 import {
   onFirstDataRendered,
   setupGridStateEvents,
@@ -242,16 +243,22 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
     if (confirmDialog.isLoading) return; // Prevent closing during loading
     setConfirmDialog({ ...confirmDialog, open: false });
   }, [confirmDialog]);
-
   // Generate the PDF for a purchase order
   const generatePDF = useCallback(
     async (order: PurchaseOrder) => {
       try {
+        // Fetch photos for the purchase order
+        const photoDataUrls = await fetchPurchaseOrderPhotosAsBase64(
+          token,
+          order,
+        );
+
         // Create the PDF document
         const pdfBlob = await pdf(
           <PurchaseOrderPdfDocument
             purchaseOrder={order}
             installationTexts={texts}
+            photoDataUrls={photoDataUrls}
           />,
         ).toBlob();
 
@@ -261,7 +268,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         throw error;
       }
     },
-    [texts],
+    [texts, token],
   );
 
   // Handle dialog confirmation
