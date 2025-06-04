@@ -36,6 +36,7 @@ import { pdf } from '@react-pdf/renderer';
 import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 import { connect } from 'react-redux';
 import { RootState } from '../store';
+import { fetchPurchaseOrderPhotosAsBase64 } from '../utils/purchaseOrderUtils';
 
 // Styles pour le canvas de signature
 const signatureCanvasStyles = `
@@ -213,11 +214,19 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
           ? clientInstallationTexts
           : reduxInstallationTexts;
 
+        // Fetch photos for the purchase order
+        const photoDataUrls = await fetchPurchaseOrderPhotosAsBase64(
+          token!,
+          order!,
+          isClientMode,
+        );
+
         // Créer le document PDF
         const pdfBlob = await pdf(
           <PurchaseOrderPdfDocument
             purchaseOrder={updatedOrder}
             installationTexts={installationTexts}
+            photoDataUrls={photoDataUrls}
           />,
         ).toBlob();
 
@@ -227,7 +236,13 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
         throw error;
       }
     },
-    [reduxInstallationTexts, clientInstallationTexts, isClientMode],
+    [
+      isClientMode,
+      clientInstallationTexts,
+      reduxInstallationTexts,
+      token,
+      order,
+    ],
   );
 
   // Soumettre la signature

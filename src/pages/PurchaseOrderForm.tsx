@@ -25,6 +25,7 @@ import {
   ImageList,
   ImageListItem,
   Tooltip,
+  SxProps,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -52,7 +53,10 @@ import {
   RobotInventory,
   InventoryCategory,
 } from '../utils/types';
-import { formatPriceNumberToFrenchFormatStr } from '../utils/common.utils';
+import {
+  convertWebpToJpeg,
+  formatPriceNumberToFrenchFormatStr,
+} from '../utils/common.utils';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { useAppDispatch } from '../store/hooks';
@@ -65,6 +69,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import ConfirmDialog from '../components/dialogs/ConfirmDialog';
+import { blobToBase64 } from '../utils/purchaseOrderUtils';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -110,6 +115,7 @@ interface FormTextFieldProps {
   startAdornment?: React.ReactNode;
   xs?: number;
   sm?: number;
+  sx?: SxProps;
 }
 
 const FormTextField: React.FC<FormTextFieldProps> = ({
@@ -123,8 +129,9 @@ const FormTextField: React.FC<FormTextFieldProps> = ({
   startAdornment,
   xs = 12,
   sm = 6,
+  sx = undefined,
 }) => (
-  <Grid item xs={xs} sm={sm}>
+  <Grid item xs={xs} sm={sm} sx={sx}>
     <TextField
       required={required}
       fullWidth={fullWidth}
@@ -443,10 +450,7 @@ const PurchaseOrderForm: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       devis: type === 'devis',
-      // Set bank account number from config if it's a quote
-      ...(type === 'devis' &&
-      configData &&
-      configData['Numéro de compte bancaire']
+      ...(configData && configData['Numéro de compte bancaire']
         ? { bankAccountNumber: configData['Numéro de compte bancaire'] }
         : {}),
     }));
@@ -634,53 +638,6 @@ const PurchaseOrderForm: React.FC = () => {
     setPhotoPreviewOpen(true);
   };
 
-  // Add this helper function to convert a blob to base64
-  const blobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  // Add helper function to convert webp to jpeg
-  const convertWebpToJpeg = (imageBlob: Blob): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        // Create canvas and draw image
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-
-        // Draw image to canvas
-        ctx.drawImage(img, 0, 0);
-
-        // Convert to jpeg blob
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to convert to JPEG'));
-            }
-          },
-          'image/jpeg',
-          0.9, // Quality
-        );
-      };
-
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(imageBlob);
-    });
-  };
-
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -787,10 +744,8 @@ const PurchaseOrderForm: React.FC = () => {
         serialNumber: !formData.devis
           ? formData.serialNumber || purchaseOrder?.serialNumber || ''
           : '',
-        validUntil: formData.devis ? formData.validUntil || null : null,
-        bankAccountNumber: formData.devis
-          ? formData.bankAccountNumber || null
-          : null,
+        validUntil: formData.validUntil || null,
+        bankAccountNumber: formData.bankAccountNumber || null,
         orderPdfId: purchaseOrder?.orderPdfId || null,
         robotInventory: robots.find((r) => r.id === formData.robotInventoryId),
         plugin: formData.pluginInventoryId
@@ -803,6 +758,8 @@ const PurchaseOrderForm: React.FC = () => {
           ? shelters.find((s) => s.id === formData.shelterInventoryId)
           : undefined,
         deleteInvoice: deleteInvoice,
+        clientSignature: purchaseOrder?.clientSignature || null,
+        signatureTimestamp: purchaseOrder?.signatureTimestamp || null,
         // Add photos paths for the PDF generation
         photosPaths: isEditing
           ? purchaseOrder?.photosPaths?.filter(
@@ -918,15 +875,10 @@ const PurchaseOrderForm: React.FC = () => {
 
   // Effect to set the bank account number from config when creating a new purchase order
   useEffect(() => {
-    if (
-      !isEditing &&
-      typeParam === 'devis' &&
-      configData &&
-      configData['Numéro de compte bancaire']
-    ) {
+    if (!isEditing && configData && configData['Numéro de compte bancaire']) {
       setFormData((prev) => ({
         ...prev,
-        bankAccountNumber: configData['Numéro de compte bancaire'],
+        bankAccountNumber: configData['Numéro de compte bancaire'] || '',
       }));
     }
   }, [isEditing, typeParam, configData]);
@@ -1357,6 +1309,14 @@ const PurchaseOrderForm: React.FC = () => {
           {!formData.devis ? (
             <FormSection title="Facturation">
               <Grid item xs={12}>
+                <FormTextField
+                  name="bankAccountNumber"
+                  label="Numéro de compte bancaire"
+                  value={formData.bankAccountNumber}
+                  onChange={handleChange}
+                  required
+                  sx={{ mb: 2 }}
+                />
                 {!formData.devis ? (
                   <>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>

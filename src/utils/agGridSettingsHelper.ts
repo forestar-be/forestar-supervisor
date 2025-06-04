@@ -77,6 +77,7 @@ export function loadGridPageSize(
       return parseInt(savedPageSize, 10);
     } catch (error) {
       console.error('Failed to load grid page size', error);
+      localStorage.removeItem(`${gridStateKey}_pageSize`);
     }
   }
   return defaultPageSize;
@@ -98,6 +99,7 @@ export function onFirstDataRendered(params: any, gridStateKey: string) {
       console.log('Loaded grid column state', gridStateKey);
     } catch (error) {
       console.error('Failed to load grid column state', error);
+      localStorage.removeItem(`${gridStateKey}_columns`);
     }
   }
 
@@ -110,6 +112,7 @@ export function onFirstDataRendered(params: any, gridStateKey: string) {
       console.log('Loaded grid filter model', gridStateKey);
     } catch (error) {
       console.error('Failed to load grid filter model', error);
+      localStorage.removeItem(`${gridStateKey}_filters`);
     }
   }
 }
