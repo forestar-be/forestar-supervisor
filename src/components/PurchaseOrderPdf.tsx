@@ -28,6 +28,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
     padding: 30,
+    paddingBottom: 70, // Increased padding at the bottom to make room for footer
     fontFamily: 'Helvetica',
   },
   header: {
@@ -127,6 +128,19 @@ const styles = StyleSheet.create({
     right: 30,
     fontSize: 10,
   },
+  pageFooter: {
+    position: 'absolute',
+    bottom: 30,
+    left: 30,
+    right: 30,
+    fontSize: 9,
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTop: '1pt solid #CCCCCC',
+    paddingTop: 5,
+  },
   signature: {
     marginTop: 50,
     flexDirection: 'row',
@@ -167,15 +181,19 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   photoContainer: {
-    width: '30%',
-    margin: '1.66%',
+    width: '45%',
+    margin: '2.5%',
     marginBottom: 15,
     border: '1pt solid #ccc',
     padding: 5,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photo: {
-    width: '100%',
-    height: 150,
+    maxWidth: '100%',
+    maxHeight: 200,
     objectFit: 'contain',
     marginBottom: 5,
   },
@@ -240,6 +258,15 @@ const renderPhotos = (photoUrls: string[]) => {
     </View>
   );
 };
+
+// Function to render page footer with page number
+const PageFooter = () => (
+  <View fixed style={styles.footer}>
+    <Text style={{ fontSize: 9, marginBottom: 5 }}>
+      FORESTAR - Document généré le {new Date().toLocaleDateString('fr-FR')}
+    </Text>
+  </View>
+);
 
 // Document component for the PDF
 export const PurchaseOrderPdfDocument: React.FC<{
@@ -345,15 +372,32 @@ export const PurchaseOrderPdfDocument: React.FC<{
         );
     }
   };
-
   return (
     <Document>
+      {' '}
       <Page size="A4" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
           {/* Replace with actual logo */}
           {/* <Image style={styles.logo} src="/logo.png" /> */}
           <Text style={styles.headerText}>FORESTAR</Text>
+        </View>
+
+        {/* Footer with page number */}
+        <Text
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) =>
+            `${pageNumber} / ${totalPages}`
+          }
+          fixed
+        />
+
+        {/* Footer with company info */}
+        <View fixed style={styles.footer}>
+          <Text>
+            FORESTAR - Document généré le{' '}
+            {new Date().toLocaleDateString('fr-FR')}
+          </Text>
         </View>
 
         {/* Title */}
@@ -533,29 +577,34 @@ export const PurchaseOrderPdfDocument: React.FC<{
           </View>
         )}
       </Page>
-
       {/* Photos page */}
       {hasPhotos && (
         <Page size="A4" style={styles.page}>
           {/* Header for consistency */}
           <View style={styles.header}>
             <Text style={styles.headerText}>FORESTAR</Text>
-          </View>
-
+          </View>{' '}
           <View style={styles.sectionTitle}>
             <Text>PHOTOS</Text>
           </View>
           {renderPhotos(validPhotoUrls)}
+          <PageFooter />
+          {/* Page number */}
+          <Text
+            style={styles.pageNumber}
+            render={({ pageNumber, totalPages }) =>
+              `${pageNumber} / ${totalPages}`
+            }
+            fixed
+          />
         </Page>
       )}
-
       {/* Summary page */}
       <Page size="A4" style={styles.page}>
         {/* Header for consistency */}
         <View style={styles.header}>
           <Text style={styles.headerText}>FORESTAR</Text>
         </View>
-
         {/* Summary */}
         <View style={styles.sectionTitle}>
           <Text>RÉCAPITULATIF</Text>
@@ -737,28 +786,44 @@ export const PurchaseOrderPdfDocument: React.FC<{
               <Text style={[styles.tableCell, { fontWeight: 'bold' }]}>
                 {formatPriceForPdf(
                   (calculateTotalPrice() || 0) - (purchaseOrder.deposit || 0),
-                )}
+                )}{' '}
               </Text>
             </View>
           </View>
         </View>
-      </Page>
 
+        <PageFooter />
+        {/* Page number */}
+        <Text
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) =>
+            `${pageNumber} / ${totalPages}`
+          }
+          fixed
+        />
+      </Page>
       {/* Installation preparation instructions page */}
       {hasInstallationTexts && (
         <Page size="A4" style={styles.page}>
           {/* Header for consistency */}
           <View style={styles.header}>
             <Text style={styles.headerText}>FORESTAR</Text>
-          </View>
-
+          </View>{' '}
           {/* Installation preparation texts */}
           <View style={styles.column}>
             {installationTexts?.map((text) => renderInstallationText(text))}
           </View>
+          <PageFooter />
+          {/* Page number */}
+          <Text
+            style={styles.pageNumber}
+            render={({ pageNumber, totalPages }) =>
+              `${pageNumber} / ${totalPages}`
+            }
+            fixed
+          />
         </Page>
       )}
-
       {/* Signature page - moved after installation texts */}
       {!purchaseOrder.devis && (
         <Page size="A4" style={styles.page}>
@@ -792,10 +857,23 @@ export const PurchaseOrderPdfDocument: React.FC<{
           ) : (
             <View style={styles.signature}>
               <View style={styles.signatureBox}>
-                <Text style={styles.signatureLabel}>Signature du client:</Text>
+                <Text style={styles.signatureLabel}>
+                  Signature du client:
+                </Text>{' '}
               </View>
             </View>
           )}
+
+          <PageFooter />
+
+          {/* Page number */}
+          <Text
+            style={styles.pageNumber}
+            render={({ pageNumber, totalPages }) =>
+              `${pageNumber} / ${totalPages}`
+            }
+            fixed
+          />
         </Page>
       )}
     </Document>
