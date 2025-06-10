@@ -22,6 +22,10 @@ export const convertWebpToJpeg = (imageBlob: Blob): Promise<Blob> => {
         return;
       }
 
+      // Fill canvas with white background first (for transparent images)
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       // Draw image to canvas
       ctx.drawImage(img, 0, 0);
 
