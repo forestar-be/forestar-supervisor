@@ -5,6 +5,7 @@ import {
   PurchaseOrder,
   RobotInventory,
   InstallationPreparationText,
+  MachineRepair,
 } from './types';
 
 const API_URL = process.env.REACT_APP_API_URL;
@@ -690,3 +691,44 @@ export const fetchCalendarEvents = (
     'GET',
     token,
   );
+
+// Repair Calendar Events API functions
+export interface CreateRepairCalendarEventRequest {
+  repairId: number;
+  title: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  isFullDay: boolean;
+}
+
+export interface RepairCalendarEventResponse {
+  success: boolean;
+  eventId: string;
+  repair?: MachineRepair;
+  message?: string;
+}
+
+export const createRepairCalendarEvent = (
+  token: string,
+  eventData: CreateRepairCalendarEventRequest,
+): Promise<RepairCalendarEventResponse> =>
+  apiRequest('/supervisor/repair-calendar-event', 'POST', token, eventData);
+
+export const updateRepairCalendarEvent = (
+  token: string,
+  repairId: number,
+  eventData: Partial<CreateRepairCalendarEventRequest>,
+): Promise<RepairCalendarEventResponse> =>
+  apiRequest(
+    `/supervisor/repair-calendar-event/${repairId}`,
+    'PUT',
+    token,
+    eventData,
+  );
+
+export const deleteRepairCalendarEvent = (
+  token: string,
+  repairId: number,
+): Promise<RepairCalendarEventResponse> =>
+  apiRequest(`/supervisor/repair-calendar-event/${repairId}`, 'DELETE', token);
