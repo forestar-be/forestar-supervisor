@@ -23,6 +23,7 @@ import {
   deleteImage,
   deleteRepair,
   fetchRepairById,
+  createRepairCalendarEvent,
 } from '../utils/api';
 import { useAuth } from '../hooks/AuthProvider';
 import '../styles/SingleRepair.css';
@@ -56,6 +57,9 @@ import { MachineRepair, MachineRepairFromApi } from '../utils/types';
 import { useAppSelector } from '../store/hooks';
 import { RootState } from '../store/index';
 import { notifyError } from '../utils/notifications';
+import CalendarEventModal, {
+  CalendarEventData,
+} from '../components/repair/CalendarEventModal';
 
 export type ReplacedPart = { name: string; price: number };
 
@@ -139,7 +143,6 @@ const CallTimesModal = ({
 };
 
 const SingleRepair = () => {
-  const theme = useTheme();
   const navigate = useNavigate();
   const auth = useAuth();
   const { id } = useParams<{ id: string }>();
@@ -163,6 +166,12 @@ const SingleRepair = () => {
     document: undefined,
   });
   const [isCallTimesModalOpen, setIsCallTimesModalOpen] = useState(false);
+  const [isCalendarEventModalOpen, setIsCalendarEventModalOpen] =
+    useState(false);
+  const [isLoadingCalendarEvent, setIsLoadingCalendarEvent] = useState(false);
+  const [calendarEventError, setCalendarEventError] = useState<string | null>(
+    null,
+  );
 
   // Get configurations from Redux store
   const {
@@ -337,7 +346,7 @@ const SingleRepair = () => {
         toast.error("Une erreur s'est produite lors de l'ajout de l'image");
       }
     },
-    [auth.token, id, repair, setRepair],
+    [auth.token, id, initialRepair, repair],
   );
 
   const handleDeleteImage = useCallback(
@@ -434,7 +443,7 @@ const SingleRepair = () => {
         closeAllEditableSections,
       );
     },
-    [repair, initialRepair],
+    [repair, initialRepair, auth, id],
   );
 
   const updateQuantityOfReplacedPart = useCallback(
@@ -470,7 +479,7 @@ const SingleRepair = () => {
         closeAllEditableSections,
       );
     },
-    [repair, initialRepair],
+    [repair, initialRepair, auth, id],
   );
 
   useEffect(() => {
@@ -557,6 +566,74 @@ const SingleRepair = () => {
       setLoading(false);
     }
   };
+  // Calendar event handlers
+  const handleCalendarEventCreate = useCallback(() => {
+    setCalendarEventError(null);
+    setIsCalendarEventModalOpen(true);
+  }, []);
+
+  const handleCalendarEventConfirm = useCallback(
+    async (eventData: CalendarEventData) => {
+      if (!repair || !id) {
+        console.error('No repair data found');
+        return;
+      }
+
+      setIsLoadingCalendarEvent(true);
+      setCalendarEventError(null);
+
+      try {
+        const response = await createRepairCalendarEvent(auth.token, {
+          repairId: parseInt(id),
+          title: eventData.title,
+          description: eventData.description,
+          startDate: eventData.startDate.toISOString(),
+          endDate: eventData.endDate.toISOString(),
+          isFullDay: eventData.isFullDay,
+        });
+
+        if (response.success && response.repair) {
+          setRepair({
+            ...repair,
+            ...response.repair,
+          });
+          setInitialRepair({
+            ...initialRepair,
+            ...response.repair,
+          });
+          toast.success("Événement ajouté à l'agenda avec succès");
+        }
+      } catch (error) {
+        console.error('Error creating calendar event:', error);
+        setCalendarEventError(
+          "Une erreur s'est produite lors de la création de l'événement",
+        );
+        toast.error(
+          "Une erreur s'est produite lors de la création de l'événement",
+        );
+      } finally {
+        setIsLoadingCalendarEvent(false);
+      }
+    },
+    [auth.token, id, repair, initialRepair],
+  );
+
+  const handleCalendarEventView = useCallback(() => {
+    if (!repair?.eventId) {
+      return;
+    }
+
+    const calendarIdCleaned = String(repair.calendarId).replace(
+      'roup.calendar.google.com',
+      '',
+    );
+    const id = `${repair.eventId} ${calendarIdCleaned}`;
+    const idBased64 = btoa(id);
+
+    // Open the event in Google Calendar
+    const calendarUrl = `https://calendar.google.com/calendar/u/0/r/eventedit/${idBased64}`;
+    window.open(calendarUrl, '_blank');
+  }, [repair]);
 
   const renderCheckbox = (
     label: string,
@@ -674,6 +751,13 @@ const SingleRepair = () => {
             toast.warn('Arrêtez le chronomètre avant de télécharger le PDF');
           }
         }}
+        hasCalendarEvent={!!repair?.eventId}
+        onCalendarEventCreate={handleCalendarEventCreate}
+        onCalendarEventView={handleCalendarEventView}
+        onCalendarEventEdit={() => {
+          throw new Error('Not implemented');
+        }}
+        loadingCalendarEvent={isLoadingCalendarEvent}
       />
       <CallTimesModal
         open={isCallTimesModalOpen}
@@ -901,6 +985,14 @@ const SingleRepair = () => {
             open={openModal}
             onClose={handleCloseModal}
             selectedImage={selectedImage}
+          />{' '}
+          <CalendarEventModal
+            open={isCalendarEventModalOpen}
+            onClose={() => setIsCalendarEventModalOpen(false)}
+            onConfirm={handleCalendarEventConfirm}
+            error={calendarEventError}
+            loading={isLoadingCalendarEvent}
+            repair={repair!}
           />
         </Grid>
       )}

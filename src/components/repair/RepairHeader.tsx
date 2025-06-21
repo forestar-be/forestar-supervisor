@@ -1,4 +1,4 @@
-import ReactPDF from '@react-pdf/renderer';
+import type {UsePDFInstance} from '@react-pdf/renderer';
 import React from 'react';
 import {
   Box,
@@ -16,6 +16,8 @@ import {
   FileDownload as FileDownloadIcon,
   Call as CallIcon,
   Info as InfoIcon,
+  Event as EventIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 
 interface RepairHeaderProps {
@@ -26,20 +28,32 @@ interface RepairHeaderProps {
   onClick2: () => Promise<void>;
   onClickCall: () => Promise<void>;
   disabled1: boolean;
-  instance: ReactPDF.UsePDFInstance;
+  instance: UsePDFInstance;
   onClick3: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   loadingCall: boolean;
   setIsCallTimesModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  // Calendar event props
+  hasCalendarEvent: boolean;
+  onCalendarEventCreate: () => void;
+  onCalendarEventView: () => void;
+  onCalendarEventEdit: () => void;
+  loadingCalendarEvent?: boolean;
 }
 
 export const RepairHeader = (props: RepairHeaderProps) => (
-  <Grid container display={'flex'}>
-    <Grid item xs={3}>
+  <Grid container display={'flex'} justifyContent="space-between">
+    <Grid item>
       <Typography variant="h4" gutterBottom paddingTop={1}>
         Fiche n°{props.id}
       </Typography>
     </Grid>
-    <Grid item xs={9} display={'flex'} flexDirection={'row-reverse'} gap={4}>
+    <Grid
+      item
+      display={'flex'}
+      flexDirection={'row-reverse'}
+      flexWrap={'wrap'}
+      gap={2}
+    >
       <Tooltip title="Supprimer la fiche" arrow>
         <Button
           color="error"
@@ -80,7 +94,7 @@ export const RepairHeader = (props: RepairHeaderProps) => (
             'Envoyer par email au client'
           )}
         </Button>
-      </Tooltip>
+      </Tooltip>{' '}
       <Tooltip title="Télécharger le PDF" arrow>
         <Button
           color="primary"
@@ -94,6 +108,49 @@ export const RepairHeader = (props: RepairHeaderProps) => (
           Télécharger
         </Button>
       </Tooltip>
+      {/* Calendar Event Button */}
+      {props.hasCalendarEvent ? (
+        <Box display="flex" gap={1}>
+          <Tooltip title="Voir l'événement dans l'agenda" arrow>
+            <Button
+              color="info"
+              startIcon={<EventIcon />}
+              onClick={props.onCalendarEventView}
+              disabled={props.loadingCalendarEvent}
+            >
+              {props.loadingCalendarEvent ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                "Voir l'événement"
+              )}
+            </Button>
+          </Tooltip>
+          {/* <Tooltip title="Modifier l'événement" arrow>
+            <IconButton
+              color="info"
+              onClick={props.onCalendarEventEdit}
+              disabled={props.loadingCalendarEvent}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip> */}
+        </Box>
+      ) : (
+        <Tooltip title="Ajouter à l'agenda" arrow>
+          <Button
+            color="success"
+            startIcon={<EventIcon />}
+            onClick={props.onCalendarEventCreate}
+            disabled={props.loadingCalendarEvent}
+          >
+            {props.loadingCalendarEvent ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Ajouter à l'agenda"
+            )}
+          </Button>
+        </Tooltip>
+      )}
       <Box
         display="flex"
         justifyContent="center"
