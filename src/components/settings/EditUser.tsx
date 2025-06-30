@@ -25,7 +25,8 @@ export interface User {
     | 'SUPERVISOR'
     | 'ADMIN'
     | 'RENTAL_MANAGER'
-    | 'RENTAL_OPERATOR';
+    | 'RENTAL_OPERATOR'
+    | 'INSTALLER';
 }
 
 const EditUser = () => {
@@ -41,6 +42,7 @@ const EditUser = () => {
     | 'ADMIN'
     | 'RENTAL_MANAGER'
     | 'RENTAL_OPERATOR'
+    | 'INSTALLER'
     | null
   >(null);
   const theme = useTheme();
@@ -139,6 +141,10 @@ const EditUser = () => {
           return 'Opérateur de location';
         }
 
+        if (params.value === 'INSTALLER') {
+          return 'Installateur';
+        }
+
         return params.value;
       },
     },
@@ -231,7 +237,8 @@ const EditUser = () => {
                     | 'SUPERVISOR'
                     | 'ADMIN'
                     | 'RENTAL_MANAGER'
-                    | 'RENTAL_OPERATOR',
+                    | 'RENTAL_OPERATOR'
+                    | 'INSTALLER',
                 )
               }
             >
@@ -241,6 +248,7 @@ const EditUser = () => {
                 Gestionnaire de location
               </MenuItem>
               <MenuItem value="RENTAL_OPERATOR">Opérateur de location</MenuItem>
+              <MenuItem value="INSTALLER">Installateur</MenuItem>
               <MenuItem value="ADMIN">Admin</MenuItem>
             </TextField>
           </DialogContent>
