@@ -45,8 +45,9 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { styled } from '@mui/material/styles';
 import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 import { pdf } from '@react-pdf/renderer';
-import { notifyError, notifyLoading } from '../utils/notifications';
+import { notifyLoading } from '../utils/notifications';
 import PDFMerger from 'pdf-merger-js/browser';
+import ErrorDialog from '../components/dialogs/ErrorDialog';
 import {
   PurchaseOrderFormData,
   PurchaseOrder,
@@ -266,6 +267,17 @@ const PurchaseOrderForm: React.FC = () => {
   const [loadingPhotos, setLoadingPhotos] = useState<boolean>(false);
   const [selectedPhotoUrls, setSelectedPhotoUrls] = useState<string[]>([]);
   const [convertDialogOpen, setConvertDialogOpen] = useState<boolean>(false);
+
+  // Error dialog state
+  const [errorDialogOpen, setErrorDialogOpen] = useState<boolean>(false);
+  const [errorDialogData, setErrorDialogData] = useState<{
+    title?: string;
+    message: string;
+    details?: string;
+    severity?: 'error' | 'warning';
+  }>({
+    message: '',
+  });
 
   const { texts } = useSelector((state: RootState) => state.installationTexts);
   const { items: inventoryItems, loading: inventoryLoading } = useSelector(
@@ -529,6 +541,25 @@ const PurchaseOrderForm: React.FC = () => {
     }
   };
 
+  // Helper function to show error dialog
+  const showErrorDialog = useCallback(
+    (
+      message: string,
+      details?: string,
+      title?: string,
+      severity: 'error' | 'warning' = 'error',
+    ) => {
+      setErrorDialogData({
+        title,
+        message,
+        details,
+        severity,
+      });
+      setErrorDialogOpen(true);
+    },
+    [],
+  );
+
   // View the invoice
   const viewInvoice = useCallback(async () => {
     if (!token || !id || !purchaseOrder?.invoicePath) return;
@@ -568,9 +599,19 @@ const PurchaseOrderForm: React.FC = () => {
       }
     } catch (error) {
       console.error('Error with invoice notification:', error);
-      notifyError('Erreur lors du chargement de la facture');
+      showErrorDialog(
+        'Erreur lors du chargement de la facture',
+        error instanceof Error ? error.message : 'Erreur inconnue',
+        'Erreur de chargement',
+      );
     }
-  }, [token, id, purchaseOrder, existingInvoiceBlob]);
+  }, [
+    token,
+    id,
+    purchaseOrder?.invoicePath,
+    existingInvoiceBlob,
+    showErrorDialog,
+  ]);
 
   // Delete the invoice
   const handleDeleteInvoice = useCallback(() => {
@@ -842,16 +883,26 @@ const PurchaseOrderForm: React.FC = () => {
       // Display specific error message if available
       if (error instanceof Error) {
         if (error.message.includes('Aucun robot disponible')) {
-          notifyError(
+          showErrorDialog(
             "Aucun robot disponible pour ce mois-ci. Veuillez vérifier le plan d'inventaire.",
+            error.message,
+            "Erreur d'inventaire",
+            'warning',
           );
         } else {
-          notifyError(
-            `Erreur lors de la sauvegarde du bon de commande: ${error.message}`,
+          // Show full error message with details
+          showErrorDialog(
+            "Une erreur est survenue lors de la sauvegarde du bon de commande, si le problème persiste, veuillez contacter le support avec le détail de l'erreur.",
+            error.message,
+            'Erreur de sauvegarde',
           );
         }
       } else {
-        notifyError('Erreur lors de la sauvegarde du bon de commande');
+        showErrorDialog(
+          "Une erreur est survenue lors de la sauvegarde du bon de commande, si le problème persiste, veuillez contacter le support avec le détail de l'erreur.",
+          'Erreur inconnue',
+          'Erreur de sauvegarde',
+        );
       }
     } finally {
       setSaving(false);
@@ -1601,6 +1652,16 @@ const PurchaseOrderForm: React.FC = () => {
           </Box>
         </Box>
       </Paper>
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        open={errorDialogOpen}
+        onClose={() => setErrorDialogOpen(false)}
+        title={errorDialogData.title}
+        message={errorDialogData.message}
+        details={errorDialogData.details}
+        severity={errorDialogData.severity}
+      />
     </Box>
   );
 };
