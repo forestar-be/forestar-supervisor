@@ -732,3 +732,64 @@ export const deleteRepairCalendarEvent = (
   repairId: number,
 ): Promise<RepairCalendarEventResponse> =>
   apiRequest(`/supervisor/repair-calendar-event/${repairId}`, 'DELETE', token);
+
+// Sales Summary API functions
+export interface SalesItem {
+  orderId: number;
+  date: string;
+  clientName: string;
+  reference: string;
+  name: string;
+  category: string;
+  price: number;
+  serialNumber: string;
+}
+
+export interface SalesSummary {
+  totalOrders: number;
+  totalItems: number;
+  totalRevenue: number;
+}
+
+export interface SalesSummaryResponse {
+  data: SalesItem[];
+  summary: SalesSummary;
+}
+
+export const fetchSalesSummary = (
+  token: string,
+  startDate: string,
+  endDate: string,
+): Promise<SalesSummaryResponse> =>
+  apiRequest(
+    `/supervisor/sales-summary?startDate=${startDate}&endDate=${endDate}`,
+    'GET',
+    token,
+  );
+
+export const downloadSalesExcel = async (
+  token: string,
+  startDate: string,
+  endDate: string,
+): Promise<Blob> => {
+  const response = await fetch(
+    `${API_URL}/supervisor/sales-summary/excel`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ startDate, endDate }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new HttpError(
+      'Failed to download Excel file',
+      response.status,
+    );
+  }
+
+  return response.blob();
+};

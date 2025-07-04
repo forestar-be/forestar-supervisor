@@ -27,6 +27,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import { useAuth } from '../hooks/AuthProvider';
 import { toast } from 'react-toastify';
 import { AgGridReact } from 'ag-grid-react';
@@ -61,6 +62,7 @@ import {
   updateInventoryPlansAsync,
   fetchInventorySummaryAsync,
 } from '../store/robotInventorySlice';
+import WeeklySummaryModal from '../components/WeeklySummaryModal';
 
 // Helper function to get current year
 const getCurrentYear = () => {
@@ -79,6 +81,7 @@ const Inventory: React.FC = () => {
     (state: RootState) => state.robotInventory,
   );
   const [openDialog, setOpenDialog] = useState(false);
+  const [openWeeklySummary, setOpenWeeklySummary] = useState(false);
   const [currentItem, setCurrentItem] = useState<Partial<RobotInventoryType>>(
     {},
   );
@@ -664,18 +667,15 @@ const Inventory: React.FC = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Tooltip
-            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
-            arrow
-          >
+          <Tooltip title="Récapitulatif des ventes" arrow>
             <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={!isMediumScreen ? <RestartAltIcon /> : undefined}
-              onClick={handleResetGrid}
+              variant="contained"
+              color="success"
+              startIcon={!isMediumScreen ? <TrendingUpIcon /> : undefined}
+              onClick={() => setOpenWeeklySummary(true)}
               size={isMediumScreen ? 'small' : 'medium'}
             >
-              {isMediumScreen ? <RestartAltIcon /> : 'Réinitialiser'}
+              {isMediumScreen ? <TrendingUpIcon /> : 'Récapitulatif'}
             </Button>
           </Tooltip>
           <Tooltip title="Ajouter un élément" arrow>
@@ -688,6 +688,26 @@ const Inventory: React.FC = () => {
             >
               {isMediumScreen ? <AddIcon /> : 'Ajouter'}
             </Button>
+          </Tooltip>
+          <Tooltip
+            title="Réinitialiser le tableau (filtre, tri, déplacement et taille des colonnes)"
+            arrow
+            placement="bottom"
+          >
+            <IconButton
+              color="secondary"
+              onClick={handleResetGrid}
+              sx={{
+                backgroundColor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                },
+              }}
+            >
+              <RestartAltIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
         </Box>
       </Box>
@@ -823,6 +843,12 @@ const Inventory: React.FC = () => {
           </Tooltip>
         </DialogActions>
       </Dialog>
+
+      {/* Weekly Summary Modal */}
+      <WeeklySummaryModal
+        open={openWeeklySummary}
+        onClose={() => setOpenWeeklySummary(false)}
+      />
     </Paper>
   );
 };

@@ -36,6 +36,7 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import LoginGoogle from './pages/LoginGoogle';
 import NotFoundPage from './pages/NotFoundPage';
+import 'dayjs/locale/fr';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
