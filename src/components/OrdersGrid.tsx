@@ -43,10 +43,8 @@ import {
   fetchPurchaseOrders,
   getPurchaseOrderPdf,
   updatePurchaseOrderStatus,
-  fetchPurchaseOrderById,
   sendDevisSignatureEmail,
 } from '../utils/api';
-import { fetchPurchaseOrderPhotosAsBase64 } from '../utils/purchaseOrderUtils';
 import {
   onFirstDataRendered,
   setupGridStateEvents,
@@ -57,8 +55,6 @@ import {
 import { PurchaseOrder } from '../utils/types';
 import { RootState } from '../store';
 import { useSelector } from 'react-redux';
-import { pdf } from '@react-pdf/renderer';
-import { PurchaseOrderPdfDocument } from './PurchaseOrderPdf';
 import ConfirmDialog, { ConfirmDialogType } from './dialogs/ConfirmDialog';
 
 // PDF action types
@@ -243,33 +239,6 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
     if (confirmDialog.isLoading) return; // Prevent closing during loading
     setConfirmDialog({ ...confirmDialog, open: false });
   }, [confirmDialog]);
-  // Generate the PDF for a purchase order
-  const generatePDF = useCallback(
-    async (order: PurchaseOrder) => {
-      try {
-        // Fetch photos for the purchase order
-        const photoDataUrls = await fetchPurchaseOrderPhotosAsBase64(
-          token,
-          order,
-        );
-
-        // Create the PDF document
-        const pdfBlob = await pdf(
-          <PurchaseOrderPdfDocument
-            purchaseOrder={order}
-            installationTexts={texts}
-            photoDataUrls={photoDataUrls}
-          />,
-        ).toBlob();
-
-        return pdfBlob;
-      } catch (error) {
-        console.error('Error generating PDF:', error);
-        throw error;
-      }
-    },
-    [texts, token],
-  );
 
   // Handle dialog confirmation
   const handleConfirmDialog = useCallback(async () => {
@@ -499,27 +468,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
 
       try {
         const statusData = { [field]: value };
-
-        // If devis status is changing, we need to regenerate the PDF
-        if (field === 'devis') {
-          // First get the full purchase order data
-          const orderData = await fetchPurchaseOrderById(token, orderId);
-
-          // Update the devis status locally
-          const updatedOrder = {
-            ...orderData,
-            devis: value,
-          };
-
-          // Generate new PDF with updated devis status
-          const pdfBlob = await generatePDF(updatedOrder);
-
-          // Update status and PDF in DB
-          await updatePurchaseOrderStatus(token, orderId, statusData, pdfBlob);
-        } else {
-          // For other status changes, just update the status
-          await updatePurchaseOrderStatus(token, orderId, statusData);
-        }
+        await updatePurchaseOrderStatus(token, orderId, statusData);
 
         // Update local state
         setPurchaseOrders((prevOrders) =>
@@ -534,7 +483,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         toast.error('Erreur lors de la mise à jour du statut');
       }
     },
-    [token, generatePDF],
+    [token],
   );
 
   // Appointment status cell renderer
@@ -810,6 +759,13 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
   // Column definitions with responsive visibility
   const getColumnDefs = useMemo<ColDef[]>(() => {
     const columns: ColDef[] = [
+      {
+        headerName: 'ID',
+        field: 'id',
+        sortable: true,
+        minWidth: 40,
+        maxWidth: 80,
+      },
       {
         headerName: 'Création',
         field: 'createdAt',

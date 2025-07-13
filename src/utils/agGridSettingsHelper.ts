@@ -41,6 +41,10 @@ const debouncedSavePageSize = debounce(
  */
 export function onSaveGridColumnState(gridStateKey: string, api: GridApi) {
   const columnState = api.getColumnState();
+  if (!columnState || columnState.length === 0) {
+    console.warn('No column state to save for', gridStateKey);
+    return;
+  }
   debouncedSaveColumnState(gridStateKey, columnState);
 }
 

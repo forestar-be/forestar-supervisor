@@ -436,7 +436,6 @@ export const updateClientDevisStatus = async (
     devis?: boolean;
     clientSignature?: string;
   },
-  pdfFile?: Blob,
 ): Promise<PurchaseOrder> => {
   const formData = new FormData();
 
@@ -446,10 +445,6 @@ export const updateClientDevisStatus = async (
 
   if (statusData.clientSignature) {
     formData.append('clientSignature', statusData.clientSignature);
-  }
-
-  if (pdfFile) {
-    formData.append('pdf', pdfFile, 'order.pdf');
   }
 
   return apiRequest(
@@ -512,7 +507,6 @@ export const updatePurchaseOrderStatus = async (
     devis?: boolean;
     clientSignature?: string;
   },
-  pdfFile?: Blob,
 ): Promise<PurchaseOrder> => {
   try {
     const formData = new FormData();
@@ -529,11 +523,6 @@ export const updatePurchaseOrderStatus = async (
     // Add client signature if provided
     if (statusData.clientSignature) {
       formData.append('clientSignature', statusData.clientSignature);
-    }
-
-    // Add PDF file if provided
-    if (pdfFile) {
-      formData.append('pdf', pdfFile);
     }
 
     const response = await fetch(

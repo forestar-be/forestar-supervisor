@@ -32,11 +32,8 @@ import {
   isHttpError,
 } from '../utils/api';
 import { InstallationPreparationText, PurchaseOrder } from '../utils/types';
-import { pdf } from '@react-pdf/renderer';
-import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 import { connect } from 'react-redux';
 import { RootState } from '../store';
-import { fetchPurchaseOrderPhotosAsBase64 } from '../utils/purchaseOrderUtils';
 
 // Styles pour le canvas de signature
 const signatureCanvasStyles = `
@@ -78,9 +75,6 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [clientInstallationTexts, setClientInstallationTexts] = useState<
-    InstallationPreparationText[]
-  >([]);
 
   const id = useMemo(() => {
     return isClientMode ? idClientMode : idNonClientMode;
@@ -107,10 +101,9 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
         // Récupérer les données de la commande
         const orderData = await (isClientMode
           ? (async () => {
-              const { installationPreparationTexts, purchaseOrder } =
+              const { purchaseOrder } =
                 await fetchClientDevis(token, id);
               // Store installation texts from client API
-              setClientInstallationTexts(installationPreparationTexts);
               return purchaseOrder;
             })()
           : fetchPurchaseOrderById(token, parseInt(id)));
@@ -205,46 +198,6 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
     navigate('/devis');
   }, [navigate]);
 
-  // Générer le PDF
-  const generatePDF = useCallback(
-    async (updatedOrder: PurchaseOrder) => {
-      try {
-        // Use client installation texts when in client mode, otherwise use Redux texts
-        const installationTexts = isClientMode
-          ? clientInstallationTexts
-          : reduxInstallationTexts;
-
-        // Fetch photos for the purchase order
-        const photoDataUrls = await fetchPurchaseOrderPhotosAsBase64(
-          token!,
-          order!,
-          isClientMode,
-        );
-
-        // Créer le document PDF
-        const pdfBlob = await pdf(
-          <PurchaseOrderPdfDocument
-            purchaseOrder={updatedOrder}
-            installationTexts={installationTexts}
-            photoDataUrls={photoDataUrls}
-          />,
-        ).toBlob();
-
-        return pdfBlob;
-      } catch (error) {
-        console.error('Error generating PDF:', error);
-        throw error;
-      }
-    },
-    [
-      isClientMode,
-      clientInstallationTexts,
-      reduxInstallationTexts,
-      token,
-      order,
-    ],
-  );
-
   // Soumettre la signature
   const handleSubmit = useCallback(async () => {
     if (!signatureCanvasRef.current || !token || !order || !id) {
@@ -265,44 +218,21 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
       const signatureDataURL =
         signatureCanvasRef.current.toDataURL('image/png');
 
-      // Mettre à jour les données de commande avec la signature
-      const updatedOrder = {
-        ...order,
-        devis: false,
-        clientSignature: signatureDataURL,
-        signatureTimestamp: new Date().toISOString(),
-      };
-
-      // Générer un nouveau PDF avec la signature
-      console.log('Génération du PDF avec signature...');
-      const pdfBlob = await generatePDF(updatedOrder);
-      console.log('PDF généré avec succès');
-
       // Envoyer la mise à jour au serveur
       console.log('Envoi de la mise à jour au serveur...');
 
       if (isClientMode) {
         // Utiliser l'API client
-        await updateClientDevisStatus(
-          token,
-          id,
-          {
-            devis: false,
-            clientSignature: signatureDataURL,
-          },
-          pdfBlob,
-        );
+        await updateClientDevisStatus(token, id, {
+          devis: false,
+          clientSignature: signatureDataURL,
+        });
       } else {
         // Utiliser l'API standard
-        await updatePurchaseOrderStatus(
-          token,
-          parseInt(id),
-          {
-            devis: false,
-            clientSignature: signatureDataURL,
-          },
-          pdfBlob,
-        );
+        await updatePurchaseOrderStatus(token, parseInt(id), {
+          devis: false,
+          clientSignature: signatureDataURL,
+        });
         toast.success('Bon de commande validé avec signature');
       }
 
@@ -321,15 +251,7 @@ const PurchaseOrderSignature: React.FC<PurchaseOrderSignatureProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [
-    token,
-    order,
-    id,
-    generatePDF,
-    navigate,
-    isClientMode,
-    onSignatureSuccess,
-  ]);
+  }, [token, order, id, navigate, isClientMode, onSignatureSuccess]);
 
   if (loading) {
     return (
