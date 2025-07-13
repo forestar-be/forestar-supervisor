@@ -24,7 +24,6 @@ import {
   IconButton,
   ImageList,
   ImageListItem,
-  Tooltip,
   SxProps,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -43,7 +42,6 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { styled } from '@mui/material/styles';
-import { PurchaseOrderPdfDocument } from '../components/PurchaseOrderPdf';
 import { pdf } from '@react-pdf/renderer';
 import { notifyLoading } from '../utils/notifications';
 import PDFMerger from 'pdf-merger-js/browser';
@@ -67,10 +65,8 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
-import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import ConfirmDialog from '../components/dialogs/ConfirmDialog';
-import { blobToBase64 } from '../utils/purchaseOrderUtils';
 
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
@@ -504,43 +500,6 @@ const PurchaseOrderForm: React.FC = () => {
     setConvertDialogOpen(false);
   };
 
-  // Merge PDFs if invoice is available
-  const mergePDFs = async (orderPdfBlob: Blob): Promise<Blob> => {
-    // Use the selected invoice if available, otherwise use the existing invoice blob if not marked for deletion
-    const invoiceToMerge = selectedInvoice
-      ? selectedInvoice
-      : !deleteInvoice && existingInvoiceBlob
-        ? existingInvoiceBlob
-        : null;
-
-    if (!invoiceToMerge) {
-      return orderPdfBlob;
-    }
-
-    try {
-      const merger = new PDFMerger();
-
-      // Add the order PDF
-      await merger.add(orderPdfBlob);
-
-      // Add the invoice PDF
-      await merger.add(invoiceToMerge);
-
-      // Set metadata if needed
-      await merger.setMetadata({
-        producer: 'FORESTAR Purchase Order System',
-      });
-
-      // Get the merged PDF as a blob
-      const mergedPdf = await merger.saveAsBlob();
-      return mergedPdf;
-    } catch (error) {
-      console.error('Error merging PDFs:', error);
-      // If merging fails, return the original order PDF
-      return orderPdfBlob;
-    }
-  };
-
   // Helper function to show error dialog
   const showErrorDialog = useCallback(
     (
@@ -703,121 +662,6 @@ const PurchaseOrderForm: React.FC = () => {
     try {
       setSaving(true);
 
-      // Collect all photo data for the PDF generation as base64 strings
-      const photoUrls: string[] = [];
-
-      // Convert existing photos to base64 if editing
-      if (isEditing && purchaseOrder?.photosPaths) {
-        for (const photoPath of purchaseOrder.photosPaths) {
-          if (!photosToDelete.includes(photoPath) && photoBlobs[photoPath]) {
-            try {
-              let processedBlob = photoBlobs[photoPath];
-
-              // Convert webp to jpeg if needed
-              const isWebP =
-                photoPath.toLowerCase().endsWith('.webp') ||
-                processedBlob.type === 'image/webp';
-
-              if (isWebP) {
-                processedBlob = await convertWebpToJpeg(processedBlob);
-              }
-
-              // Convert blob to base64
-              const base64String = await blobToBase64(processedBlob);
-              photoUrls.push(base64String);
-            } catch (err) {
-              console.error('Error converting blob to base64:', err);
-            }
-          }
-        }
-      }
-
-      // Convert newly selected photos to base64
-      for (const photo of selectedPhotos) {
-        try {
-          let processedPhoto = photo;
-
-          // Convert webp to jpeg if needed
-          const isWebP =
-            photo.name.toLowerCase().endsWith('.webp') ||
-            photo.type === 'image/webp';
-
-          if (isWebP) {
-            processedPhoto = (await convertWebpToJpeg(photo)) as File;
-          }
-
-          const base64String = await blobToBase64(processedPhoto);
-          photoUrls.push(base64String);
-        } catch (err) {
-          console.error('Error converting file to base64:', err);
-        }
-      }
-
-      // Create updated order data (used for both new and edit cases)
-      const updatedOrder: PurchaseOrder = {
-        id: isEditing && id ? parseInt(id) : 0,
-        createdAt: purchaseOrder?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        clientFirstName: formData.clientFirstName,
-        clientLastName: formData.clientLastName,
-        clientAddress: formData.clientAddress,
-        clientCity: formData.clientCity,
-        clientPhone: formData.clientPhone,
-        clientEmail: formData.clientEmail,
-        deposit: formData.deposit,
-        robotInventoryId: formData.robotInventoryId,
-        pluginInventoryId: formData.pluginInventoryId,
-        antennaInventoryId: formData.antennaInventoryId,
-        shelterInventoryId: formData.shelterInventoryId,
-        hasWire: formData.hasWire,
-        wireLength: formData.wireLength || null,
-        hasAntennaSupport: formData.hasAntennaSupport,
-        hasPlacement: formData.hasPlacement,
-        installationDate: formData.installationDate || null,
-        needsInstaller: formData.needsInstaller,
-        installationNotes: formData.installationNotes || null,
-        hasAppointment:
-          formData.hasAppointment ?? purchaseOrder?.hasAppointment ?? false,
-        isInstalled:
-          formData.isInstalled ?? purchaseOrder?.isInstalled ?? false,
-        isInvoiced: formData.isInvoiced ?? purchaseOrder?.isInvoiced ?? false,
-        devis: formData.devis ?? purchaseOrder?.devis ?? false,
-        serialNumber: !formData.devis
-          ? formData.serialNumber || purchaseOrder?.serialNumber || ''
-          : '',
-        validUntil: formData.validUntil || null,
-        bankAccountNumber: formData.bankAccountNumber || null,
-        orderPdfId: purchaseOrder?.orderPdfId || null,
-        robotInventory: robots.find((r) => r.id === formData.robotInventoryId),
-        plugin: formData.pluginInventoryId
-          ? plugins.find((p) => p.id === formData.pluginInventoryId)
-          : undefined,
-        antenna: formData.antennaInventoryId
-          ? antennas.find((a) => a.id === formData.antennaInventoryId)
-          : undefined,
-        shelter: formData.shelterInventoryId
-          ? shelters.find((s) => s.id === formData.shelterInventoryId)
-          : undefined,
-        deleteInvoice: deleteInvoice,
-        clientSignature: purchaseOrder?.clientSignature || null,
-        signatureTimestamp: purchaseOrder?.signatureTimestamp || null,
-        // Add photos paths for the PDF generation
-        photosPaths: isEditing
-          ? purchaseOrder?.photosPaths?.filter(
-              (path) => !photosToDelete.includes(path),
-            ) || []
-          : [],
-      };
-
-      // Generate PDF with updated data and photos
-      const pdfBlob = await pdf(
-        <PurchaseOrderPdfDocument
-          purchaseOrder={updatedOrder}
-          installationTexts={texts}
-          photoDataUrls={photoUrls}
-        />,
-      ).toBlob();
-
       // Prepare form data for API request
       const formDataForApi = new FormData();
 
@@ -836,10 +680,6 @@ const PurchaseOrderForm: React.FC = () => {
         'orderData',
         JSON.stringify(orderDataWithFileOptions),
       );
-
-      // Add the merged PDF
-      const finalPdfBlob = await mergePDFs(pdfBlob);
-      formDataForApi.append('pdf', finalPdfBlob, 'order.pdf');
 
       // Add the separate invoice if one is selected
       if (selectedInvoice) {
