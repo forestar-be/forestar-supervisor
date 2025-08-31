@@ -26,7 +26,8 @@ export interface User {
     | 'ADMIN'
     | 'RENTAL_MANAGER'
     | 'RENTAL_OPERATOR'
-    | 'INSTALLER';
+    | 'INSTALLER'
+    | 'FACTURATION';
 }
 
 const EditUser = () => {
@@ -43,6 +44,7 @@ const EditUser = () => {
     | 'RENTAL_MANAGER'
     | 'RENTAL_OPERATOR'
     | 'INSTALLER'
+    | 'FACTURATION'
     | null
   >(null);
   const theme = useTheme();
@@ -139,6 +141,10 @@ const EditUser = () => {
 
         if (params.value === 'RENTAL_OPERATOR') {
           return 'Opérateur de location';
+        }
+
+        if (params.value === 'FACTURATION') {
+          return 'Facturation';
         }
 
         if (params.value === 'INSTALLER') {
@@ -238,7 +244,8 @@ const EditUser = () => {
                     | 'ADMIN'
                     | 'RENTAL_MANAGER'
                     | 'RENTAL_OPERATOR'
-                    | 'INSTALLER',
+                    | 'INSTALLER'
+                    | 'FACTURATION',
                 )
               }
             >
@@ -250,6 +257,7 @@ const EditUser = () => {
               <MenuItem value="RENTAL_OPERATOR">Opérateur de location</MenuItem>
               <MenuItem value="INSTALLER">Installateur</MenuItem>
               <MenuItem value="ADMIN">Admin</MenuItem>
+              <MenuItem value="FACTURATION">Facturation</MenuItem>
             </TextField>
           </DialogContent>
           <DialogActions>
