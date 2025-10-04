@@ -23,6 +23,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import BuildIcon from '@mui/icons-material/Build';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
@@ -160,6 +161,21 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
               </Button>
               <Button
                 component="a"
+                href={`/ouvrier`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/ouvrier`);
+                }}
+                aria-label="Ouvrier"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<BuildIcon fontSize="medium" />}
+                variant="contained"
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Ouvrier</Box>}
+              </Button>
+              <Button
+                component="a"
                 href={`/appels`}
                 onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                   e.preventDefault();
@@ -171,7 +187,7 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                 variant="contained"
                 sx={buttonSx}
               >
-                {showTextInButton && <Box>Gestion des appels</Box>}
+                {showTextInButton && <Box>Appels</Box>}
               </Button>
               <Button
                 component="a"
@@ -186,7 +202,7 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                 variant="contained"
                 sx={buttonSx}
               >
-                {showTextInButton && <Box>Inventaire robots</Box>}
+                {showTextInButton && <Box>Inventaire</Box>}
               </Button>
               <Button
                 component="a"

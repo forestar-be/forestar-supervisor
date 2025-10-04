@@ -1,59 +1,209 @@
 import { Box, styled } from '@mui/material';
 
-// Styled component for the AG Grid with primary color headers
+// Styled component for the AG Grid with modern design
 export const StyledAgGridWrapper = styled(Box)(({ theme }) => ({
   height: '100%',
   width: '100%',
+  borderRadius: '8px',
+
+  // Modern root styling
+  '& .ag-root-wrapper': {
+    borderRadius: '8px',
+    border:
+      theme.palette.mode === 'dark'
+        ? '1px solid rgba(255, 255, 255, 0.1)'
+        : '1px solid rgba(0, 0, 0, 0.08)',
+  },
+
+  // Header with gradient and glassmorphism effect
+  '& .ag-header': {
+    background:
+      theme.palette.mode === 'dark'
+        ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
+        : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`,
+    borderBottom:
+      theme.palette.mode === 'dark'
+        ? '2px solid rgba(255, 255, 255, 0.15)'
+        : '2px solid rgba(0, 0, 0, 0.1)',
+    backdropFilter: 'blur(10px)',
+    fontWeight: 600,
+    fontSize: '0.9rem',
+  },
+
   '& .ag-header-viewport': {
-    backgroundColor: theme.palette.primary.main,
+    background: 'transparent',
   },
+
   '& .ag-header-cell': {
-    backgroundColor: theme.palette.primary.main,
+    backgroundColor: 'transparent',
     color: theme.palette.primary.contrastText,
+    fontWeight: 600,
+    fontSize: '0.875rem',
+    padding: '12px 16px',
+    transition: 'all 0.2s ease',
+    borderRight:
+      theme.palette.mode === 'dark'
+        ? '1px solid rgba(255, 255, 255, 0.08)'
+        : '1px solid rgba(255, 255, 255, 0.2)',
+
+    '&:hover': {
+      backgroundColor:
+        theme.palette.mode === 'dark'
+          ? 'rgba(255, 255, 255, 0.08) !important'
+          : 'rgba(255, 255, 255, 0.15) !important',
+    },
   },
-  '& .ag-header-cell:hover': {
-    backgroundColor: `${theme.palette.primary.main} !important`,
+
+  '& .ag-header-cell .ag-cell-label-container': {
+    padding: 0,
   },
+
+  '& .ag-header-cell-label': {
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+  },
+
+  // Icons in header
   '& .ag-header-cell-menu-button, & .ag-header-icon': {
     color: theme.palette.primary.contrastText,
+    opacity: 0.9,
+    transition: 'opacity 0.2s ease',
+
+    '&:hover': {
+      opacity: 1,
+    },
   },
-  // Specifically target filter and sort icons
+
   '& .ag-header-cell-label .ag-icon': {
     color: `${theme.palette.primary.contrastText} !important`,
   },
+
   '& .ag-header-icon.ag-header-cell-menu-button .ag-icon': {
     color: `${theme.palette.primary.contrastText} !important`,
   },
+
   '& .ag-header-cell .ag-icon-filter': {
     color: `${theme.palette.primary.contrastText} !important`,
   },
+
   '& .ag-header-cell .ag-icon-menu': {
     color: `${theme.palette.primary.contrastText} !important`,
   },
+
   '& .ag-header-cell .ag-icon-asc, & .ag-header-cell .ag-icon-desc, & .ag-header-cell .ag-icon-none':
     {
       color: `${theme.palette.primary.contrastText} !important`,
     },
+
+  // Column resize handle
   '& .ag-header-cell-resize::after': {
     backgroundColor: theme.palette.primary.contrastText,
-    opacity: 0.3,
+    opacity: 0.4,
+    width: '2px',
   },
-  // Handle active/pressed state
+
+  // Active/focused header cells
   '& .ag-header-cell:active, & .ag-header-cell:focus': {
-    backgroundColor: `${theme.palette.primary.main} !important`,
+    backgroundColor: 'rgba(255, 255, 255, 0.1) !important',
   },
-  // Ensure sort icons keep the correct color when active
+
   '& .ag-header-cell.ag-header-active .ag-header-icon': {
     color: `${theme.palette.primary.contrastText} !important`,
   },
-  // Make sure the column menu popup also uses consistent colors for icons
+
   '& .ag-header-column-menu .ag-icon': {
     color: `${theme.palette.primary.contrastText} !important`,
   },
+
+  // Modern row styling with hover effects
+  '& .ag-row': {
+    borderBottom:
+      theme.palette.mode === 'dark'
+        ? '1px solid rgba(255, 255, 255, 0.05)'
+        : '1px solid rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.2s ease',
+
+    '&:hover': {
+      backgroundColor:
+        theme.palette.mode === 'dark'
+          ? 'rgba(255, 255, 255, 0.03)'
+          : 'rgba(0, 0, 0, 0.02)',
+      transform: 'translateX(2px)',
+      boxShadow:
+        theme.palette.mode === 'dark'
+          ? '0 2px 8px rgba(0, 0, 0, 0.3)'
+          : '0 2px 8px rgba(0, 0, 0, 0.08)',
+    },
+  },
+
+  // Alternate row colors for better readability
+  '& .ag-row-even': {
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? 'rgba(255, 255, 255, 0.02)'
+        : 'rgba(0, 0, 0, 0.01)',
+  },
+
+  // Cell styling
+  '& .ag-cell': {
+    padding: '12px 16px',
+    fontSize: '0.875rem',
+    lineHeight: 1.5,
+    display: 'flex',
+    alignItems: 'center',
+    borderRight:
+      theme.palette.mode === 'dark'
+        ? '1px solid rgba(255, 255, 255, 0.03)'
+        : '1px solid rgba(0, 0, 0, 0.03)',
+  },
+
+  // Selected rows with modern highlight
+  '& .ag-row-selected': {
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? 'rgba(6, 182, 212, 0.15) !important'
+        : 'rgba(14, 165, 233, 0.1) !important',
+    borderLeft: `3px solid ${theme.palette.primary.main}`,
+
+    '&:hover': {
+      backgroundColor:
+        theme.palette.mode === 'dark'
+          ? 'rgba(6, 182, 212, 0.2) !important'
+          : 'rgba(14, 165, 233, 0.15) !important',
+    },
+  },
+
+  // Editing cell with modern focus ring
+  '& .ag-cell-inline-editing': {
+    boxShadow: `0 0 0 2px ${theme.palette.primary.main}`,
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? 'rgba(255, 255, 255, 0.05)'
+        : 'rgba(255, 255, 255, 0.8)',
+    borderRadius: '4px',
+  },
+
+  // Remove outline from cells with focus (checkboxes)
+  '& .ag-cell.no-focus-outline:focus': {
+    outline: 'none',
+  },
+
+  // Modern pagination styling
   '& .ag-paging-panel': {
     height: 'auto',
     minHeight: '40px',
-    padding: '0 12px',
+    padding: '4px 12px',
+    borderTop:
+      theme.palette.mode === 'dark'
+        ? '1px solid rgba(255, 255, 255, 0.1)'
+        : '1px solid rgba(0, 0, 0, 0.08)',
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? 'rgba(255, 255, 255, 0.02)'
+        : 'rgba(0, 0, 0, 0.01)',
+    fontWeight: 500,
+    fontSize: '0.875rem',
+
     [theme.breakpoints.down('sm')]: {
       '& .ag-picker-field .ag-label': {
         display: 'none',
@@ -63,16 +213,96 @@ export const StyledAgGridWrapper = styled(Box)(({ theme }) => ({
       },
     },
   },
-  // Highlight the selected rows
-  '& .ag-row-selected': {
-    backgroundColor: theme.palette.action.selected,
+
+  // Pagination buttons
+  '& .ag-paging-button': {
+    borderRadius: '6px',
+    transition: 'all 0.2s ease',
+
+    '&:hover': {
+      backgroundColor:
+        theme.palette.mode === 'dark'
+          ? 'rgba(255, 255, 255, 0.08)'
+          : 'rgba(0, 0, 0, 0.05)',
+    },
   },
-  // Add box shadow for cells that are being edited
-  '& .ag-cell-inline-editing': {
-    boxShadow: `0 0 0 2px ${theme.palette.primary.main}`,
+
+  // Page size selector
+  '& .ag-picker-field-wrapper': {
+    borderRadius: '6px',
+    border:
+      theme.palette.mode === 'dark'
+        ? '1px solid rgba(255, 255, 255, 0.1)'
+        : '1px solid rgba(0, 0, 0, 0.12)',
+    transition: 'all 0.2s ease',
+
+    '&:hover': {
+      borderColor: theme.palette.primary.main,
+    },
   },
-  // Remove outline from cells with focus (checkboxes)
-  '& .ag-cell.no-focus-outline:focus': {
-    outline: 'none',
+
+  // Loading overlay
+  '& .ag-overlay-loading-wrapper': {
+    backdropFilter: 'blur(4px)',
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? 'rgba(0, 0, 0, 0.5)'
+        : 'rgba(255, 255, 255, 0.7)',
+  },
+
+  // Filter icons and menus
+  '& .ag-filter-icon': {
+    color: theme.palette.primary.main,
+  },
+
+  // Filter active indicator (the small circle/dot when filter is active)
+  '& .ag-header-cell-filter-button::after': {
+    backgroundColor: theme.palette.mode === 'dark'
+      ? '#FCD34D' // Amber/yellow for dark mode
+      : '#F59E0B', // Orange for light mode
+    color: theme.palette.mode === 'dark'
+      ? '#FCD34D'
+      : '#F59E0B',
+  },
+
+  '& .ag-header-icon.ag-header-cell-filter-button::after': {
+    backgroundColor: theme.palette.mode === 'dark'
+      ? '#FCD34D'
+      : '#F59E0B',
+  },
+
+  // Scrollbars
+  '& .ag-body-horizontal-scroll': {
+    '&::-webkit-scrollbar': {
+      height: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: theme.palette.mode === 'dark' ? '#555' : '#ccc',
+      borderRadius: '4px',
+
+      '&:hover': {
+        background: theme.palette.mode === 'dark' ? '#666' : '#999',
+      },
+    },
+  },
+
+  '& .ag-body-vertical-scroll': {
+    '&::-webkit-scrollbar': {
+      width: '8px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: theme.palette.mode === 'dark' ? '#555' : '#ccc',
+      borderRadius: '4px',
+
+      '&:hover': {
+        background: theme.palette.mode === 'dark' ? '#666' : '#999',
+      },
+    },
   },
 }));

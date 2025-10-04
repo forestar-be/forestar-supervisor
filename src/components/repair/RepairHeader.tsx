@@ -75,7 +75,7 @@ export const RepairHeader = (props: RepairHeaderProps) => (
           {props.disabled ? (
             <CircularProgress size={24} color="inherit" />
           ) : (
-            'Sauvegarder dans le Google Drive'
+            'Sauvegarder Google Drive'
           )}
         </Button>
       </Tooltip>
@@ -91,7 +91,7 @@ export const RepairHeader = (props: RepairHeaderProps) => (
           {props.disabled1 ? (
             <CircularProgress size={24} color="inherit" />
           ) : (
-            'Envoyer par email au client'
+            'Envoyer au client'
           )}
         </Button>
       </Tooltip>{' '}
@@ -166,7 +166,7 @@ export const RepairHeader = (props: RepairHeaderProps) => (
             {props.loadingCall ? (
               <CircularProgress size={24} color="inherit" />
             ) : (
-              'Appel client effectué'
+              'Appel client'
             )}
           </Button>
         </Tooltip>
