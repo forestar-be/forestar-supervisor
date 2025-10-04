@@ -23,6 +23,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import BuildIcon from '@mui/icons-material/Build';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
@@ -232,6 +233,21 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                 sx={buttonSx}
               >
                 {showTextInButton && <Box>Calendrier</Box>}
+              </Button>
+              <Button
+                component="a"
+                href={`/vue-ouvrier`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/vue-ouvrier`);
+                }}
+                aria-label="Vue Ouvrier"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<BuildIcon fontSize="medium" />}
+                variant="contained"
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Vue Ouvrier</Box>}
               </Button>
               <IconButton
                 component="a"
