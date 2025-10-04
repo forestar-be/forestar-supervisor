@@ -23,6 +23,7 @@ import PurchaseOrderForm from './pages/PurchaseOrderForm';
 import PurchaseOrderSignature from './pages/PurchaseOrderSignature';
 import ClientDevisSignature from './pages/ClientDevisSignature';
 import DailyCalendar from './pages/DailyCalendar';
+import RepairerWorkView from './pages/RepairerWorkView';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
 import { fetchInventorySummaryAsync } from './store/robotInventorySlice';
@@ -172,6 +173,7 @@ const App = (): JSX.Element => {
                           element={<PurchaseOrderSignature />}
                         />
                         <Route path="calendrier" element={<DailyCalendar />} />
+                        <Route path="ouvrier" element={<RepairerWorkView />} />
                       </Route>
                     </Route>
                     <Route path="*" element={<NotFoundPage />} />
