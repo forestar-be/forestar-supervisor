@@ -1,3 +1,7 @@
 .ag-row-last {
   border-bottom: unset!important;
 }
+
+.full-width-cell .ag-cell-wrapper {
+  width: 100% !important;
+}
