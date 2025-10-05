@@ -54,6 +54,10 @@ export const StyledAgGridWrapper = styled(Box)(({ theme }) => ({
     },
   },
 
+  '& .ag-header-cell .ag-cell-label-container': {
+    padding: 0,
+  },
+
   '& .ag-header-cell-label': {
     fontWeight: 600,
     letterSpacing: '0.02em',
@@ -249,6 +253,22 @@ export const StyledAgGridWrapper = styled(Box)(({ theme }) => ({
   // Filter icons and menus
   '& .ag-filter-icon': {
     color: theme.palette.primary.main,
+  },
+
+  // Filter active indicator (the small circle/dot when filter is active)
+  '& .ag-header-cell-filter-button::after': {
+    backgroundColor: theme.palette.mode === 'dark'
+      ? '#FCD34D' // Amber/yellow for dark mode
+      : '#F59E0B', // Orange for light mode
+    color: theme.palette.mode === 'dark'
+      ? '#FCD34D'
+      : '#F59E0B',
+  },
+
+  '& .ag-header-icon.ag-header-cell-filter-button::after': {
+    backgroundColor: theme.palette.mode === 'dark'
+      ? '#FCD34D'
+      : '#F59E0B',
   },
 
   // Scrollbars
