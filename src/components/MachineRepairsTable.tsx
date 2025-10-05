@@ -12,10 +12,11 @@ import {
   useMediaQuery,
   Select,
   MenuItem,
+  SelectChangeEvent,
 } from '@mui/material';
 import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
-import type { ColDef, ICellEditorParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
@@ -44,62 +45,6 @@ const rowHeight = 40;
 
 // Grid state key for machine repairs
 const MACHINE_REPAIRS_GRID_STATE_KEY = 'machineRepairsAgGridState';
-
-// Interface for custom cell editor params
-interface RepairerSelectEditorParams extends ICellEditorParams {
-  values: string[];
-}
-
-// Custom Cell Editor using MUI Select
-const RepairerSelectEditor = React.forwardRef(
-  (props: RepairerSelectEditorParams, ref) => {
-    const [value, setValue] = React.useState(props.value || 'Non affecté');
-    const refInput = React.useRef<HTMLInputElement>(null);
-
-    React.useImperativeHandle(ref, () => ({
-      getValue: () => (value === 'Non affecté' ? null : value),
-      afterGuiAttached: () => {
-        // Focus the select when it opens
-        if (refInput.current) {
-          refInput.current.focus();
-        }
-      },
-    }));
-
-    const handleChange = (event: any) => {
-      setValue(event.target.value);
-      // Stop editing after selection
-      props.stopEditing();
-    };
-
-    return (
-      <Select
-        ref={refInput}
-        value={value}
-        onChange={handleChange}
-        size="small"
-        autoFocus
-        open={true}
-        onClose={() => props.stopEditing()}
-        sx={{
-          width: '100%',
-          height: '100%',
-          '& .MuiOutlinedInput-notchedOutline': {
-            border: 'none',
-          },
-        }}
-      >
-        {(props.values as string[]).map((option: string) => (
-          <MenuItem key={option} value={option}>
-            {option}
-          </MenuItem>
-        ))}
-      </Select>
-    );
-  },
-);
-
-RepairerSelectEditor.displayName = 'RepairerSelectEditor';
 
 const MachineRepairsTable: React.FC = () => {
   const auth = useAuth();
@@ -367,28 +312,60 @@ const MachineRepairsTable: React.FC = () => {
       field: 'repairer_name' as keyof MachineRepair,
       sortable: true,
       filter: true,
-      editable: true,
-      cellEditor: RepairerSelectEditor,
-      cellEditorParams: {
-        values: ['Non affecté', ...repairerNames],
-      },
-      valueFormatter: (params: any) => params.value || 'Non affecté',
       hide: isTablet,
-      cellEditorPopup: false,
-      onCellValueChanged: async (event: any) => {
-        const newValue =
-          event.newValue === 'Non affecté' ? null : event.newValue;
-        try {
-          await updateRepair(auth.token, event.data.id.toString(), {
-            repairer_name: newValue,
-          });
-          toast.success('Réparateur mis à jour avec succès');
-        } catch (error) {
-          console.error('Error updating repairer:', error);
-          toast.error('Erreur lors de la mise à jour du réparateur');
-          // Revert the change in the grid
-          event.node.setDataValue('repairer_name', event.oldValue);
-        }
+      cellClass: 'full-width-cell',
+      cellRenderer: (params: any) => {
+        const handleRepairerChange = async (
+          event: SelectChangeEvent<string>,
+        ) => {
+          const newValue =
+            event.target.value === 'Non affecté' ? null : event.target.value;
+          const oldValue = params.value ?? null;
+
+          // Only proceed if the value actually changed
+          if (newValue === oldValue) {
+            return;
+          }
+
+          // Optimistic update
+          params.node.setDataValue('repairer_name', newValue);
+
+          try {
+            await updateRepair(auth.token, params.data.id.toString(), {
+              repairer_name: newValue,
+            });
+            toast.success('Réparateur mis à jour avec succès');
+          } catch (error) {
+            console.error('Error updating repairer:', error);
+            toast.error('Erreur lors de la mise à jour du réparateur');
+            // Revert the change in the grid
+            params.node.setDataValue('repairer_name', oldValue);
+          }
+        };
+
+        return (
+          <Select
+            value={params.value || 'Non affecté'}
+            onChange={handleRepairerChange}
+            size="small"
+            // variant="standard"
+            sx={{
+              width: '100%',
+              fontSize: 'inherit',
+              fontFamily: 'inherit',
+              '& .MuiSelect-select': {
+                py: 0.5,
+              },
+            }}
+          >
+            <MenuItem value="Non affecté">Non affecté</MenuItem>
+            {repairerNames.map((name) => (
+              <MenuItem key={name} value={name}>
+                {name}
+              </MenuItem>
+            ))}
+          </Select>
+        );
       },
     },
     {
@@ -501,6 +478,8 @@ const MachineRepairsTable: React.FC = () => {
         }`}
       >
         <AgGridReact
+          enableCellTextSelection
+          suppressCellFocus
           rowHeight={rowHeight}
           ref={gridRef}
           rowData={machineRepairs}
