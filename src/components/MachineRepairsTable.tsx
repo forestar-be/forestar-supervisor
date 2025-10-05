@@ -308,18 +308,18 @@ const MachineRepairsTable: React.FC = () => {
     },
     {
       headerName: 'Type de machine',
-      field: 'machine_type_name' as keyof MachineRepair,
       sortable: true,
       filter: true,
       hide: isSmallScreen,
-    },
-    {
-      headerName: 'Type de robot',
-      field: 'robot_type_name' as keyof MachineRepair,
-      sortable: true,
-      filter: true,
-      valueFormatter: (params: any) => params.value || '-',
-      hide: isSmallScreen,
+      valueGetter: (params: any) => {
+        const machineType = params.data.machine_type_name || '';
+        const robotType = params.data.robot_type_name;
+
+        if (robotType) {
+          return `${robotType} (${machineType})`;
+        }
+        return machineType || '-';
+      },
     },
     {
       headerName: 'Réparateur',
