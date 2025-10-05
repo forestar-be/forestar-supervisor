@@ -5,7 +5,6 @@ import 'ag-grid-community/styles/ag-theme-quartz.css';
 import {
   Box,
   Button,
-  IconButton,
   Paper,
   TextField,
   Tooltip,
@@ -16,7 +15,6 @@ import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
 import type { ColDef } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
@@ -219,48 +217,31 @@ const MachineRepairsTable: React.FC = () => {
 
   const columns: ColDef<MachineRepair>[] = [
     {
-      headerName: '',
-      field: 'id',
-      cellRenderer: (params: { value: number }) => (
-        <>
-          <Tooltip title="Ouvrir" arrow>
-            <IconButton
-              color="primary"
-              component="a"
-              href={`/reparation/${params.value}`}
-              rel="noopener noreferrer"
-              onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                e.preventDefault();
-                navigate(`/reparation/${params.value}`);
-              }}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Ouvrir dans un nouvel onglet" arrow>
-            <IconButton
-              color="primary"
-              component="a"
-              href={`/reparation/${params.value}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <OpenInNewIcon />
-            </IconButton>
-          </Tooltip>
-        </>
-      ),
-      minWidth: 120,
-      maxWidth: 120,
-    },
-    {
       headerName: 'N°',
       field: 'id' as keyof MachineRepair,
       sortable: true,
       filter: false,
-      minWidth: 70,
-      maxWidth: 70,
-      hide: isMobile,
+      minWidth: 75,
+      maxWidth: 75,
+      cellStyle: {
+        paddingLeft: '4px',
+        paddingRight: '4px',
+      },
+      // hide: isMobile,
+      cellRenderer: (params: { value: number }) => (
+        <Button
+          component="a"
+          href={`/reparation/${params.value}`}
+          rel="noopener noreferrer"
+          startIcon={<VisibilityIcon />}
+          onClick={(e: React.MouseEvent) => {
+            e.preventDefault();
+            navigate(`/reparation/${params.value}`);
+          }}
+        >
+          {params.value}
+        </Button>
+      ),
     },
     {
       headerName: 'État',
