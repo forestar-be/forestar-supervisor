@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
@@ -40,6 +40,7 @@ import {
   loadGridPageSize,
 } from '../utils/agGridSettingsHelper';
 import { StyledAgGridWrapper } from './styles/AgGridStyles';
+import MultiSelectDropdown from './MultiSelectDropdown';
 
 const rowHeight = 40;
 
@@ -54,6 +55,8 @@ const MachineRepairsTable: React.FC = () => {
   const [machineRepairs, setMachineRepairs] = useState<MachineRepair[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
+  const [selectedStates, setSelectedStates] = useState<string[]>([]);
+  const [selectedRepairers, setSelectedRepairers] = useState<string[]>([]);
   const [paginationPageSize, setPaginationPageSize] = useState(() =>
     loadGridPageSize(MACHINE_REPAIRS_GRID_STATE_KEY, 20),
   );
@@ -100,6 +103,16 @@ const MachineRepairsTable: React.FC = () => {
     }
   }, [config]);
 
+  // Extraire les états disponibles depuis colorByState
+  const availableStates = useMemo(() => {
+    return Object.keys(colorByState);
+  }, [colorByState]);
+
+  // Liste des réparateurs avec option "Non affecté"
+  const availableRepairers = useMemo(() => {
+    return ['Non affecté', ...repairerNames];
+  }, [repairerNames]);
+
   // Handle opening Google Drive folder
   const handleOpenGoogleDrive = useCallback(() => {
     if (config && config['URL drive réparations/entretiens']) {
@@ -110,35 +123,60 @@ const MachineRepairsTable: React.FC = () => {
   }, [config]);
 
   const isExternalFilterPresent = useCallback((): boolean => {
-    return Boolean(customerFilterText);
-  }, [customerFilterText]);
+    return Boolean(
+      customerFilterText ||
+        selectedStates.length > 0 ||
+        selectedRepairers.length > 0,
+    );
+  }, [customerFilterText, selectedStates, selectedRepairers]);
 
   const doesExternalFilterPass = useCallback(
     (node: IRowNode<MachineRepair>): boolean => {
       if (node.data) {
-        const { first_name, last_name, phone } = node.data;
-        const fullName = `${first_name || ''} ${last_name || ''}`.trim();
-        const customerSearchWords = customerFilterText
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .split(' ');
-        const normalizeString = (str: string) =>
-          str
+        const { first_name, last_name, phone, state, repairer_name } =
+          node.data;
+
+        // Filtre par état
+        if (selectedStates.length > 0) {
+          const currentState = state || 'Non commencé';
+          if (!selectedStates.includes(currentState)) {
+            return false;
+          }
+        }
+
+        // Filtre par réparateur
+        if (selectedRepairers.length > 0) {
+          const currentRepairer = repairer_name || 'Non affecté';
+          if (!selectedRepairers.includes(currentRepairer)) {
+            return false;
+          }
+        }
+
+        // Filtre par client/téléphone
+        if (customerFilterText) {
+          const fullName = `${first_name || ''} ${last_name || ''}`.trim();
+          const customerSearchWords = customerFilterText
             .toLowerCase()
             .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '');
+            .replace(/[\u0300-\u036f]/g, '')
+            .split(' ');
+          const normalizeString = (str: string) =>
+            str
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '');
 
-        // Check if any of the search words match either the full name or the phone number
-        return customerSearchWords.every(
-          (word) =>
-            normalizeString(fullName).includes(word) ||
-            (phone && normalizeString(phone).includes(word)),
-        );
+          // Check if any of the search words match either the full name or the phone number
+          return customerSearchWords.every(
+            (word) =>
+              normalizeString(fullName).includes(word) ||
+              (phone && normalizeString(phone).includes(word)),
+          );
+        }
       }
       return true;
     },
-    [customerFilterText],
+    [customerFilterText, selectedStates, selectedRepairers],
   );
 
   useEffect(() => {
@@ -291,6 +329,7 @@ const MachineRepairsTable: React.FC = () => {
       sortable: true,
       filter: true,
       width: 120,
+      hide: isTablet,
     },
     {
       headerName: 'Type de machine',
@@ -403,74 +442,286 @@ const MachineRepairsTable: React.FC = () => {
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box
-        sx={{
-          pt: 1.5,
-          pb: 1,
-          pl: 2,
-          pr: 2,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 1,
-        }}
-      >
-        <Typography variant="h5" component="h1" sx={{ mb: { xs: 1, md: 0 } }}>
-          Réparations/Entretiens
-        </Typography>
+      {isMobile || isTablet ? (
+        // Layout mobile/tablet: 3 lignes
         <Box
           sx={{
+            pt: 1.5,
+            pb: 1,
+            pl: 2,
+            pr: 2,
             display: 'flex',
+            flexDirection: 'column',
             gap: 1,
-            flexWrap: 'wrap',
-            width: { xs: '100%', md: 'auto' },
           }}
         >
-          <Tooltip title="Réinitialiser le tableau" arrow>
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<RestartAltIcon />}
-              onClick={handleResetGrid}
-              size="small"
-              sx={buttonSx}
-            >
-              {showTextInButton && <Box>Réinitialiser</Box>}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Ouvrir le dossier Google Drive" arrow>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<FolderOpenIcon />}
-              onClick={handleOpenGoogleDrive}
-              sx={buttonSx}
-            >
-              {showTextInButton && <Box>Google Drive</Box>}
-            </Button>
-          </Tooltip>
-          <TextField
-            id="search-client"
-            label="Rechercher un client ou téléphone"
-            variant="outlined"
-            size="small"
+          {/* Ligne 1: Titre + boutons */}
+          <Box
             sx={{
-              flex: { xs: 1, md: 'none' },
-              minWidth: { xs: 100, sm: 200, md: 450 },
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 1,
             }}
-            value={customerFilterText}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setCustomerFilterText(e.target.value)
-            }
-            slotProps={{
-              input: {
-                endAdornment: <SearchIcon />,
-              },
-            }}
-          />
+          >
+            <Typography variant="h5" component="h1" sx={{ flexShrink: 0 }}>
+              Réparations/Entretiens
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+              <Tooltip title="Réinitialiser le tableau" arrow>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={handleResetGrid}
+                  size="small"
+                  sx={{ minWidth: 'unset', px: 1 }}
+                >
+                  <RestartAltIcon />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Ouvrir le dossier Google Drive" arrow>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<FolderOpenIcon />}
+                  onClick={handleOpenGoogleDrive}
+                  sx={buttonSx}
+                >
+                  {showTextInButton && <Box>Google Drive</Box>}
+                </Button>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          {/* Ligne 2: Selects */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <MultiSelectDropdown
+                label="États"
+                options={availableStates}
+                selectedValues={selectedStates}
+                onChange={setSelectedStates}
+                placeholder="Tous les états"
+                minWidth={0}
+                maxWidth="100%"
+              />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <MultiSelectDropdown
+                label="Réparateurs"
+                options={availableRepairers}
+                selectedValues={selectedRepairers}
+                onChange={setSelectedRepairers}
+                placeholder="Tous les réparateurs"
+                minWidth={0}
+                maxWidth="100%"
+              />
+            </Box>
+          </Box>
+
+          {/* Ligne 3: Recherche */}
+          <Box>
+            <TextField
+              id="search-client"
+              label="Rechercher un client"
+              variant="outlined"
+              size="small"
+              fullWidth
+              value={customerFilterText}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setCustomerFilterText(e.target.value)
+              }
+              slotProps={{
+                input: {
+                  endAdornment: <SearchIcon />,
+                },
+              }}
+            />
+          </Box>
         </Box>
-      </Box>
+      ) : isSmallScreen ? (
+        // Layout small screen: 2 lignes
+        <Box
+          sx={{
+            pt: 1.5,
+            pb: 1,
+            pl: 2,
+            pr: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+          }}
+        >
+          {/* Ligne 1: Titre + boutons */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <Typography variant="h5" component="h1" sx={{ flexShrink: 0 }}>
+              Réparations/Entretiens
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+              <Tooltip title="Réinitialiser le tableau" arrow>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={handleResetGrid}
+                  size="small"
+                  sx={{ minWidth: 'unset', px: 1 }}
+                >
+                  <RestartAltIcon />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Ouvrir le dossier Google Drive" arrow>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<FolderOpenIcon />}
+                  onClick={handleOpenGoogleDrive}
+                  sx={buttonSx}
+                >
+                  {showTextInButton && <Box>Google Drive</Box>}
+                </Button>
+              </Tooltip>
+            </Box>
+          </Box>
+
+          {/* Ligne 2: Selects + Recherche */}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <MultiSelectDropdown
+              label="États"
+              options={availableStates}
+              selectedValues={selectedStates}
+              onChange={setSelectedStates}
+              placeholder="Tous les états"
+              minWidth={150}
+              maxWidth={200}
+            />
+            <MultiSelectDropdown
+              label="Réparateurs"
+              options={availableRepairers}
+              selectedValues={selectedRepairers}
+              onChange={setSelectedRepairers}
+              placeholder="Tous les réparateurs"
+              minWidth={150}
+              maxWidth={200}
+            />
+            <TextField
+              id="search-client"
+              label="Rechercher un client"
+              variant="outlined"
+              size="small"
+              sx={{ flex: 1, minWidth: 200 }}
+              value={customerFilterText}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setCustomerFilterText(e.target.value)
+              }
+              slotProps={{
+                input: {
+                  endAdornment: <SearchIcon />,
+                },
+              }}
+            />
+          </Box>
+        </Box>
+      ) : (
+        // Layout desktop/medium: tout sur une seule ligne
+        <Box
+          sx={{
+            pt: 1.5,
+            pb: 1,
+            pl: 2,
+            pr: 2,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 1,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Typography
+            variant="h5"
+            component="h1"
+            sx={{ flexShrink: 0, alignSelf: 'center' }}
+          >
+            Réparations/Entretiens
+          </Typography>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              flex: 1,
+              justifyContent: 'flex-end',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Tooltip title="Réinitialiser le tableau" arrow>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleResetGrid}
+                size="small"
+                sx={{ minWidth: 'unset', px: 1 }}
+              >
+                <RestartAltIcon />
+              </Button>
+            </Tooltip>
+            <Tooltip title="Ouvrir le dossier Google Drive" arrow>
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<FolderOpenIcon />}
+                onClick={handleOpenGoogleDrive}
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Google Drive</Box>}
+              </Button>
+            </Tooltip>
+
+            <MultiSelectDropdown
+              label="États"
+              options={availableStates}
+              selectedValues={selectedStates}
+              onChange={setSelectedStates}
+              placeholder="Tous les états"
+              minWidth={150}
+              maxWidth={250}
+            />
+
+            <MultiSelectDropdown
+              label="Réparateurs"
+              options={availableRepairers}
+              selectedValues={selectedRepairers}
+              onChange={setSelectedRepairers}
+              placeholder="Tous les réparateurs"
+              minWidth={150}
+              maxWidth={250}
+            />
+
+            <TextField
+              id="search-client"
+              label="Rechercher un client"
+              variant="outlined"
+              size="small"
+              sx={{ minWidth: 200, maxWidth: 300 }}
+              value={customerFilterText}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setCustomerFilterText(e.target.value)
+              }
+              slotProps={{
+                input: {
+                  endAdornment: <SearchIcon />,
+                },
+              }}
+            />
+          </Box>
+        </Box>
+      )}
       <StyledAgGridWrapper
         id="machine-repairs-table"
         className={`machine-repairs-table ag-theme-quartz${
@@ -478,7 +729,7 @@ const MachineRepairsTable: React.FC = () => {
         }`}
       >
         <AgGridReact
-          enableCellTextSelection
+          // enableCellTextSelection
           suppressCellFocus
           rowHeight={rowHeight}
           ref={gridRef}
