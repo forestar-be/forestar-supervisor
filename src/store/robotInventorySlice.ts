@@ -17,6 +17,7 @@ interface RobotInventoryState {
   periods: { year: number }[];
   loading: boolean;
   error: string | null;
+  isInitialized: boolean;
 }
 
 const initialState: RobotInventoryState = {
@@ -24,6 +25,7 @@ const initialState: RobotInventoryState = {
   periods: [],
   loading: false,
   error: null,
+  isInitialized: false,
 };
 
 export const fetchInventoryAsync = createAsyncThunk(
@@ -102,6 +104,14 @@ export const robotInventorySlice = createSlice({
     setInventory: (state, action: PayloadAction<RobotInventory[]>) => {
       state.items = action.payload;
     },
+    updateItem: (state, action: PayloadAction<RobotInventory>) => {
+      const index = state.items.findIndex(
+        (item) => item.id === action.payload.id,
+      );
+      if (index !== -1) {
+        state.items[index] = action.payload;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -127,11 +137,13 @@ export const robotInventorySlice = createSlice({
         state.loading = false;
         state.items = action.payload.robots;
         state.periods = action.payload.periods;
+        state.isInitialized = true;
       })
       .addCase(fetchInventorySummaryAsync.rejected, (state, action) => {
         state.loading = false;
         state.error =
           action.error.message || 'Failed to fetch inventory summary';
+        state.isInitialized = true;
       })
       // Add inventory item
       .addCase(addInventoryItemAsync.pending, (state) => {
@@ -195,6 +207,6 @@ export const robotInventorySlice = createSlice({
   },
 });
 
-export const { setInventory } = robotInventorySlice.actions;
+export const { setInventory, updateItem } = robotInventorySlice.actions;
 
 export default robotInventorySlice.reducer;

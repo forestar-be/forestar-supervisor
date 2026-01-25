@@ -6,6 +6,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   IconButton,
   InputLabel,
@@ -28,6 +29,10 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CircularProgress from '@mui/material/CircularProgress';
 import { useAuth } from '../hooks/AuthProvider';
 import { toast } from 'react-toastify';
 import { AgGridReact } from 'ag-grid-react';
@@ -53,6 +58,7 @@ import {
   RobotInventory as RobotInventoryType,
   InventoryPlan,
   InventoryCategory,
+  WireType,
 } from '../utils/types';
 import { useAppDispatch } from '../store/hooks';
 import {
@@ -61,8 +67,10 @@ import {
   deleteInventoryItemAsync,
   updateInventoryPlansAsync,
   fetchInventorySummaryAsync,
+  updateItem,
 } from '../store/robotInventorySlice';
 import WeeklySummaryModal from '../components/WeeklySummaryModal';
+import { uploadRobotImage, deleteRobotImage } from '../utils/api';
 
 // Helper function to get current year
 const getCurrentYear = () => {
@@ -77,7 +85,7 @@ const Inventory: React.FC = () => {
   const { token } = useAuth();
   const theme = useTheme();
   const dispatch = useAppDispatch();
-  const { items, periods, loading } = useSelector(
+  const { items, periods, loading, isInitialized } = useSelector(
     (state: RootState) => state.robotInventory,
   );
   const [openDialog, setOpenDialog] = useState(false);
@@ -93,6 +101,9 @@ const Inventory: React.FC = () => {
     loadGridPageSize(INVENTORY_GRID_STATE_KEY, 20),
   );
   const [hideZeroQuantity, setHideZeroQuantity] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [confirmDeleteImage, setConfirmDeleteImage] = useState(false);
+  const imageInputRef = React.useRef<HTMLInputElement>(null);
   const gridRef = React.createRef<AgGridReact>();
   const isMediumScreen = useMediaQuery('(max-width:920px)');
 
@@ -103,10 +114,10 @@ const Inventory: React.FC = () => {
 
   // Refresh data if needed
   useEffect(() => {
-    if (token && items.length === 0 && !loading) {
+    if (token && !isInitialized && !loading) {
       dispatch(fetchInventorySummaryAsync(token));
     }
-  }, [token, items.length, loading, dispatch]);
+  }, [token, isInitialized, loading, dispatch]);
 
   // Get available years from periods
   const years = useMemo(() => {
@@ -178,10 +189,90 @@ const Inventory: React.FC = () => {
     setCurrentItem({});
   }, []);
 
+  // Handle image upload
+  const handleImageUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file || !token || !currentItem.id) {
+        return;
+      }
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Veuillez sélectionner une image');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("L'image ne doit pas dépasser 5MB");
+        return;
+      }
+
+      setImageUploading(true);
+      try {
+        const result = await uploadRobotImage(token, currentItem.id, file);
+        // Update local dialog state
+        setCurrentItem((prev) => ({
+          ...prev,
+          imageFileName: result.robot.imageFileName,
+          imageUrl: result.robot.imageUrl,
+        }));
+        // Update Redux state directly without full refetch
+        dispatch(updateItem(result.robot));
+        toast.success('Image uploadée avec succès');
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        toast.error("Erreur lors de l'upload de l'image");
+      } finally {
+        setImageUploading(false);
+        // Reset file input
+        if (imageInputRef.current) {
+          imageInputRef.current.value = '';
+        }
+      }
+    },
+    [token, currentItem.id, dispatch],
+  );
+
+  // Handle image delete
+  const handleImageDelete = useCallback(async () => {
+    if (!token || !currentItem.id) {
+      return;
+    }
+
+    setImageUploading(true);
+    setConfirmDeleteImage(false);
+    try {
+      const result = await deleteRobotImage(token, currentItem.id);
+      // Update local dialog state
+      setCurrentItem((prev) => ({
+        ...prev,
+        imageFileName: undefined,
+      }));
+      // Update Redux state directly without full refetch
+      dispatch(updateItem(result.robot));
+      toast.success('Image supprimée avec succès');
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast.error("Erreur lors de la suppression de l'image");
+    } finally {
+      setImageUploading(false);
+    }
+  }, [token, currentItem.id, dispatch]);
+
   // Handle save item
   const handleSaveItem = async () => {
     if (!token || !currentItem.name) {
       toast.error("Nom de l'élément requis");
+      return;
+    }
+
+    // Validate selling price is required when visible on public site
+    if (currentItem.isPublicVisible && !currentItem.sellingPrice) {
+      toast.error(
+        'Le prix de vente est requis pour les éléments visibles sur le site public',
+      );
       return;
     }
 
@@ -456,6 +547,27 @@ const Inventory: React.FC = () => {
     );
   }, []);
 
+  // Public visibility cell renderer
+  const publicVisibilityCellRenderer = useCallback((params: any) => {
+    if (!params.data) return null;
+    const item = params.data as RobotInventoryType;
+
+    return (
+      <Tooltip
+        title={item.isPublicVisible ? 'Visible sur Reparobot' : 'Non visible'}
+        arrow
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {item.isPublicVisible ? (
+            <VisibilityIcon color="success" fontSize="small" />
+          ) : (
+            <VisibilityOffIcon color="disabled" fontSize="small" />
+          )}
+        </Box>
+      </Tooltip>
+    );
+  }, []);
+
   // Column definitions
   const columnDefs = useMemo<ColDef[]>(
     () => [
@@ -484,6 +596,16 @@ const Inventory: React.FC = () => {
         flex: 1,
         minWidth: 130,
         cellRenderer: categoryCellRenderer,
+      },
+      {
+        headerName: 'Public',
+        field: 'isPublicVisible',
+        sortable: false,
+        filter: false,
+        flex: 0.5,
+        minWidth: 77,
+        maxWidth: 77,
+        cellRenderer: publicVisibilityCellRenderer,
       },
       {
         headerName: 'Prix de vente (PV)',
@@ -527,6 +649,7 @@ const Inventory: React.FC = () => {
       quantityCellRenderer,
       actionCellRenderer,
       categoryCellRenderer,
+      publicVisibilityCellRenderer,
       selectedYear,
     ],
   );
@@ -745,8 +868,11 @@ const Inventory: React.FC = () => {
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: { maxHeight: '90vh' },
+        }}
       >
         <DialogTitle>
           {currentItem.id ? "Modifier l'élément" : 'Ajouter un élément'}
@@ -826,6 +952,252 @@ const Inventory: React.FC = () => {
                 }))
               }
             />
+
+            {/* Public Catalog Fields - Visibility toggle for all categories */}
+            <Divider sx={{ my: 2 }}>
+              <Chip label="Site Public Reparobot" size="small" />
+            </Divider>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={currentItem.isPublicVisible || false}
+                  onChange={(e) =>
+                    setCurrentItem((prev) => ({
+                      ...prev,
+                      isPublicVisible: e.target.checked,
+                    }))
+                  }
+                  color="primary"
+                />
+              }
+              label="Visible sur le site public"
+              sx={{ mb: 1 }}
+            />
+
+            {/* Robot-specific public catalog fields - Only for ROBOT category */}
+            {(currentItem.category === InventoryCategory.ROBOT ||
+              !currentItem.category) &&
+              currentItem.isPublicVisible && (
+                <>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel id="wire-type-select-label">
+                      Type de connexion
+                    </InputLabel>
+                    <Select
+                      labelId="wire-type-select-label"
+                      value={currentItem.wireType || ''}
+                      label="Type de connexion"
+                      onChange={(e) =>
+                        setCurrentItem((prev) => ({
+                          ...prev,
+                          wireType: e.target.value as WireType,
+                        }))
+                      }
+                    >
+                      <MenuItem value={WireType.WIRED}>Filaire</MenuItem>
+                      <MenuItem value={WireType.WIRELESS}>Sans fil</MenuItem>
+                    </Select>
+                  </FormControl>
+
+                  <TextField
+                    margin="normal"
+                    fullWidth
+                    label="Description publique"
+                    multiline
+                    rows={2}
+                    value={currentItem.publicDescription || ''}
+                    onChange={(e) =>
+                      setCurrentItem((prev) => ({
+                        ...prev,
+                        publicDescription: e.target.value,
+                      }))
+                    }
+                    helperText="Description affichée sur le site public"
+                  />
+
+                  {/* Image Upload Section */}
+                  <Box sx={{ mt: 2, mb: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Image du robot
+                    </Typography>
+
+                    {/* Image Preview */}
+                    {currentItem.imageFileName && (
+                      <Box
+                        sx={{
+                          mb: 2,
+                          p: 1,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={currentItem.imageUrl || ''}
+                          alt={currentItem.name}
+                          sx={{
+                            width: 100,
+                            height: 100,
+                            objectFit: 'cover',
+                            borderRadius: 1,
+                            bgcolor: 'grey.100',
+                          }}
+                          onError={(
+                            e: React.SyntheticEvent<HTMLImageElement>,
+                          ) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {currentItem.imageFileName}
+                          </Typography>
+                        </Box>
+                        <Tooltip title="Supprimer l'image" arrow>
+                          <IconButton
+                            color="error"
+                            onClick={() => setConfirmDeleteImage(true)}
+                            disabled={imageUploading}
+                            size="small"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    )}
+
+                    {/* Upload Button */}
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleImageUpload}
+                      disabled={!currentItem.id || imageUploading}
+                    />
+                    <Button
+                      variant="outlined"
+                      startIcon={
+                        imageUploading ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <CloudUploadIcon />
+                        )
+                      }
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={!currentItem.id || imageUploading}
+                      fullWidth
+                    >
+                      {imageUploading
+                        ? 'Upload en cours...'
+                        : currentItem.imageFileName
+                          ? "Remplacer l'image"
+                          : 'Uploader une image'}
+                    </Button>
+                    {!currentItem.id && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ mt: 0.5, display: 'block' }}
+                      >
+                        Enregistrez d'abord l'élément pour pouvoir uploader une
+                        image
+                      </Typography>
+                    )}
+                  </Box>
+
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <TextField
+                      margin="normal"
+                      fullWidth
+                      label="Surface max (m²)"
+                      type="number"
+                      InputProps={{ inputProps: { min: 0 } }}
+                      value={currentItem.maxSurface || ''}
+                      onChange={(e) =>
+                        setCurrentItem((prev) => ({
+                          ...prev,
+                          maxSurface: e.target.value
+                            ? parseInt(e.target.value)
+                            : undefined,
+                        }))
+                      }
+                    />
+                    <TextField
+                      margin="normal"
+                      fullWidth
+                      label="Pente max (%)"
+                      type="number"
+                      InputProps={{ inputProps: { min: 0, max: 100 } }}
+                      value={currentItem.maxSlope || ''}
+                      onChange={(e) =>
+                        setCurrentItem((prev) => ({
+                          ...prev,
+                          maxSlope: e.target.value
+                            ? parseInt(e.target.value)
+                            : undefined,
+                        }))
+                      }
+                    />
+                  </Box>
+
+                  <TextField
+                    margin="normal"
+                    fullWidth
+                    label="Prix d'installation"
+                    type="number"
+                    InputProps={{ inputProps: { min: 0, step: 0.01 } }}
+                    value={currentItem.installationPrice || ''}
+                    onChange={(e) =>
+                      setCurrentItem((prev) => ({
+                        ...prev,
+                        installationPrice: e.target.value
+                          ? parseFloat(e.target.value)
+                          : undefined,
+                      }))
+                    }
+                  />
+
+                  <TextField
+                    margin="normal"
+                    fullWidth
+                    label="Promotion (optionnel)"
+                    value={currentItem.promotion || ''}
+                    onChange={(e) =>
+                      setCurrentItem((prev) => ({
+                        ...prev,
+                        promotion: e.target.value || undefined,
+                      }))
+                    }
+                    helperText="Ex: Coupe-bordure offert"
+                  />
+
+                  <TextField
+                    margin="normal"
+                    fullWidth
+                    label="Ordre d'affichage"
+                    type="number"
+                    InputProps={{ inputProps: { min: 0 } }}
+                    value={currentItem.publicOrder || 0}
+                    onChange={(e) =>
+                      setCurrentItem((prev) => ({
+                        ...prev,
+                        publicOrder: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    helperText="Plus petit = affiché en premier"
+                  />
+                </>
+              )}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -849,6 +1221,24 @@ const Inventory: React.FC = () => {
         open={openWeeklySummary}
         onClose={() => setOpenWeeklySummary(false)}
       />
+
+      {/* Image Delete Confirmation Dialog */}
+      <Dialog
+        open={confirmDeleteImage}
+        onClose={() => setConfirmDeleteImage(false)}
+        maxWidth="xs"
+      >
+        <DialogTitle>Confirmer la suppression</DialogTitle>
+        <DialogContent>
+          <Typography>Êtes-vous sûr de vouloir supprimer l'image ?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteImage(false)}>Annuler</Button>
+          <Button onClick={handleImageDelete} color="error" variant="contained">
+            Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
