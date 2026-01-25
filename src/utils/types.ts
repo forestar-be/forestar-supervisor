@@ -137,6 +137,12 @@ export enum InventoryCategory {
   SHELTER = 'SHELTER',
 }
 
+// Define the WireType enum for public catalog
+export enum WireType {
+  WIRED = 'WIRED',
+  WIRELESS = 'WIRELESS',
+}
+
 // Types for Robot Inventory
 export interface RobotInventory {
   id: number;
@@ -148,6 +154,16 @@ export interface RobotInventory {
   createdAt: string;
   updatedAt: string;
   inventoryPlans: InventoryPlan[];
+  // Public catalog fields (for reparobot public site)
+  isPublicVisible?: boolean;
+  publicDescription?: string;
+  imageFileName?: string;
+  maxSurface?: number;
+  maxSlope?: number;
+  installationPrice?: number;
+  promotion?: string;
+  wireType?: WireType;
+  publicOrder?: number;
 }
 
 export interface InventoryPlan {

@@ -8,7 +8,7 @@ import {
   MachineRepair,
 } from './types';
 
-const API_URL = process.env.REACT_APP_API_URL;
+export const API_URL = process.env.REACT_APP_API_URL;
 
 export class HttpError extends Error {
   constructor(
@@ -374,6 +374,44 @@ export const deleteRobotInventory = (
   id: number,
 ): Promise<void> =>
   apiRequest(`/supervisor/robot-inventory/${id}`, 'DELETE', token);
+
+// Upload robot catalog image
+export const uploadRobotImage = async (
+  token: string,
+  id: number,
+  file: File,
+): Promise<{ message: string; robot: RobotInventory; imageUrl: string }> => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(
+    `${API_URL}/supervisor/robot-inventory/${id}/image`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new HttpError(
+      error.message || `${response.statusText} ${response.status}`,
+      response.status,
+    );
+  }
+
+  return await response.json();
+};
+
+// Delete robot catalog image
+export const deleteRobotImage = (
+  token: string,
+  id: number,
+): Promise<{ message: string; robot: RobotInventory }> =>
+  apiRequest(`/supervisor/robot-inventory/${id}/image`, 'DELETE', token);
 
 export const fetchInventoryPlans = (
   token: string,
