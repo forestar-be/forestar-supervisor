@@ -79,6 +79,8 @@ export interface PurchaseOrder {
   devis: boolean;
   validUntil: string | null;
   bankAccountNumber: string | null;
+  bankAccountHolderName: string | null;
+  bankBic: string | null;
   orderPdfId: string | null;
   invoicePath?: string | null;
   photosPaths: string[];
@@ -123,6 +125,8 @@ export interface PurchaseOrderFormData {
   // Quote specific fields
   validUntil: string;
   bankAccountNumber: string;
+  bankAccountHolderName: string;
+  bankBic: string;
 
   // File management
   deleteInvoice?: boolean;
