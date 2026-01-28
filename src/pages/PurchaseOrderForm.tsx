@@ -242,6 +242,8 @@ const PurchaseOrderForm: React.FC = () => {
     devis: typeParam === 'devis', // Set initial value based on URL parameter
     validUntil: '',
     bankAccountNumber: '',
+    bankAccountHolderName: '',
+    bankBic: '',
   });
   const [selectedInvoice, setSelectedInvoice] = useState<File | null>(null);
   const [existingInvoiceBlob, setExistingInvoiceBlob] = useState<Blob | null>(
@@ -320,6 +322,8 @@ const PurchaseOrderForm: React.FC = () => {
           devis: data.devis || false,
           validUntil: data.validUntil || null,
           bankAccountNumber: data.bankAccountNumber || null,
+          bankAccountHolderName: data.bankAccountHolderName || null,
+          bankBic: data.bankBic || null,
           invoicePath: data.invoicePath || null,
         });
         setFormData({
@@ -348,6 +352,8 @@ const PurchaseOrderForm: React.FC = () => {
           devis: data.devis || false,
           validUntil: data.validUntil || '',
           bankAccountNumber: data.bankAccountNumber || '',
+          bankAccountHolderName: data.bankAccountHolderName || '',
+          bankBic: data.bankBic || '',
         });
 
         // Download invoice if it exists
@@ -460,6 +466,12 @@ const PurchaseOrderForm: React.FC = () => {
       devis: type === 'devis',
       ...(configData && configData['Numéro de compte bancaire']
         ? { bankAccountNumber: configData['Numéro de compte bancaire'] }
+        : {}),
+      ...(configData && configData['Titulaire du compte bancaire']
+        ? { bankAccountHolderName: configData['Titulaire du compte bancaire'] }
+        : {}),
+      ...(configData && configData['Code BIC']
+        ? { bankBic: configData['Code BIC'] }
         : {}),
     }));
     setTypeDialogOpen(false);
@@ -770,6 +782,8 @@ const PurchaseOrderForm: React.FC = () => {
       setFormData((prev) => ({
         ...prev,
         bankAccountNumber: configData['Numéro de compte bancaire'] || '',
+        bankAccountHolderName: configData['Titulaire du compte bancaire'] || '',
+        bankBic: configData['Code BIC'] || '',
       }));
     }
   }, [isEditing, typeParam, configData]);
@@ -1199,15 +1213,32 @@ const PurchaseOrderForm: React.FC = () => {
           </FormSection>
           {!formData.devis ? (
             <FormSection title="Facturation">
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={6}>
                 <FormTextField
                   name="bankAccountNumber"
-                  label="Numéro de compte bancaire"
+                  label="Numéro de compte bancaire (IBAN)"
                   value={formData.bankAccountNumber}
                   onChange={handleChange}
                   required
-                  sx={{ mb: 2 }}
                 />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField
+                  name="bankAccountHolderName"
+                  label="Titulaire du compte"
+                  value={formData.bankAccountHolderName}
+                  onChange={handleChange}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField
+                  name="bankBic"
+                  label="Code BIC"
+                  value={formData.bankBic}
+                  onChange={handleChange}
+                />
+              </Grid>
+              <Grid item xs={12}>
                 {!formData.devis ? (
                   <>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -1318,10 +1349,22 @@ const PurchaseOrderForm: React.FC = () => {
               </Grid>
               <FormTextField
                 name="bankAccountNumber"
-                label="Numéro de compte bancaire"
+                label="Numéro de compte bancaire (IBAN)"
                 value={formData.bankAccountNumber}
                 onChange={handleChange}
                 required
+              />
+              <FormTextField
+                name="bankAccountHolderName"
+                label="Titulaire du compte"
+                value={formData.bankAccountHolderName}
+                onChange={handleChange}
+              />
+              <FormTextField
+                name="bankBic"
+                label="Code BIC"
+                value={formData.bankBic}
+                onChange={handleChange}
               />
             </FormSection>
           )}

@@ -27,6 +27,8 @@ interface ConfigState {
     États: string;
     'URL drive bons de commande': string;
     'Numéro de compte bancaire': string;
+    'Titulaire du compte bancaire': string;
+    'Code BIC': string;
     [key: string]: string;
   };
   loading: boolean;
@@ -52,6 +54,8 @@ const initialState: ConfigState = {
     États: '{}',
     'URL drive bons de commande': '',
     'Numéro de compte bancaire': '',
+    'Titulaire du compte bancaire': '',
+    'Code BIC': '',
   },
   loading: false,
   error: null,
