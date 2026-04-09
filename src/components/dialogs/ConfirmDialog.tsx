@@ -40,6 +40,9 @@ export interface ConfirmDialogProps {
   onClose: () => void;
   isLoading: boolean;
   type?: ConfirmDialogType;
+  confirmText?: string;
+  cancelText?: string;
+  hideConfirm?: boolean;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -50,6 +53,9 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onClose,
   isLoading,
   type = 'info',
+  confirmText,
+  cancelText,
+  hideConfirm = false,
 }) => {
   // Get dialog icon based on type
   const getDialogIcon = (type: ConfirmDialogType) => {
@@ -193,30 +199,32 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             },
           }}
         >
-          Annuler
+          {cancelText || (hideConfirm ? 'Fermer' : 'Annuler')}
         </Button>
-        <Button
-          onClick={onConfirm}
-          variant="contained"
-          color={getDialogActionColor(type)}
-          disabled={isLoading}
-          startIcon={
-            isLoading ? (
-              <CircularProgress size={16} color="inherit" />
-            ) : (
-              <CheckCircleOutlineIcon />
-            )
-          }
-          sx={{
-            minWidth: 120,
-            transition: 'all 0.2s ease',
-            '&:hover': {
-              transform: 'scale(1.05)',
-            },
-          }}
-        >
-          {isLoading ? 'Traitement...' : 'Confirmer'}
-        </Button>
+        {!hideConfirm && (
+          <Button
+            onClick={onConfirm}
+            variant="contained"
+            color={getDialogActionColor(type)}
+            disabled={isLoading}
+            startIcon={
+              isLoading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <CheckCircleOutlineIcon />
+              )
+            }
+            sx={{
+              minWidth: 120,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                transform: 'scale(1.05)',
+              },
+            }}
+          >
+            {isLoading ? 'Traitement...' : confirmText || 'Confirmer'}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

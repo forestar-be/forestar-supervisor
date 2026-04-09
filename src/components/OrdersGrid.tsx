@@ -68,6 +68,9 @@ interface ConfirmDialogState {
   onConfirm: () => Promise<void>;
   isLoading: boolean;
   type?: ConfirmDialogType;
+  confirmText?: string;
+  cancelText?: string;
+  hideConfirm?: boolean;
 }
 
 interface OrdersGridProps {
@@ -140,6 +143,9 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
     onConfirm: async () => {},
     isLoading: false,
     type: 'info',
+    confirmText: undefined,
+    cancelText: undefined,
+    hideConfirm: false,
   });
 
   const gridRef = React.createRef<AgGridReact>();
@@ -221,6 +227,11 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
       message: string,
       onConfirm: () => Promise<void>,
       type: ConfirmDialogType = 'info',
+      options?: {
+        confirmText?: string;
+        cancelText?: string;
+        hideConfirm?: boolean;
+      },
     ) => {
       setConfirmDialog({
         open: true,
@@ -229,6 +240,9 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         onConfirm,
         isLoading: false,
         type,
+        confirmText: options?.confirmText,
+        cancelText: options?.cancelText,
+        hideConfirm: options?.hideConfirm,
       });
     },
     [],
@@ -461,7 +475,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
   const handleStatusChange = useCallback(
     async (
       orderId: number,
-      field: 'hasAppointment' | 'isInstalled' | 'isInvoiced' | 'devis',
+      field: 'hasAppointment' | 'isInstalled' | 'devis',
       value: boolean,
     ) => {
       if (!token) return;
@@ -542,6 +556,7 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
     (params: ICellRendererParams) => {
       if (!params.data) return null;
       const order = params.data as PurchaseOrder;
+      const installerUrl = process.env.REACT_APP_INSTALLER_URL;
 
       return (
         <Box
@@ -555,18 +570,53 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
           <Checkbox
             checked={order.isInstalled}
             onChange={(e) => {
-              const newValue = e.target.checked;
-              const message = newValue
-                ? "Confirmer que l'installation a été effectuée ?"
-                : "Indiquer que l'installation n'a pas encore été effectuée ?";
+              e.stopPropagation();
 
+              // Already installed → propose to view the report
+              if (order.isInstalled) {
+                showConfirmDialog(
+                  'Installation déjà effectuée',
+                  "L'installation a déjà été effectuée pour cette commande. Voulez-vous voir le rapport d'installation ?",
+                  async () => {
+                    if (installerUrl) {
+                      window.open(
+                        `${installerUrl}/complete/${order.id}`,
+                        '_blank',
+                      );
+                    }
+                  },
+                  'installation',
+                  { confirmText: 'Voir le rapport' },
+                );
+                return;
+              }
+
+              // Not "à installer" → warning only
+              if (!order.needsInstaller) {
+                showConfirmDialog(
+                  'Installation impossible',
+                  'Cette commande n\'est pas marquée comme "à installer". Pour ajouter une installation, modifiez d\'abord le bon de commande.',
+                  async () => {},
+                  'warning',
+                  { hideConfirm: true },
+                );
+                return;
+              }
+
+              // "à installer" but not yet installed → open installer app
               showConfirmDialog(
-                newValue ? 'Confirmer installation' : 'Annuler installation',
-                message,
+                "Effectuer l'installation",
+                "Voulez-vous ouvrir l'application Forestar Intervention pour effectuer l'installation ?",
                 async () => {
-                  await handleStatusChange(order.id, 'isInstalled', newValue);
+                  if (installerUrl) {
+                    window.open(
+                      `${installerUrl}/installation/${order.id}`,
+                      '_blank',
+                    );
+                  }
                 },
                 'installation',
+                { confirmText: "Ouvrir l'application" },
               );
             }}
             sx={{
@@ -581,14 +631,15 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         </Box>
       );
     },
-    [handleStatusChange, showConfirmDialog],
+    [showConfirmDialog],
   );
 
   // Invoice status cell renderer
   const invoiceStatusCellRenderer = useCallback(
     (params: ICellRendererParams) => {
       if (!params.data) return null;
-      const order = params.data;
+      const order = params.data as PurchaseOrder;
+      const installerUrl = process.env.REACT_APP_INSTALLER_URL;
 
       return (
         <Box
@@ -610,45 +661,78 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
                 },
               }}
               checked={!!order.isInvoiced}
-              onChange={async (e) => {
+              onChange={(e) => {
                 e.stopPropagation();
-                const newValue = e.target.checked;
-                if (newValue === true) {
-                  // Show confirmation dialog for enabling invoice status
+
+                // Already invoiced → propose to view the invoice
+                if (order.isInvoiced) {
                   showConfirmDialog(
-                    'Confirmer la facturation',
-                    'Voulez-vous marquer ce bon de commande comme facturé ?',
+                    'Déjà facturé',
+                    'Une facture a déjà été créée pour cette commande. Voulez-vous voir la facture ?',
                     async () => {
-                      await handleStatusChange(
-                        order.id,
-                        'isInvoiced',
-                        newValue,
-                      );
+                      if (installerUrl) {
+                        window.open(
+                          `${installerUrl}/complete/${order.id}?tab=facture`,
+                          '_blank',
+                        );
+                      }
                     },
                     'invoice',
+                    { confirmText: 'Voir la facture' },
                   );
-                } else {
-                  // Show confirmation dialog for disabling invoice status
-                  showConfirmDialog(
-                    'Retirer la facturation',
-                    'Voulez-vous marquer ce bon de commande comme non facturé ?',
-                    async () => {
-                      await handleStatusChange(
-                        order.id,
-                        'isInvoiced',
-                        newValue,
-                      );
-                    },
-                    'invoice',
-                  );
+                  return;
                 }
+
+                // "à installer" but not yet installed → block
+                if (order.needsInstaller && !order.isInstalled) {
+                  showConfirmDialog(
+                    'Installation pas encore effectuée',
+                    "L'installation n'a pas encore été effectuée. Veuillez d'abord compléter l'installation avant de créer la facture.",
+                    async () => {},
+                    'warning',
+                    { hideConfirm: true },
+                  );
+                  return;
+                }
+
+                // Not "à installer" → confirm without installation
+                if (!order.needsInstaller) {
+                  showConfirmDialog(
+                    'Facturer sans installation',
+                    "Aucune installation n'est prévue pour cette commande. Voulez-vous quand même créer une facture ?",
+                    async () => {
+                      alert(
+                        "La facturation sans installation n'est pas encore implémentée.",
+                      );
+                    },
+                    'invoice',
+                    { confirmText: 'Créer la facture' },
+                  );
+                  return;
+                }
+
+                // Installed → open installer app to create/view invoice
+                showConfirmDialog(
+                  "Créer la facture d'installation",
+                  "Voulez-vous ouvrir l'application Forestar Intervention pour créer la facture ?",
+                  async () => {
+                    if (installerUrl) {
+                      window.open(
+                        `${installerUrl}/complete/${order.id}?tab=facture`,
+                        '_blank',
+                      );
+                    }
+                  },
+                  'invoice',
+                  { confirmText: "Ouvrir l'application" },
+                );
               }}
             />
           </Tooltip>
         </Box>
       );
     },
-    [handleStatusChange, showConfirmDialog],
+    [showConfirmDialog],
   );
 
   // Email status cell renderer for devis
@@ -1009,6 +1093,9 @@ const OrdersGrid: React.FC<OrdersGridProps> = ({
         onClose={handleCloseDialog}
         isLoading={confirmDialog.isLoading}
         type={confirmDialog.type}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        hideConfirm={confirmDialog.hideConfirm}
       />
 
       <Box

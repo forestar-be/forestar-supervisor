@@ -541,7 +541,6 @@ export const updatePurchaseOrderStatus = async (
   statusData: {
     hasAppointment?: boolean;
     isInstalled?: boolean;
-    isInvoiced?: boolean;
     devis?: boolean;
     clientSignature?: string;
   },
@@ -555,7 +554,6 @@ export const updatePurchaseOrderStatus = async (
       statusData.hasAppointment?.toString() || '',
     );
     formData.append('isInstalled', statusData.isInstalled?.toString() || '');
-    formData.append('isInvoiced', statusData.isInvoiced?.toString() || '');
     formData.append('devis', statusData.devis?.toString() || '');
 
     // Add client signature if provided
