@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, CellStyle } from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
@@ -424,6 +424,51 @@ const MachineRepairsTable: React.FC = () => {
       filter: true,
       minWidth: 120,
       valueFormatter: (params: any) => params.value || '-',
+    },
+    {
+      headerName: 'Facture',
+      field: 'serviceInvoice' as any,
+      sortable: true,
+      filter: false,
+      minWidth: 100,
+      maxWidth: 130,
+      hide: isTablet,
+      valueGetter: (params: any) => {
+        const inv = params.data?.serviceInvoice;
+        if (!inv) return 'Aucune';
+        switch (inv.status) {
+          case 'DRAFT': return 'Brouillon';
+          case 'SENT': return 'Envoyée';
+          case 'PAID': return 'Payée';
+          default: return inv.status;
+        }
+      },
+      cellStyle: (params: any) => {
+        const inv = params.data?.serviceInvoice;
+        if (!inv) return { color: '#9e9e9e' } as CellStyle;
+        switch (inv.status) {
+          case 'DRAFT': return { color: '#2196f3', fontWeight: 600 } as CellStyle;
+          case 'SENT': return { color: '#ff9800', fontWeight: 600 } as CellStyle;
+          case 'PAID': return { color: '#4caf50', fontWeight: 600 } as CellStyle;
+          default: return {} as CellStyle;
+        }
+      },
+      cellRenderer: (params: any) => {
+        const inv = params.data?.serviceInvoice;
+        if (!inv) return <span style={{ color: '#9e9e9e' }}>—</span>;
+        return (
+          <Button
+            size="small"
+            sx={{ textTransform: 'none', minWidth: 0, p: 0 }}
+            onClick={(e: React.MouseEvent) => {
+              e.stopPropagation();
+              navigate(`/factures/${inv.id}`);
+            }}
+          >
+            {params.value}
+          </Button>
+        );
+      },
     },
     {
       headerName: 'Date de création',

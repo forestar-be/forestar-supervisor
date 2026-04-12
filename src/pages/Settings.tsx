@@ -19,6 +19,7 @@ import { useAuth } from '../hooks/AuthProvider';
 import EditRobotType from '../components/settings/EditRobotType';
 import InstallationPreparationTextEditor from '../components/InstallationPreparationTextEditor';
 import InstallationPreparationTextPreview from '../components/InstallationPreparationTextPreview';
+import InvoiceSettings from '../components/settings/InvoiceSettings';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 
@@ -91,8 +92,9 @@ const Settings = (): JSX.Element => {
           <Tab label="Type de machine" {...a11yProps(3)} />
           <Tab label="Types de robot" {...a11yProps(4)} />
           <Tab label="Textes d'installation" {...a11yProps(5)} />
-          <Tab label="Autre" {...a11yProps(6)} />
-          {isAdmin && <Tab label="Utilisateurs" {...a11yProps(7)} />}
+          <Tab label="Facturation" {...a11yProps(6)} />
+          <Tab label="Autre" {...a11yProps(7)} />
+          {isAdmin && <Tab label="Utilisateurs" {...a11yProps(8)} />}
         </Tabs>
       </Box>
       <CustomTabPanel value={value} index={0}>
@@ -148,10 +150,13 @@ const Settings = (): JSX.Element => {
         </Box>
       </CustomTabPanel>
       <CustomTabPanel value={value} index={6}>
+        <InvoiceSettings />
+      </CustomTabPanel>
+      <CustomTabPanel value={value} index={7}>
         <EditConfig />
       </CustomTabPanel>
       {isAdmin && (
-        <CustomTabPanel value={value} index={7}>
+        <CustomTabPanel value={value} index={8}>
           <EditUser />
         </CustomTabPanel>
       )}

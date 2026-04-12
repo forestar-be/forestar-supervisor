@@ -19,6 +19,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { useNavigate } from 'react-router-dom';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import Header from './Header';
 
 interface Props {
@@ -54,6 +55,7 @@ const Layout = ({ children }: Props): JSX.Element => {
       icon: <CalendarMonthIcon />,
       path: '/calendrier',
     },
+    { text: 'Factures', icon: <ReceiptIcon />, path: '/factures' },
     {
       text: 'Robots',
       icon: <SmartToyIcon />,

@@ -33,6 +33,11 @@ export interface MachineRepair {
   hivernage: boolean;
   eventId: string | null;
   calendarId: string | null;
+  serviceInvoice?: {
+    id: number;
+    invoiceNumber: string;
+    status: string;
+  } | null;
 }
 
 export type MachineRepairFromApi = Omit<
@@ -200,4 +205,166 @@ export interface InstallationPreparationText {
   order: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// === Service Invoice Types ===
+
+export enum ServiceInvoiceStatus {
+  DRAFT = 'DRAFT',
+  SENT = 'SENT',
+  PAID = 'PAID',
+}
+
+export enum ServiceInvoiceType {
+  REPAIR = 'REPAIR',
+  INSTALLATION = 'INSTALLATION',
+}
+
+export enum PaymentMethod {
+  CASH = 'CASH',
+  CARD = 'CARD',
+  TRANSFER = 'TRANSFER',
+}
+
+export enum InvoiceItemCategory {
+  REPAIR = 'REPAIR',
+  INSTALLATION = 'INSTALLATION',
+}
+
+export interface ServiceInvoiceLine {
+  id: number;
+  serviceInvoiceId: number;
+  description: string;
+  type: string;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  order: number;
+}
+
+export interface CalendarEvent {
+  id: number;
+  googleEventId: string;
+  googleCalendarId: string;
+  source: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceInvoice {
+  id: number;
+  invoiceNumber: string;
+  status: ServiceInvoiceStatus;
+  type: ServiceInvoiceType;
+
+  machineRepairId: number | null;
+  machineRepair?: MachineRepair | null;
+  purchaseOrderId: number | null;
+  purchaseOrder?: PurchaseOrder | null;
+
+  clientFirstName: string;
+  clientLastName: string;
+  clientPhone: string;
+  clientEmail: string;
+  clientAddress: string;
+  clientCity: string;
+  clientPostalCode: string;
+
+  paymentMethod: PaymentMethod;
+  deposit: number;
+
+  dolibarrInvoiceId: number | null;
+  dolibarrThirdpartyId: number | null;
+  dolibarrSyncStatus: string | null;
+  dolibarrLastSyncAt: string | null;
+
+  subtotalHT: number;
+  vatRate: number;
+  vatAmount: number;
+  totalTTC: number;
+
+  remarks: string | null;
+
+  calendarEventId: number | null;
+  calendarEvent: CalendarEvent | null;
+  calendarEventUrl: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+
+  lines: ServiceInvoiceLine[];
+}
+
+export interface ServiceInvoiceItemConfig {
+  id: number;
+  name: string;
+  type: string;
+  unit: string;
+  defaultPrice: number;
+  priceUnit: string | null;
+  order: number;
+  isActive: boolean;
+  category: InvoiceItemCategory;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DolibarrThirdparty {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  zip: string;
+  town: string;
+}
+
+export interface DolibarrBankAccount {
+  id: number;
+  ref?: string;
+  label: string;
+  number?: string;
+  bank: string;
+  iban?: string;
+  iban_prefix?: string;
+  bic: string;
+  type?: number; // 0=Savings, 1=Current, 2=Cash
+}
+
+export interface ThirdpartyConfirmation {
+  confirmationType: 'create-client' | 'resolve-conflict' | 'select-client';
+  invoiceClient: {
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    zip: string;
+    town: string;
+  };
+  dolibarrClient?: DolibarrThirdparty;
+  dolibarrMatches?: DolibarrThirdparty[];
+  differences?: Record<string, { invoice: string; dolibarr: string }>;
+}
+
+export interface RepairForInvoice {
+  id: number;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string | null;
+  postal_code: string | null;
+  fault_description: string;
+  repair_or_maintenance: string;
+  brand_name: string;
+  robot_type_name: string | null;
+  hasCalendarEvent: boolean;
+  calendarEventId: number | null;
+  eventStart: string | null;
+  eventTitle: string | null;
+  eventDescription: string | null;
+  eventSource: string | null;
+  createdAt: string;
 }

@@ -23,6 +23,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BuildIcon from '@mui/icons-material/Build';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import HeaderClient from './HeaderClient';
@@ -201,6 +202,21 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                 sx={buttonSx}
               >
                 {showTextInButton && <Box>Calendrier</Box>}
+              </Button>
+              <Button
+                component="a"
+                href={`/factures`}
+                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.preventDefault();
+                  navigate(`/factures`);
+                }}
+                aria-label="Factures"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<ReceiptIcon fontSize="medium" />}
+                variant="contained"
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Factures</Box>}
               </Button>
               <Button
                 component="a"

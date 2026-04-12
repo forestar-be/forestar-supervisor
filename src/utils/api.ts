@@ -6,6 +6,10 @@ import {
   RobotInventory,
   InstallationPreparationText,
   MachineRepair,
+  ServiceInvoice,
+  ServiceInvoiceItemConfig,
+  DolibarrBankAccount,
+  RepairForInvoice,
 } from './types';
 
 export const API_URL = process.env.REACT_APP_API_URL;
@@ -818,3 +822,212 @@ export const downloadSalesExcel = async (
 
   return response.blob();
 };
+
+// === Service Invoice API functions ===
+
+export const getServiceInvoices = (
+  token: string,
+  params?: { status?: string; type?: string; search?: string },
+): Promise<ServiceInvoice[]> => {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.type) searchParams.set('type', params.type);
+  if (params?.search) searchParams.set('search', params.search);
+  const qs = searchParams.toString();
+  return apiRequest(
+    `/supervisor/service-invoices${qs ? `?${qs}` : ''}`,
+    'GET',
+    token,
+  );
+};
+
+export const getServiceInvoice = (
+  token: string,
+  id: number,
+): Promise<ServiceInvoice> =>
+  apiRequest(`/supervisor/service-invoices/${id}`, 'GET', token);
+
+export const createServiceInvoice = (
+  token: string,
+  data: any,
+): Promise<ServiceInvoice> =>
+  apiRequest('/supervisor/service-invoices', 'POST', token, data);
+
+export const createServiceInvoiceFromPO = (
+  token: string,
+  poId: number,
+): Promise<ServiceInvoice> =>
+  apiRequest(
+    `/supervisor/service-invoices/from-purchase-order/${poId}`,
+    'POST',
+    token,
+  );
+
+export const updateServiceInvoice = (
+  token: string,
+  id: number,
+  data: any,
+): Promise<ServiceInvoice> =>
+  apiRequest(`/supervisor/service-invoices/${id}`, 'PUT', token, data);
+
+export const deleteServiceInvoice = (
+  token: string,
+  id: number,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}`, 'DELETE', token);
+
+export const sendServiceInvoice = (
+  token: string,
+  id: number,
+  body?: any,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}/send`, 'POST', token, body);
+
+export const markServiceInvoicePaid = (
+  token: string,
+  id: number,
+): Promise<ServiceInvoice> =>
+  apiRequest(`/supervisor/service-invoices/${id}/mark-paid`, 'PUT', token);
+
+export const markServiceInvoiceSent = (
+  token: string,
+  id: number,
+): Promise<ServiceInvoice> =>
+  apiRequest(`/supervisor/service-invoices/${id}/mark-sent`, 'PUT', token);
+
+export const resyncServiceInvoice = (
+  token: string,
+  id: number,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}/resync`, 'POST', token);
+
+export const getServiceInvoicePdf = async (
+  token: string,
+  id: number,
+): Promise<Blob> => {
+  const response = await fetch(
+    `${API_URL}/supervisor/service-invoices/${id}/pdf`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  if (!response.ok) {
+    throw new HttpError('Erreur téléchargement PDF', response.status);
+  }
+  return response.blob();
+};
+
+export const getServiceInvoiceDeletionInfo = (
+  token: string,
+  id: number,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}/deletion-info`, 'GET', token);
+
+export const getServiceInvoiceCalendar = (
+  token: string,
+  id: number,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}/calendar`, 'GET', token);
+
+export const createServiceInvoiceCalendar = (
+  token: string,
+  id: number,
+  data: any,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}/calendar`, 'POST', token, data);
+
+export const deleteServiceInvoiceCalendar = (
+  token: string,
+  id: number,
+): Promise<any> =>
+  apiRequest(`/supervisor/service-invoices/${id}/calendar`, 'DELETE', token);
+
+export const getInvoiceItemConfigs = (
+  token: string,
+  params?: { category?: string; all?: boolean },
+): Promise<ServiceInvoiceItemConfig[]> => {
+  const p = new URLSearchParams();
+  if (params?.category) p.set('category', params.category);
+  if (params?.all) p.set('all', 'true');
+  const qs = p.toString() ? `?${p.toString()}` : '';
+  return apiRequest(
+    `/supervisor/service-invoices/item-configs${qs}`,
+    'GET',
+    token,
+  );
+};
+
+export const createInvoiceItemConfig = (
+  token: string,
+  data: any,
+): Promise<ServiceInvoiceItemConfig> =>
+  apiRequest('/supervisor/service-invoices/item-configs', 'POST', token, data);
+
+export const updateInvoiceItemConfig = (
+  token: string,
+  id: number,
+  data: any,
+): Promise<ServiceInvoiceItemConfig> =>
+  apiRequest(
+    `/supervisor/service-invoices/item-configs/${id}`,
+    'PUT',
+    token,
+    data,
+  );
+
+export const deleteInvoiceItemConfig = (
+  token: string,
+  id: number,
+): Promise<any> =>
+  apiRequest(
+    `/supervisor/service-invoices/item-configs/${id}`,
+    'DELETE',
+    token,
+  );
+
+export const reorderInvoiceItemConfigs = (
+  token: string,
+  ids: number[],
+): Promise<any> =>
+  apiRequest(
+    '/supervisor/service-invoices/item-configs/reorder',
+    'PUT',
+    token,
+    { ids },
+  );
+
+export const searchDolibarrThirdparties = (
+  token: string,
+  q: string,
+): Promise<any> =>
+  apiRequest(
+    `/supervisor/service-invoices/thirdparties/search?q=${encodeURIComponent(q)}`,
+    'GET',
+    token,
+  );
+
+export const getDolibarrBankAccounts = (
+  token: string,
+): Promise<{ accounts: DolibarrBankAccount[]; selectedAccounts: Record<string, number | null> }> =>
+  apiRequest('/supervisor/service-invoices/dolibarr-bank-accounts', 'GET', token);
+
+export const setDolibarrBankAccount = (
+  token: string,
+  data: { accountId: number; paymentMethod: string },
+): Promise<any> =>
+  apiRequest(
+    '/supervisor/service-invoices/dolibarr-bank-account',
+    'PUT',
+    token,
+    data,
+  );
+
+export const searchRepairsForInvoice = (
+  token: string,
+  q: string,
+): Promise<RepairForInvoice[]> =>
+  apiRequest(
+    `/supervisor/service-invoices/repairs/search?q=${encodeURIComponent(q)}`,
+    'GET',
+    token,
+  );

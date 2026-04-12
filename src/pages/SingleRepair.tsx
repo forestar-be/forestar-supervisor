@@ -773,6 +773,60 @@ const SingleRepair = () => {
         setInitialRepair={setInitialRepair}
         closeAllEditableSections={closeAllEditableSections}
       />
+      {/* Invoice link section */}
+      {repair?.serviceInvoice && (
+        <Box
+          sx={{
+            mb: 2,
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor:
+              repair.serviceInvoice.status === 'PAID'
+                ? 'success.50'
+                : repair.serviceInvoice.status === 'SENT'
+                  ? 'warning.50'
+                  : 'info.50',
+            border: 1,
+            borderColor:
+              repair.serviceInvoice.status === 'PAID'
+                ? 'success.200'
+                : repair.serviceInvoice.status === 'SENT'
+                  ? 'warning.200'
+                  : 'info.200',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            cursor: 'pointer',
+          }}
+          onClick={() => navigate(`/factures/${repair.serviceInvoice!.id}`)}
+        >
+          <Typography variant="body2" fontWeight={600}>
+            Facture {repair.serviceInvoice.invoiceNumber}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              px: 1,
+              py: 0.25,
+              borderRadius: 1,
+              bgcolor:
+                repair.serviceInvoice.status === 'PAID'
+                  ? '#4caf50'
+                  : repair.serviceInvoice.status === 'SENT'
+                    ? '#ff9800'
+                    : '#2196f3',
+              color: '#fff',
+              fontWeight: 600,
+            }}
+          >
+            {repair.serviceInvoice.status === 'PAID'
+              ? 'Payée'
+              : repair.serviceInvoice.status === 'SENT'
+                ? 'Envoyée'
+                : 'Brouillon'}
+          </Typography>
+        </Box>
+      )}
       {repair && (
         <Grid container spacing={2}>
           <LeftGrid

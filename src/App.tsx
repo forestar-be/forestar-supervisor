@@ -18,6 +18,10 @@ import Settings from './pages/Settings';
 import PhoneCallbacks from './pages/PhoneCallbacks';
 import DailyCalendar from './pages/DailyCalendar';
 import RepairerWorkView from './pages/RepairerWorkView';
+import ServiceInvoices from './pages/ServiceInvoices';
+import ServiceInvoiceDetail from './pages/ServiceInvoiceDetail';
+import ServiceInvoiceCreate from './pages/ServiceInvoiceCreate';
+import ServiceInvoiceEdit from './pages/ServiceInvoiceEdit';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
 import { fetchAllInstallationTextsThunk } from './store/installationTextsSlice';
@@ -156,6 +160,22 @@ const App = (): JSX.Element => {
                         <Route path="appels" element={<PhoneCallbacks />} />
                         <Route path="calendrier" element={<DailyCalendar />} />
                         <Route path="ouvrier" element={<RepairerWorkView />} />
+                        <Route
+                          path="factures"
+                          element={<ServiceInvoices />}
+                        />
+                        <Route
+                          path="factures/nouveau"
+                          element={<ServiceInvoiceCreate />}
+                        />
+                        <Route
+                          path="factures/:id"
+                          element={<ServiceInvoiceDetail />}
+                        />
+                        <Route
+                          path="factures/:id/edit"
+                          element={<ServiceInvoiceEdit />}
+                        />
                       </Route>
                     </Route>
                     <Route path="*" element={<NotFoundPage />} />
