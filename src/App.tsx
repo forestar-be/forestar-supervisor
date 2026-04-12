@@ -77,7 +77,7 @@ const InitStoreLoader = () => {
 const RedirectToRobot = () => {
   useEffect(() => {
     const params = window.location.search;
-    window.location.href = `https://robot.forestar.be/devis/client/signature${params}`;
+    window.location.href = `${process.env.REACT_APP_ROBOT_URL}/devis/client/signature${params}`;
   }, []);
   return null;
 };

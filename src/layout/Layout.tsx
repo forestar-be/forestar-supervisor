@@ -16,6 +16,7 @@ import ListItemText from '@mui/material/ListItemText';
 import HomeIcon from '@mui/icons-material/Home';
 import CallIcon from '@mui/icons-material/Call';
 import SettingsIcon from '@mui/icons-material/Settings';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { useNavigate } from 'react-router-dom';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import Header from './Header';
@@ -53,11 +54,22 @@ const Layout = ({ children }: Props): JSX.Element => {
       icon: <CalendarMonthIcon />,
       path: '/calendrier',
     },
+    {
+      text: 'Robots',
+      icon: <SmartToyIcon />,
+      path: null,
+      href: process.env.REACT_APP_ROBOT_URL,
+    },
     { text: 'Paramètres', icon: <SettingsIcon />, path: '/parametres' },
   ];
 
-  const handleMenuItemClick = (path: string) => {
-    navigate(path);
+  const handleMenuItemClick = (path: string | null, href?: string) => {
+    if (href) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+      setSidebarOpen(false);
+      return;
+    }
+    navigate(path!);
     setSidebarOpen(false);
   };
 
@@ -84,7 +96,7 @@ const Layout = ({ children }: Props): JSX.Element => {
           <List>
             {menuItems.map((item, index) => (
               <ListItem key={index} disablePadding>
-                <ListItemButton onClick={() => handleMenuItemClick(item.path)}>
+                <ListItemButton onClick={() => handleMenuItemClick(item.path, item.href)}>
                   <ListItemIcon
                     sx={{
                       color:

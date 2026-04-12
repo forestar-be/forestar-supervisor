@@ -22,6 +22,7 @@ import CallIcon from '@mui/icons-material/Call';
 import HomeIcon from '@mui/icons-material/Home';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BuildIcon from '@mui/icons-material/Build';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import HeaderClient from './HeaderClient';
@@ -200,6 +201,19 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                 sx={buttonSx}
               >
                 {showTextInButton && <Box>Calendrier</Box>}
+              </Button>
+              <Button
+                component="a"
+                href={process.env.REACT_APP_ROBOT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Robots"
+                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                startIcon={<SmartToyIcon fontSize="medium" />}
+                variant="contained"
+                sx={buttonSx}
+              >
+                {showTextInButton && <Box>Robots</Box>}
               </Button>
               <IconButton
                 component="a"
