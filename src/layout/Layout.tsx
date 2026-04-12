@@ -15,12 +15,9 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import HomeIcon from '@mui/icons-material/Home';
 import CallIcon from '@mui/icons-material/Call';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useNavigate } from 'react-router-dom';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 import Header from './Header';
 
 interface Props {
@@ -51,21 +48,6 @@ const Layout = ({ children }: Props): JSX.Element => {
   const menuItems = [
     { text: 'Accueil', icon: <HomeIcon />, path: '/' },
     { text: 'Gestion des appels', icon: <CallIcon />, path: '/appels' },
-    {
-      text: 'Inventaire robots',
-      icon: <InventoryIcon />,
-      path: '/inventaire-robots',
-    },
-    {
-      text: 'Devis',
-      icon: <RequestQuoteIcon />,
-      path: '/devis',
-    },
-    {
-      text: 'Bons de commande',
-      icon: <ShoppingCartIcon />,
-      path: '/bons-commande',
-    },
     {
       text: 'Calendrier',
       icon: <CalendarMonthIcon />,

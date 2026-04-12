@@ -20,13 +20,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import CallIcon from '@mui/icons-material/Call';
 import HomeIcon from '@mui/icons-material/Home';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import BuildIcon from '@mui/icons-material/Build';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
-import RequestQuoteIcon from '@mui/icons-material/RequestQuote';
 import HeaderClient from './HeaderClient';
 
 interface Props {
@@ -188,51 +185,6 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                 sx={buttonSx}
               >
                 {showTextInButton && <Box>Appels</Box>}
-              </Button>
-              <Button
-                component="a"
-                href={`/inventaire-robots`}
-                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                  e.preventDefault();
-                  navigate(`/inventaire-robots`);
-                }}
-                aria-label="Inventaire des robots"
-                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
-                startIcon={<InventoryIcon fontSize="medium" />}
-                variant="contained"
-                sx={buttonSx}
-              >
-                {showTextInButton && <Box>Inventaire</Box>}
-              </Button>
-              <Button
-                component="a"
-                href={`/devis`}
-                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                  e.preventDefault();
-                  navigate(`/devis`);
-                }}
-                aria-label="Devis"
-                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
-                startIcon={<RequestQuoteIcon fontSize="medium" />}
-                variant="contained"
-                sx={buttonSx}
-              >
-                {showTextInButton && <Box>Devis</Box>}
-              </Button>
-              <Button
-                component="a"
-                href={`/bons-commande`}
-                onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                  e.preventDefault();
-                  navigate(`/bons-commande`);
-                }}
-                aria-label="Bons de commande"
-                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
-                startIcon={<ShoppingCartIcon fontSize="medium" />}
-                variant="contained"
-                sx={buttonSx}
-              >
-                {showTextInButton && <Box>Bons de commande</Box>}
               </Button>
               <Button
                 component="a"

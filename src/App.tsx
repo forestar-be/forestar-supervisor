@@ -16,17 +16,10 @@ import SingleRepair from './pages/SingleRepair';
 import Settings from './pages/Settings';
 
 import PhoneCallbacks from './pages/PhoneCallbacks';
-import Inventory from './pages/Inventory';
-import DevisPage from './pages/DevisPage';
-import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
-import PurchaseOrderForm from './pages/PurchaseOrderForm';
-import PurchaseOrderSignature from './pages/PurchaseOrderSignature';
-import ClientDevisSignature from './pages/ClientDevisSignature';
 import DailyCalendar from './pages/DailyCalendar';
 import RepairerWorkView from './pages/RepairerWorkView';
 import { useAppDispatch } from './store/hooks';
 import { fetchConfigAsync } from './store/configSlice';
-import { fetchInventorySummaryAsync } from './store/robotInventorySlice';
 import { fetchAllInstallationTextsThunk } from './store/installationTextsSlice';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -73,11 +66,19 @@ const InitStoreLoader = () => {
   useEffect(() => {
     if (auth.token) {
       dispatch(fetchConfigAsync(auth.token));
-      dispatch(fetchInventorySummaryAsync(auth.token));
       dispatch(fetchAllInstallationTextsThunk(auth.token));
     }
   }, [auth.token, dispatch]);
 
+  return null;
+};
+
+// Redirect /devis/client/signature to forestar-robot domain
+const RedirectToRobot = () => {
+  useEffect(() => {
+    const params = window.location.search;
+    window.location.href = `https://robot.forestar.be/devis/client/signature${params}`;
+  }, []);
   return null;
 };
 
@@ -128,7 +129,9 @@ const App = (): JSX.Element => {
                     <Route path="/login" element={<Login />} />
                     <Route
                       path="/devis/client/signature"
-                      element={<ClientDevisSignature />}
+                      element={
+                        <RedirectToRobot />
+                      }
                     />
                     <Route element={<AuthRoute />}>
                       <Route
@@ -151,27 +154,6 @@ const App = (): JSX.Element => {
                         />
                         <Route path="parametres" element={<Settings />} />
                         <Route path="appels" element={<PhoneCallbacks />} />
-                        <Route
-                          path="inventaire-robots"
-                          element={<Inventory />}
-                        />
-                        <Route path="devis" element={<DevisPage />} />
-                        <Route
-                          path="bons-commande"
-                          element={<PurchaseOrdersPage />}
-                        />
-                        <Route
-                          path="bons-commande/create"
-                          element={<PurchaseOrderForm />}
-                        />
-                        <Route
-                          path="bons-commande/edit/:id"
-                          element={<PurchaseOrderForm />}
-                        />
-                        <Route
-                          path="devis/signature/:id"
-                          element={<PurchaseOrderSignature />}
-                        />
                         <Route path="calendrier" element={<DailyCalendar />} />
                         <Route path="ouvrier" element={<RepairerWorkView />} />
                       </Route>
