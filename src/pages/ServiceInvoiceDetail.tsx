@@ -45,6 +45,7 @@ import {
 } from '../utils/invoiceUtils';
 import SendInvoiceModal from '../components/invoices/SendInvoiceModal';
 import DeleteInvoiceModal from '../components/invoices/DeleteInvoiceModal';
+import ConfirmDialog from '../components/dialogs/ConfirmDialog';
 
 const ServiceInvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +59,7 @@ const ServiceInvoiceDetail: React.FC = () => {
   const [dolibarrWarning, setDolibarrWarning] = useState<string | null>(null);
   const [showSendModal, setShowSendModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showZeroWarning, setShowZeroWarning] = useState(false);
 
   const fetchInvoice = useCallback(async () => {
     if (!auth.token || !id) return;
@@ -263,10 +265,17 @@ const ServiceInvoiceDetail: React.FC = () => {
               variant="contained"
               color="primary"
               startIcon={<SendIcon />}
-              disabled={
-                !invoice.clientEmail || invoice.lines.length === 0
-              }
-              onClick={() => setShowSendModal(true)}
+              disabled={!invoice.clientEmail || invoice.lines.length === 0}
+              onClick={() => {
+                if (
+                  invoice.totalTTC === 0 ||
+                  invoice.lines.some((l) => l.unitPrice === 0)
+                ) {
+                  setShowZeroWarning(true);
+                } else {
+                  setShowSendModal(true);
+                }
+              }}
             >
               Valider et envoyer
             </Button>
@@ -344,7 +353,9 @@ const ServiceInvoiceDetail: React.FC = () => {
             {invoice.clientFirstName} {invoice.clientLastName}
           </Typography>
           {invoice.clientPhone && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}
+            >
               <PhoneIcon fontSize="small" color="action" />
               <Link href={`tel:${invoice.clientPhone}`} underline="hover">
                 {invoice.clientPhone}
@@ -352,7 +363,9 @@ const ServiceInvoiceDetail: React.FC = () => {
             </Box>
           )}
           {invoice.clientEmail && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}
+            >
               <EmailIcon fontSize="small" color="action" />
               <Link href={`mailto:${invoice.clientEmail}`} underline="hover">
                 {invoice.clientEmail}
@@ -507,17 +520,10 @@ const ServiceInvoiceDetail: React.FC = () => {
       {invoice.remarks && (
         <Card sx={{ mb: 2 }}>
           <CardContent>
-            <Typography
-              variant="subtitle2"
-              color="text.secondary"
-              gutterBottom
-            >
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Remarques
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ whiteSpace: 'pre-wrap' }}
-            >
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
               {invoice.remarks}
             </Typography>
           </CardContent>
@@ -525,6 +531,25 @@ const ServiceInvoiceDetail: React.FC = () => {
       )}
 
       {/* Modals */}
+      <ConfirmDialog
+        open={showZeroWarning}
+        title="Facture avec montant à 0"
+        message={
+          invoice.totalTTC === 0
+            ? "Le total de cette facture est de 0 €. Voulez-vous vraiment la valider et l'envoyer ?"
+            : "Cette facture contient une ou plusieurs lignes avec un prix unitaire à 0 €. Voulez-vous vraiment la valider et l'envoyer ?"
+        }
+        type="warning"
+        confirmText="Continuer"
+        cancelText="Annuler"
+        isLoading={false}
+        onConfirm={async () => {
+          setShowZeroWarning(false);
+          setShowSendModal(true);
+        }}
+        onClose={() => setShowZeroWarning(false)}
+      />
+
       {showSendModal && (
         <SendInvoiceModal
           invoiceId={invoice.id}
