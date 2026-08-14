@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
@@ -62,7 +68,7 @@ const ServiceInvoices: React.FC = () => {
   const auth = useAuth();
   const theme = useTheme();
   const navigate = useNavigate();
-  const gridRef = React.createRef<AgGridReact>();
+  const gridRef = useRef<AgGridReact>(null);
   const [invoices, setInvoices] = useState<ServiceInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');

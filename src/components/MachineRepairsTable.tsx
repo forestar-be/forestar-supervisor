@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
@@ -51,7 +57,7 @@ const MachineRepairsTable: React.FC = () => {
   const auth = useAuth();
   const theme = useTheme();
   const navigate = useNavigate();
-  const gridRef = React.createRef<AgGridReact>();
+  const gridRef = useRef<AgGridReact>(null);
   const [machineRepairs, setMachineRepairs] = useState<MachineRepair[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
@@ -230,7 +236,10 @@ const MachineRepairsTable: React.FC = () => {
     }
   }, []);
 
-  // Add resize handler to fit columns on window size change
+  // Add resize handler to fit columns on window size change.
+  // Must run once: gridRef is a stable useRef, so no dependency is needed.
+  // Depending on the ref object here would re-run sizeColumnsToFit on every
+  // render, which reflows the whole grid and discards saved column widths.
   useEffect(() => {
     let resizeTimeout: NodeJS.Timeout;
 
@@ -238,25 +247,18 @@ const MachineRepairsTable: React.FC = () => {
       // Debounce resize event
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
-        if (gridRef.current && gridRef.current.api) {
-          gridRef.current.api.sizeColumnsToFit();
-        }
+        gridRef.current?.api?.sizeColumnsToFit();
       }, 250);
     };
 
     window.addEventListener('resize', handleResize);
-
-    // Initial sizing
-    if (gridRef.current && gridRef.current.api) {
-      gridRef.current.api.sizeColumnsToFit();
-    }
 
     // Cleanup
     return () => {
       clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleResize);
     };
-  }, [gridRef]);
+  }, []);
 
   const columns: ColDef<MachineRepair>[] = [
     {
