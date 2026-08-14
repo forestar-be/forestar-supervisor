@@ -140,6 +140,16 @@ const formatCreatedAt = (params: any) =>
 const compareDates = (valueA: string, valueB: string) =>
   new Date(valueA).getTime() - new Date(valueB).getTime();
 
+// Delay before the customer search is applied to the grid. The input itself
+// stays fully responsive; only the (expensive) re-filter is deferred.
+const SEARCH_DEBOUNCE_MS = 250;
+
+const normalizeString = (str: string) =>
+  str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 const MachineRepairsTable: React.FC = () => {
   const auth = useAuth();
   const theme = useTheme();
@@ -148,6 +158,8 @@ const MachineRepairsTable: React.FC = () => {
   const [machineRepairs, setMachineRepairs] = useState<MachineRepair[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
+  // Value actually applied to the grid, debounced behind customerFilterText.
+  const [appliedCustomerFilter, setAppliedCustomerFilter] = useState('');
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedRepairers, setSelectedRepairers] = useState<string[]>([]);
   const [paginationPageSize, setPaginationPageSize] = useState(() =>
@@ -215,13 +227,30 @@ const MachineRepairsTable: React.FC = () => {
     }
   }, [config]);
 
-  const isExternalFilterPresent = useCallback((): boolean => {
-    return Boolean(
-      customerFilterText ||
-        selectedStates.length > 0 ||
-        selectedRepairers.length > 0,
+  // Debounce the customer search: typing stays responsive, the grid only
+  // re-filters once the user pauses.
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setAppliedCustomerFilter(customerFilterText),
+      SEARCH_DEBOUNCE_MS,
     );
-  }, [customerFilterText, selectedStates, selectedRepairers]);
+    return () => clearTimeout(timeout);
+  }, [customerFilterText]);
+
+  // Normalise the query once instead of once per row.
+  const customerSearchWords = useMemo(() => {
+    const query = appliedCustomerFilter.trim();
+    if (!query) return [];
+    return normalizeString(query).split(' ').filter(Boolean);
+  }, [appliedCustomerFilter]);
+
+  const isExternalFilterPresent = useCallback((): boolean => {
+    return (
+      customerSearchWords.length > 0 ||
+      selectedStates.length > 0 ||
+      selectedRepairers.length > 0
+    );
+  }, [customerSearchWords, selectedStates, selectedRepairers]);
 
   const doesExternalFilterPass = useCallback(
     (node: IRowNode<MachineRepair>): boolean => {
@@ -246,31 +275,30 @@ const MachineRepairsTable: React.FC = () => {
         }
 
         // Filtre par client/téléphone
-        if (customerFilterText) {
-          const fullName = `${first_name || ''} ${last_name || ''}`.trim();
-          const customerSearchWords = customerFilterText
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .split(' ');
-          const normalizeString = (str: string) =>
-            str
-              .toLowerCase()
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '');
+        if (customerSearchWords.length > 0) {
+          const fullName = normalizeString(
+            `${first_name || ''} ${last_name || ''}`.trim(),
+          );
+          const normalizedPhone = phone ? normalizeString(phone) : '';
 
           // Check if any of the search words match either the full name or the phone number
           return customerSearchWords.every(
             (word) =>
-              normalizeString(fullName).includes(word) ||
-              (phone && normalizeString(phone).includes(word)),
+              fullName.includes(word) || normalizedPhone.includes(word),
           );
         }
       }
       return true;
     },
-    [customerFilterText, selectedStates, selectedRepairers],
+    [customerSearchWords, selectedStates, selectedRepairers],
   );
+
+  // AG Grid does not re-run the external filter when the predicate changes;
+  // it has to be told explicitly. This used to happen by accident, because a
+  // new columnDefs array forced a full grid rebuild on every render.
+  useEffect(() => {
+    gridRef.current?.api?.onFilterChanged();
+  }, [customerSearchWords, selectedStates, selectedRepairers]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -871,6 +899,7 @@ const MachineRepairsTable: React.FC = () => {
           ref={gridRef}
           rowData={machineRepairs}
           columnDefs={columns}
+          loading={loading}
           pagination={true}
           paginationPageSize={paginationPageSize}
           paginationPageSizeSelector={PAGE_SIZE_OPTIONS}
