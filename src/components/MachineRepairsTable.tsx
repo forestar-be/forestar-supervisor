@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -247,45 +248,64 @@ const MachineRepairsTable: React.FC = () => {
     return normalizeString(query).split(' ').filter(Boolean);
   }, [appliedCustomerFilter]);
 
-  const isExternalFilterPresent = useCallback((): boolean => {
-    return (
-      customerSearchWords.length > 0 ||
-      selectedStates.length > 0 ||
-      selectedRepairers.length > 0
-    );
+  // The filter callbacks below must keep a stable identity, otherwise AG Grid
+  // has to re-sync them on every change and the result depends on whether its
+  // own prop sync runs before or after our onFilterChanged() — which made the
+  // grid filter on the *previous* query. Reading the criteria through a ref
+  // removes that ordering dependency entirely.
+  const filterCriteriaRef = useRef({
+    words: [] as string[],
+    states: [] as string[],
+    repairers: [] as string[],
+  });
+
+  // Layout effect: runs before the passive effect that triggers the re-filter.
+  useLayoutEffect(() => {
+    filterCriteriaRef.current = {
+      words: customerSearchWords,
+      states: selectedStates,
+      repairers: selectedRepairers,
+    };
   }, [customerSearchWords, selectedStates, selectedRepairers]);
+
+  const isExternalFilterPresent = useCallback((): boolean => {
+    const { words, states, repairers } = filterCriteriaRef.current;
+    return words.length > 0 || states.length > 0 || repairers.length > 0;
+  }, []);
 
   const doesExternalFilterPass = useCallback(
     (node: IRowNode<MachineRepairListItem>): boolean => {
+      const { words, states, repairers } = filterCriteriaRef.current;
+
       if (node.data) {
         const { first_name, last_name, phone, state, repairer_name } =
           node.data;
 
         // Filtre par état
-        if (selectedStates.length > 0) {
+        if (states.length > 0) {
           const currentState = state || 'Non commencé';
-          if (!selectedStates.includes(currentState)) {
+          if (!states.includes(currentState)) {
             return false;
           }
         }
 
         // Filtre par réparateur
-        if (selectedRepairers.length > 0) {
+        if (repairers.length > 0) {
           const currentRepairer = repairer_name || 'Non affecté';
-          if (!selectedRepairers.includes(currentRepairer)) {
+          if (!repairers.includes(currentRepairer)) {
             return false;
           }
         }
 
         // Filtre par client/téléphone
-        if (customerSearchWords.length > 0) {
+        if (words.length > 0) {
           const fullName = normalizeString(
             `${first_name || ''} ${last_name || ''}`.trim(),
           );
           const normalizedPhone = phone ? normalizeString(phone) : '';
 
           // Check if any of the search words match either the full name or the phone number
-          return customerSearchWords.every(
+          return words.every(
             (word) =>
               fullName.includes(word) || normalizedPhone.includes(word),
           );
@@ -293,12 +313,12 @@ const MachineRepairsTable: React.FC = () => {
       }
       return true;
     },
-    [customerSearchWords, selectedStates, selectedRepairers],
+    [],
   );
 
-  // AG Grid does not re-run the external filter when the predicate changes;
-  // it has to be told explicitly. This used to happen by accident, because a
-  // new columnDefs array forced a full grid rebuild on every render.
+  // AG Grid does not re-run the external filter on its own when the criteria
+  // change; it has to be told. This used to happen by accident, because a new
+  // columnDefs array forced a full grid rebuild on every render.
   useEffect(() => {
     gridRef.current?.api?.onFilterChanged();
   }, [customerSearchWords, selectedStates, selectedRepairers]);
