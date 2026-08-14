@@ -22,7 +22,13 @@ import {
 } from '@mui/material';
 import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
-import type { ColDef, CellStyle } from 'ag-grid-community';
+import type {
+  ColDef,
+  CellStyle,
+  GetRowIdParams,
+  GridReadyEvent,
+  PaginationChangedEvent,
+} from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
@@ -53,6 +59,87 @@ const rowHeight = 40;
 // Grid state key for machine repairs
 const MACHINE_REPAIRS_GRID_STATE_KEY = 'machineRepairsAgGridState';
 
+// Available page size options
+const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50, 100];
+
+// Module-level constants and column callbacks: everything that does not close
+// over component state lives here so its identity is stable across renders.
+// AG Grid rebuilds every cell whose colDef changed, so a new inline function
+// on each render means recreating the whole grid body on every keystroke.
+const AUTO_SIZE_STRATEGY = { type: 'fitGridWidth' } as const;
+
+const getRowId = (params: GetRowIdParams<MachineRepair>) =>
+  String(params.data.id);
+
+const formatState = (params: any) =>
+  !params.value ? 'Non commencé' : params.value;
+
+const renderClientCallCell = (params: any) => {
+  if (params.value && params.value.length) {
+    const lastCall =
+      params.value[params.value.length - 1].toLocaleString('FR-fr');
+    return (
+      <Box display="flex" alignItems="center" gap={1}>
+        {lastCall}
+        <CheckCircleIcon color={'success'} />
+      </Box>
+    );
+  }
+  return (
+    <Box display="flex" alignItems="center" justifyContent="center">
+      -
+    </Box>
+  );
+};
+
+const getMachineTypeValue = (params: any) => {
+  const machineType = params.data.machine_type_name || '';
+  const robotType = params.data.robot_type_name;
+
+  if (robotType) {
+    return `${robotType} (${machineType})`;
+  }
+  return machineType || '-';
+};
+
+const getClientValue = (params: any) => {
+  const firstName = params.data.first_name || '';
+  const lastName = params.data.last_name || '';
+  return `${firstName} ${lastName}`.trim();
+};
+
+const formatDash = (params: any) => params.value || '-';
+
+const INVOICE_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Brouillon',
+  SENT: 'Envoyée',
+  PAID: 'Payée',
+};
+
+const INVOICE_STATUS_STYLES: Record<string, CellStyle> = {
+  DRAFT: { color: '#2196f3', fontWeight: 600 },
+  SENT: { color: '#ff9800', fontWeight: 600 },
+  PAID: { color: '#4caf50', fontWeight: 600 },
+};
+
+const getInvoiceValue = (params: any) => {
+  const inv = params.data?.serviceInvoice;
+  if (!inv) return 'Aucune';
+  return INVOICE_STATUS_LABELS[inv.status] ?? inv.status;
+};
+
+const getInvoiceCellStyle = (params: any) => {
+  const inv = params.data?.serviceInvoice;
+  if (!inv) return { color: '#9e9e9e' } as CellStyle;
+  return (INVOICE_STATUS_STYLES[inv.status] ?? {}) as CellStyle;
+};
+
+const formatCreatedAt = (params: any) =>
+  new Date(params.value).toLocaleString('fr-FR');
+
+const compareDates = (valueA: string, valueB: string) =>
+  new Date(valueA).getTime() - new Date(valueB).getTime();
+
 const MachineRepairsTable: React.FC = () => {
   const auth = useAuth();
   const theme = useTheme();
@@ -78,19 +165,19 @@ const MachineRepairsTable: React.FC = () => {
   const showTextInButton = !isXs;
 
   // Button style based on showTextInButton
-  const buttonSx = {
-    whiteSpace: 'nowrap',
-    ...(showTextInButton
-      ? {}
-      : {
-          minWidth: 'unset',
-          '& .MuiButton-startIcon': { m: 0 },
-          '& .MuiButton-endIcon': { m: 0 },
-        }),
-  };
-
-  // Available page size options
-  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
+  const buttonSx = useMemo(
+    () => ({
+      whiteSpace: 'nowrap',
+      ...(showTextInButton
+        ? {}
+        : {
+            minWidth: 'unset',
+            '& .MuiButton-startIcon': { m: 0 },
+            '& .MuiButton-endIcon': { m: 0 },
+          }),
+    }),
+    [showTextInButton],
+  );
 
   // Save page size to localStorage when it changes
   useEffect(() => {
@@ -222,6 +309,23 @@ const MachineRepairsTable: React.FC = () => {
     onFirstDataRendered(params, MACHINE_REPAIRS_GRID_STATE_KEY);
   }, []);
 
+  const handleGridReady = useCallback((params: GridReadyEvent) => {
+    // Setup event listeners to save grid state on changes
+    setupGridStateEvents(params.api, MACHINE_REPAIRS_GRID_STATE_KEY);
+    // Size columns to fit the grid width
+    params.api.sizeColumnsToFit();
+  }, []);
+
+  const handlePaginationChanged = useCallback(
+    (event: PaginationChangedEvent) => {
+      const newPageSize = event.api.paginationGetPageSize();
+      setPaginationPageSize((current) =>
+        newPageSize !== current ? newPageSize : current,
+      );
+    },
+    [],
+  );
+
   // Handle reset grid state
   const handleResetGrid = useCallback(() => {
     if (
@@ -260,232 +364,214 @@ const MachineRepairsTable: React.FC = () => {
     };
   }, []);
 
-  const columns: ColDef<MachineRepair>[] = [
-    {
-      headerName: 'N°',
-      field: 'id' as keyof MachineRepair,
-      sortable: true,
-      filter: false,
-      minWidth: 75,
-      maxWidth: 75,
-      cellStyle: {
-        paddingLeft: '4px',
-        paddingRight: '4px',
-      },
-      // hide: isMobile,
-      cellRenderer: (params: { value: number }) => (
+  const renderIdCell = useCallback(
+    (params: { value: number }) => (
+      <Button
+        component="a"
+        href={`/reparation/${params.value}`}
+        rel="noopener noreferrer"
+        startIcon={<VisibilityIcon />}
+        onClick={(e: React.MouseEvent) => {
+          e.preventDefault();
+          navigate(`/reparation/${params.value}`);
+        }}
+      >
+        {params.value}
+      </Button>
+    ),
+    [navigate],
+  );
+
+  const getStateCellStyle = useCallback(
+    (params: any) =>
+      ({
+        backgroundColor: colorByState[params.value || 'Non commencé'],
+        color: 'black',
+      }) as CellStyle,
+    [colorByState],
+  );
+
+  const renderRepairerCell = useCallback(
+    (params: any) => {
+      const handleRepairerChange = async (
+        event: SelectChangeEvent<string>,
+      ) => {
+        const newValue =
+          event.target.value === 'Non affecté' ? null : event.target.value;
+        const oldValue = params.value ?? null;
+
+        // Only proceed if the value actually changed
+        if (newValue === oldValue) {
+          return;
+        }
+
+        // Optimistic update
+        params.node.setDataValue('repairer_name', newValue);
+
+        try {
+          await updateRepair(auth.token, params.data.id.toString(), {
+            repairer_name: newValue,
+          });
+          toast.success('Réparateur mis à jour avec succès');
+        } catch (error) {
+          console.error('Error updating repairer:', error);
+          toast.error('Erreur lors de la mise à jour du réparateur');
+          // Revert the change in the grid
+          params.node.setDataValue('repairer_name', oldValue);
+        }
+      };
+
+      return (
+        <Select
+          value={params.value || 'Non affecté'}
+          onChange={handleRepairerChange}
+          size="small"
+          // variant="standard"
+          sx={{
+            width: '100%',
+            fontSize: 'inherit',
+            fontFamily: 'inherit',
+            '& .MuiSelect-select': {
+              py: 0.5,
+            },
+          }}
+        >
+          <MenuItem value="Non affecté">Non affecté</MenuItem>
+          {repairerNames.map((name) => (
+            <MenuItem key={name} value={name}>
+              {name}
+            </MenuItem>
+          ))}
+        </Select>
+      );
+    },
+    [auth.token, repairerNames],
+  );
+
+  const renderInvoiceCell = useCallback(
+    (params: any) => {
+      const inv = params.data?.serviceInvoice;
+      if (!inv) return <span style={{ color: '#9e9e9e' }}>—</span>;
+      return (
         <Button
-          component="a"
-          href={`/reparation/${params.value}`}
-          rel="noopener noreferrer"
-          startIcon={<VisibilityIcon />}
+          size="small"
+          sx={{ textTransform: 'none', minWidth: 0, p: 0 }}
           onClick={(e: React.MouseEvent) => {
-            e.preventDefault();
-            navigate(`/reparation/${params.value}`);
+            e.stopPropagation();
+            navigate(`/factures/${inv.id}`);
           }}
         >
           {params.value}
         </Button>
-      ),
+      );
     },
-    {
-      headerName: 'État',
-      field: 'state' as keyof MachineRepair,
-      sortable: true,
-      filter: true,
-      valueFormatter: (params: any) =>
-        !params.value ? 'Non commencé' : params.value,
-      cellStyle: (params: any) => ({
-        backgroundColor: colorByState[params.value || 'Non commencé'],
-        color: 'black',
-      }),
-    },
-    {
-      headerName: 'Appel client',
-      field: 'client_call_times' as keyof MachineRepair,
-      sortable: false,
-      filter: true,
-      hide: isTablet,
-      cellRenderer: (params: any) => {
-        if (params.value && params.value.length) {
-          const lastCall =
-            params.value[params.value.length - 1].toLocaleString('FR-fr');
-          return (
-            <Box display="flex" alignItems="center" gap={1}>
-              {lastCall}
-              <CheckCircleIcon color={'success'} />
-            </Box>
-          );
-        } else {
-          return (
-            <Box display="flex" alignItems="center" justifyContent="center">
-              -
-            </Box>
-          );
-        }
-      },
-    },
-    {
-      headerName: 'Type',
-      field: 'repair_or_maintenance' as keyof MachineRepair,
-      sortable: true,
-      filter: true,
-      width: 120,
-      hide: isTablet,
-    },
-    {
-      headerName: 'Type de machine',
-      sortable: true,
-      filter: true,
-      hide: isSmallScreen,
-      valueGetter: (params: any) => {
-        const machineType = params.data.machine_type_name || '';
-        const robotType = params.data.robot_type_name;
+    [navigate],
+  );
 
-        if (robotType) {
-          return `${robotType} (${machineType})`;
-        }
-        return machineType || '-';
+  const columns: ColDef<MachineRepair>[] = useMemo(
+    () => [
+      {
+        headerName: 'N°',
+        field: 'id' as keyof MachineRepair,
+        sortable: true,
+        filter: false,
+        minWidth: 75,
+        maxWidth: 75,
+        cellStyle: {
+          paddingLeft: '4px',
+          paddingRight: '4px',
+        },
+        // hide: isMobile,
+        cellRenderer: renderIdCell,
       },
-    },
-    {
-      headerName: 'Réparateur',
-      field: 'repairer_name' as keyof MachineRepair,
-      sortable: true,
-      filter: true,
-      hide: isTablet,
-      cellClass: 'full-width-cell',
-      cellRenderer: (params: any) => {
-        const handleRepairerChange = async (
-          event: SelectChangeEvent<string>,
-        ) => {
-          const newValue =
-            event.target.value === 'Non affecté' ? null : event.target.value;
-          const oldValue = params.value ?? null;
-
-          // Only proceed if the value actually changed
-          if (newValue === oldValue) {
-            return;
-          }
-
-          // Optimistic update
-          params.node.setDataValue('repairer_name', newValue);
-
-          try {
-            await updateRepair(auth.token, params.data.id.toString(), {
-              repairer_name: newValue,
-            });
-            toast.success('Réparateur mis à jour avec succès');
-          } catch (error) {
-            console.error('Error updating repairer:', error);
-            toast.error('Erreur lors de la mise à jour du réparateur');
-            // Revert the change in the grid
-            params.node.setDataValue('repairer_name', oldValue);
-          }
-        };
-
-        return (
-          <Select
-            value={params.value || 'Non affecté'}
-            onChange={handleRepairerChange}
-            size="small"
-            // variant="standard"
-            sx={{
-              width: '100%',
-              fontSize: 'inherit',
-              fontFamily: 'inherit',
-              '& .MuiSelect-select': {
-                py: 0.5,
-              },
-            }}
-          >
-            <MenuItem value="Non affecté">Non affecté</MenuItem>
-            {repairerNames.map((name) => (
-              <MenuItem key={name} value={name}>
-                {name}
-              </MenuItem>
-            ))}
-          </Select>
-        );
+      {
+        headerName: 'État',
+        field: 'state' as keyof MachineRepair,
+        sortable: true,
+        filter: true,
+        valueFormatter: formatState,
+        cellStyle: getStateCellStyle,
       },
-    },
-    {
-      headerName: 'Client',
-      sortable: true,
-      filter: true,
-      valueGetter: (params: any) => {
-        const firstName = params.data.first_name || '';
-        const lastName = params.data.last_name || '';
-        return `${firstName} ${lastName}`.trim();
+      {
+        headerName: 'Appel client',
+        field: 'client_call_times' as keyof MachineRepair,
+        sortable: false,
+        filter: true,
+        hide: isTablet,
+        cellRenderer: renderClientCallCell,
       },
-    },
-    {
-      headerName: 'Téléphone',
-      field: 'phone',
-      sortable: true,
-      filter: true,
-      minWidth: 120,
-      valueFormatter: (params: any) => params.value || '-',
-    },
-    {
-      headerName: 'Facture',
-      field: 'serviceInvoice' as any,
-      sortable: true,
-      filter: false,
-      minWidth: 100,
-      maxWidth: 130,
-      hide: isTablet,
-      valueGetter: (params: any) => {
-        const inv = params.data?.serviceInvoice;
-        if (!inv) return 'Aucune';
-        switch (inv.status) {
-          case 'DRAFT': return 'Brouillon';
-          case 'SENT': return 'Envoyée';
-          case 'PAID': return 'Payée';
-          default: return inv.status;
-        }
+      {
+        headerName: 'Type',
+        field: 'repair_or_maintenance' as keyof MachineRepair,
+        sortable: true,
+        filter: true,
+        width: 120,
+        hide: isTablet,
       },
-      cellStyle: (params: any) => {
-        const inv = params.data?.serviceInvoice;
-        if (!inv) return { color: '#9e9e9e' } as CellStyle;
-        switch (inv.status) {
-          case 'DRAFT': return { color: '#2196f3', fontWeight: 600 } as CellStyle;
-          case 'SENT': return { color: '#ff9800', fontWeight: 600 } as CellStyle;
-          case 'PAID': return { color: '#4caf50', fontWeight: 600 } as CellStyle;
-          default: return {} as CellStyle;
-        }
+      {
+        headerName: 'Type de machine',
+        sortable: true,
+        filter: true,
+        hide: isSmallScreen,
+        valueGetter: getMachineTypeValue,
       },
-      cellRenderer: (params: any) => {
-        const inv = params.data?.serviceInvoice;
-        if (!inv) return <span style={{ color: '#9e9e9e' }}>—</span>;
-        return (
-          <Button
-            size="small"
-            sx={{ textTransform: 'none', minWidth: 0, p: 0 }}
-            onClick={(e: React.MouseEvent) => {
-              e.stopPropagation();
-              navigate(`/factures/${inv.id}`);
-            }}
-          >
-            {params.value}
-          </Button>
-        );
+      {
+        headerName: 'Réparateur',
+        field: 'repairer_name' as keyof MachineRepair,
+        sortable: true,
+        filter: true,
+        hide: isTablet,
+        cellClass: 'full-width-cell',
+        cellRenderer: renderRepairerCell,
       },
-    },
-    {
-      headerName: 'Date de création',
-      field: 'createdAt' as keyof MachineRepair,
-      sortable: true,
-      unSortIcon: true,
-      filter: 'agDateColumnFilter',
-      initialSort: 'desc',
-      valueFormatter: (params: any) =>
-        new Date(params.value).toLocaleString('fr-FR'),
-      comparator: (valueA: string, valueB: string) =>
-        new Date(valueA).getTime() - new Date(valueB).getTime(),
-      hide: isMobile,
-    },
-  ];
+      {
+        headerName: 'Client',
+        sortable: true,
+        filter: true,
+        valueGetter: getClientValue,
+      },
+      {
+        headerName: 'Téléphone',
+        field: 'phone',
+        sortable: true,
+        filter: true,
+        minWidth: 120,
+        valueFormatter: formatDash,
+      },
+      {
+        headerName: 'Facture',
+        field: 'serviceInvoice' as any,
+        sortable: true,
+        filter: false,
+        minWidth: 100,
+        maxWidth: 130,
+        hide: isTablet,
+        valueGetter: getInvoiceValue,
+        cellStyle: getInvoiceCellStyle,
+        cellRenderer: renderInvoiceCell,
+      },
+      {
+        headerName: 'Date de création',
+        field: 'createdAt' as keyof MachineRepair,
+        sortable: true,
+        unSortIcon: true,
+        filter: 'agDateColumnFilter',
+        initialSort: 'desc',
+        valueFormatter: formatCreatedAt,
+        comparator: compareDates,
+        hide: isMobile,
+      },
+    ],
+    [
+      isTablet,
+      isSmallScreen,
+      isMobile,
+      renderIdCell,
+      getStateCellStyle,
+      renderRepairerCell,
+      renderInvoiceCell,
+    ],
+  );
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -787,25 +873,13 @@ const MachineRepairsTable: React.FC = () => {
           columnDefs={columns}
           pagination={true}
           paginationPageSize={paginationPageSize}
-          paginationPageSizeSelector={pageSizeOptions}
+          paginationPageSizeSelector={PAGE_SIZE_OPTIONS}
           localeText={AG_GRID_LOCALE_FR}
-          autoSizeStrategy={{
-            type: 'fitGridWidth',
-          }}
-          onGridReady={(params) => {
-            // Setup event listeners to save grid state on changes
-            setupGridStateEvents(params.api, MACHINE_REPAIRS_GRID_STATE_KEY);
-            // Size columns to fit the grid width
-            params.api.sizeColumnsToFit();
-          }}
+          autoSizeStrategy={AUTO_SIZE_STRATEGY}
+          getRowId={getRowId}
+          onGridReady={handleGridReady}
           onFirstDataRendered={handleFirstDataRendered}
-          onPaginationChanged={(event) => {
-            const api = event.api;
-            const newPageSize = api.paginationGetPageSize();
-            if (newPageSize !== paginationPageSize) {
-              setPaginationPageSize(newPageSize);
-            }
-          }}
+          onPaginationChanged={handlePaginationChanged}
           isExternalFilterPresent={isExternalFilterPresent}
           doesExternalFilterPass={doesExternalFilterPass}
         />

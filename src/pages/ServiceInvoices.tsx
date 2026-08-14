@@ -20,7 +20,12 @@ import {
 } from '@mui/material';
 import { useAuth } from '../hooks/AuthProvider';
 import { useTheme } from '@mui/material/styles';
-import type { ColDef } from 'ag-grid-community';
+import type {
+  ColDef,
+  GetRowIdParams,
+  GridReadyEvent,
+  PaginationChangedEvent,
+} from 'ag-grid-community';
 import { AG_GRID_LOCALE_FR } from '@ag-grid-community/locale';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EditIcon from '@mui/icons-material/Edit';
@@ -55,6 +60,63 @@ import MultiSelectDropdown from '../components/MultiSelectDropdown';
 const rowHeight = 40;
 const GRID_STATE_KEY = 'serviceInvoicesAgGridState';
 
+// Module-level constants: stable identity across renders, so AG Grid does not
+// rebuild the whole grid body every time the component re-renders.
+const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50, 100];
+
+const DEFAULT_COL_DEF: ColDef = {
+  resizable: true,
+  sortable: true,
+};
+
+const getRowId = (params: GetRowIdParams<ServiceInvoice>) =>
+  String(params.data.id);
+
+const getClientValue = (params: any) => {
+  const first = params.data?.clientFirstName || '';
+  const last = params.data?.clientLastName || '';
+  return `${first} ${last}`.trim();
+};
+
+const formatDash = (params: any) => params.value || '-';
+
+const formatAmount = (params: any) =>
+  params.value != null ? formatCurrency(params.value) : '-';
+
+const AMOUNT_CELL_STYLE = { textAlign: 'right' } as const;
+
+const formatPaymentMethod = (params: any) =>
+  params.value ? getPaymentMethodLabel(params.value) : '-';
+
+const renderStatusCell = (params: any) => {
+  if (!params.value) return '-';
+  return (
+    <Chip
+      label={getInvoiceStatusLabel(params.value)}
+      size="small"
+      sx={{
+        backgroundColor: getInvoiceStatusColor(params.value),
+        color: '#fff',
+        fontWeight: 600,
+        fontSize: '0.75rem',
+      }}
+    />
+  );
+};
+
+const renderDolibarrCell = (params: any) => {
+  const status = params.value;
+  if (status === 'synced') return <span style={{ color: '#4caf50' }}>✓</span>;
+  if (status === 'error') return <span style={{ color: '#ff9800' }}>⚠</span>;
+  return <span style={{ color: '#9e9e9e' }}>—</span>;
+};
+
+const formatDate = (params: any) =>
+  params.value ? new Date(params.value).toLocaleDateString('fr-FR') : '-';
+
+const compareDates = (valueA: string, valueB: string) =>
+  new Date(valueA).getTime() - new Date(valueB).getTime();
+
 const statusLabelToValue: Record<string, string> = {
   'Brouillon': 'DRAFT',
   'Envoyée': 'SENT',
@@ -85,18 +147,19 @@ const ServiceInvoices: React.FC = () => {
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const showTextInButton = !isXs;
 
-  const buttonSx = {
-    whiteSpace: 'nowrap',
-    ...(showTextInButton
-      ? {}
-      : {
-          minWidth: 'unset',
-          '& .MuiButton-startIcon': { m: 0 },
-          '& .MuiButton-endIcon': { m: 0 },
-        }),
-  };
-
-  const pageSizeOptions = [5, 10, 15, 20, 25, 50, 100];
+  const buttonSx = useMemo(
+    () => ({
+      whiteSpace: 'nowrap',
+      ...(showTextInButton
+        ? {}
+        : {
+            minWidth: 'unset',
+            '& .MuiButton-startIcon': { m: 0 },
+            '& .MuiButton-endIcon': { m: 0 },
+          }),
+    }),
+    [showTextInButton],
+  );
 
   useEffect(() => {
     saveGridPageSize(GRID_STATE_KEY, paginationPageSize);
@@ -119,21 +182,43 @@ const ServiceInvoices: React.FC = () => {
     fetchInvoices();
   }, [fetchInvoices]);
 
-  const handleResetGrid = () => {
+  const handleResetGrid = useCallback(() => {
     clearGridState(GRID_STATE_KEY);
     window.location.reload();
-  };
+  }, []);
 
-  const handleDownloadPdf = async (invoice: ServiceInvoice) => {
-    if (invoice.status === ServiceInvoiceStatus.DRAFT) return;
-    try {
-      const blob = await getServiceInvoicePdf(auth.token, invoice.id);
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch (error) {
-      toast.error('Erreur lors du téléchargement du PDF');
-    }
-  };
+  const handleGridReady = useCallback((e: GridReadyEvent) => {
+    setupGridStateEvents(e.api, GRID_STATE_KEY);
+  }, []);
+
+  const handleFirstDataRendered = useCallback((e: any) => {
+    onFirstDataRendered(e, GRID_STATE_KEY);
+  }, []);
+
+  const handlePaginationChanged = useCallback(
+    (e: PaginationChangedEvent) => {
+      if (!e.api) return;
+      const newSize = e.api.paginationGetPageSize();
+      setPaginationPageSize((current) =>
+        newSize !== current ? newSize : current,
+      );
+    },
+    [],
+  );
+
+  const handleDownloadPdf = useCallback(
+    async (invoice: ServiceInvoice) => {
+      if (invoice.status === ServiceInvoiceStatus.DRAFT) return;
+      try {
+        const blob = await getServiceInvoicePdf(auth.token, invoice.id);
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } catch (error) {
+        toast.error('Erreur lors du téléchargement du PDF');
+      }
+    },
+    [auth.token],
+  );
 
   const filteredInvoices = useMemo(() => {
     let filtered = invoices;
@@ -157,163 +242,154 @@ const ServiceInvoices: React.FC = () => {
     return filtered;
   }, [invoices, selectedStatusLabels, searchText]);
 
-  const columns: ColDef<ServiceInvoice>[] = [
-    {
-      headerName: 'N°',
-      field: 'invoiceNumber',
-      sortable: true,
-      filter: false,
-      minWidth: 140,
-      maxWidth: 180,
-      cellRenderer: (params: any) => (
-        <span
-          style={{ cursor: 'pointer', color: 'inherit', fontWeight: 500 }}
-          onClick={() => navigate(`/factures/${params.data.id}`)}
-        >
-          {params.value}
-        </span>
-      ),
-    },
-    {
-      headerName: 'Client',
-      sortable: true,
-      filter: true,
-      valueGetter: (params: any) => {
-        const first = params.data?.clientFirstName || '';
-        const last = params.data?.clientLastName || '';
-        return `${first} ${last}`.trim();
-      },
-    },
-    {
-      headerName: 'Téléphone',
-      field: 'clientPhone',
-      sortable: true,
-      filter: true,
-      minWidth: 120,
-      hide: isTablet,
-      valueFormatter: (params: any) => params.value || '-',
-    },
+  const renderInvoiceNumberCell = useCallback(
+    (params: any) => (
+      <span
+        style={{ cursor: 'pointer', color: 'inherit', fontWeight: 500 }}
+        onClick={() => navigate(`/factures/${params.data.id}`)}
+      >
+        {params.value}
+      </span>
+    ),
+    [navigate],
+  );
 
-    {
-      headerName: 'Montant TTC',
-      field: 'totalTTC',
-      sortable: true,
-      filter: false,
-      width: 130,
-      hide: isTablet,
-      valueFormatter: (params: any) =>
-        params.value != null ? formatCurrency(params.value) : '-',
-      cellStyle: { textAlign: 'right' },
-    },
-    {
-      headerName: 'Paiement',
-      field: 'paymentMethod',
-      sortable: true,
-      filter: true,
-      width: 110,
-      hide: isMediumScreen,
-      valueFormatter: (params: any) =>
-        params.value ? getPaymentMethodLabel(params.value) : '-',
-    },
-    {
-      headerName: 'Statut',
-      field: 'status',
-      sortable: true,
-      filter: true,
-      width: 110,
-      cellRenderer: (params: any) => {
-        if (!params.value) return '-';
-        return (
-          <Chip
-            label={getInvoiceStatusLabel(params.value)}
-            size="small"
-            sx={{
-              backgroundColor: getInvoiceStatusColor(params.value),
-              color: '#fff',
-              fontWeight: 600,
-              fontSize: '0.75rem',
-            }}
-          />
-        );
-      },
-    },
-    {
-      headerName: 'Dolibarr',
-      field: 'dolibarrSyncStatus',
-      sortable: false,
-      filter: false,
-      width: 90,
-      hide: isSmallScreen,
-      cellRenderer: (params: any) => {
-        const status = params.value;
-        if (status === 'synced') return <span style={{ color: '#4caf50' }}>✓</span>;
-        if (status === 'error') return <span style={{ color: '#ff9800' }}>⚠</span>;
-        return <span style={{ color: '#9e9e9e' }}>—</span>;
-      },
-    },
-    {
-      headerName: 'Date',
-      field: 'createdAt',
-      sortable: true,
-      unSortIcon: true,
-      filter: 'agDateColumnFilter',
-      initialSort: 'desc',
-      width: 160,
-      hide: isMobile,
-      valueFormatter: (params: any) =>
-        params.value
-          ? new Date(params.value).toLocaleDateString('fr-FR')
-          : '-',
-      comparator: (valueA: string, valueB: string) =>
-        new Date(valueA).getTime() - new Date(valueB).getTime(),
-    },
-    {
-      headerName: 'Actions',
-      field: 'id',
-      sortable: false,
-      filter: false,
-      width: 120,
-      minWidth: 120,
-      cellRenderer: (params: any) => {
-        const inv = params.data as ServiceInvoice;
-        return (
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-            <Tooltip title="Voir">
+  const renderActionsCell = useCallback(
+    (params: any) => {
+      const inv = params.data as ServiceInvoice;
+      return (
+        <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+          <Tooltip title="Voir">
+            <Button
+              size="small"
+              sx={{ minWidth: 'unset', p: 0.5 }}
+              onClick={() => navigate(`/factures/${inv.id}`)}
+            >
+              <VisibilityIcon fontSize="small" />
+            </Button>
+          </Tooltip>
+          {inv.status === ServiceInvoiceStatus.DRAFT && (
+            <Tooltip title="Modifier">
               <Button
                 size="small"
                 sx={{ minWidth: 'unset', p: 0.5 }}
-                onClick={() => navigate(`/factures/${inv.id}`)}
+                onClick={() => navigate(`/factures/${inv.id}/edit`)}
               >
-                <VisibilityIcon fontSize="small" />
+                <EditIcon fontSize="small" />
               </Button>
             </Tooltip>
-            {inv.status === ServiceInvoiceStatus.DRAFT && (
-              <Tooltip title="Modifier">
-                <Button
-                  size="small"
-                  sx={{ minWidth: 'unset', p: 0.5 }}
-                  onClick={() => navigate(`/factures/${inv.id}/edit`)}
-                >
-                  <EditIcon fontSize="small" />
-                </Button>
-              </Tooltip>
-            )}
-            {inv.status !== ServiceInvoiceStatus.DRAFT && (
-              <Tooltip title="Télécharger PDF">
-                <Button
-                  size="small"
-                  sx={{ minWidth: 'unset', p: 0.5 }}
-                  onClick={() => handleDownloadPdf(inv)}
-                >
-                  <DownloadIcon fontSize="small" />
-                </Button>
-              </Tooltip>
-            )}
-          </Box>
-        );
-      },
+          )}
+          {inv.status !== ServiceInvoiceStatus.DRAFT && (
+            <Tooltip title="Télécharger PDF">
+              <Button
+                size="small"
+                sx={{ minWidth: 'unset', p: 0.5 }}
+                onClick={() => handleDownloadPdf(inv)}
+              >
+                <DownloadIcon fontSize="small" />
+              </Button>
+            </Tooltip>
+          )}
+        </Box>
+      );
     },
-  ];
+    [navigate, handleDownloadPdf],
+  );
+
+  const columns: ColDef<ServiceInvoice>[] = useMemo(
+    () => [
+      {
+        headerName: 'N°',
+        field: 'invoiceNumber',
+        sortable: true,
+        filter: false,
+        minWidth: 140,
+        maxWidth: 180,
+        cellRenderer: renderInvoiceNumberCell,
+      },
+      {
+        headerName: 'Client',
+        sortable: true,
+        filter: true,
+        valueGetter: getClientValue,
+      },
+      {
+        headerName: 'Téléphone',
+        field: 'clientPhone',
+        sortable: true,
+        filter: true,
+        minWidth: 120,
+        hide: isTablet,
+        valueFormatter: formatDash,
+      },
+
+      {
+        headerName: 'Montant TTC',
+        field: 'totalTTC',
+        sortable: true,
+        filter: false,
+        width: 130,
+        hide: isTablet,
+        valueFormatter: formatAmount,
+        cellStyle: AMOUNT_CELL_STYLE,
+      },
+      {
+        headerName: 'Paiement',
+        field: 'paymentMethod',
+        sortable: true,
+        filter: true,
+        width: 110,
+        hide: isMediumScreen,
+        valueFormatter: formatPaymentMethod,
+      },
+      {
+        headerName: 'Statut',
+        field: 'status',
+        sortable: true,
+        filter: true,
+        width: 110,
+        cellRenderer: renderStatusCell,
+      },
+      {
+        headerName: 'Dolibarr',
+        field: 'dolibarrSyncStatus',
+        sortable: false,
+        filter: false,
+        width: 90,
+        hide: isSmallScreen,
+        cellRenderer: renderDolibarrCell,
+      },
+      {
+        headerName: 'Date',
+        field: 'createdAt',
+        sortable: true,
+        unSortIcon: true,
+        filter: 'agDateColumnFilter',
+        initialSort: 'desc',
+        width: 160,
+        hide: isMobile,
+        valueFormatter: formatDate,
+        comparator: compareDates,
+      },
+      {
+        headerName: 'Actions',
+        field: 'id',
+        sortable: false,
+        filter: false,
+        width: 120,
+        minWidth: 120,
+        cellRenderer: renderActionsCell,
+      },
+    ],
+    [
+      isTablet,
+      isMediumScreen,
+      isSmallScreen,
+      isMobile,
+      renderInvoiceNumberCell,
+      renderActionsCell,
+    ],
+  );
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -452,27 +528,16 @@ const ServiceInvoices: React.FC = () => {
           className={`ag-theme-quartz${theme.palette.mode === 'dark' ? '-dark' : ''}`}
           rowData={filteredInvoices}
           columnDefs={columns}
-          defaultColDef={{
-            resizable: true,
-            sortable: true,
-          }}
+          defaultColDef={DEFAULT_COL_DEF}
+          getRowId={getRowId}
           rowHeight={rowHeight}
           pagination
           paginationPageSize={paginationPageSize}
-          paginationPageSizeSelector={pageSizeOptions}
-          onPaginationChanged={(e) => {
-            if (e.api) {
-              const newSize = e.api.paginationGetPageSize();
-              if (newSize !== paginationPageSize) {
-                setPaginationPageSize(newSize);
-              }
-            }
-          }}
+          paginationPageSizeSelector={PAGE_SIZE_OPTIONS}
+          onPaginationChanged={handlePaginationChanged}
           localeText={AG_GRID_LOCALE_FR}
-          onFirstDataRendered={(e) =>
-            onFirstDataRendered(e, GRID_STATE_KEY)
-          }
-          onGridReady={(e) => setupGridStateEvents(e.api, GRID_STATE_KEY)}
+          onFirstDataRendered={handleFirstDataRendered}
+          onGridReady={handleGridReady}
           loading={loading}
         />
       </StyledAgGridWrapper>
