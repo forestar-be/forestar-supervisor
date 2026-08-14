@@ -15,7 +15,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import PhoneIcon from '@mui/icons-material/Phone';
 import BuildIcon from '@mui/icons-material/Build';
 import WarningIcon from '@mui/icons-material/Warning';
-import { MachineRepair } from '../../utils/types';
+import { MachineRepairListItem } from '../../utils/types';
 import {
   formatWorkTime,
   getDaysSinceCreation,
@@ -26,7 +26,7 @@ import { useAppSelector } from '../../store/hooks';
 import { RootState } from '../../store/index';
 
 interface RepairWorkCardProps {
-  repair: MachineRepair;
+  repair: MachineRepairListItem;
   onView?: (id: number) => void;
   showRepairer?: boolean;
   colorByState?: Record<string, string>;

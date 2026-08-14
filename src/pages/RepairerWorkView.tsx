@@ -25,7 +25,7 @@ import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import ViewAgendaIcon from '@mui/icons-material/ViewAgenda';
 import { useAuth } from '../hooks/AuthProvider';
 import { getAllMachineRepairs } from '../utils/api';
-import { MachineRepair, MachineRepairFromApi } from '../utils/types';
+import { MachineRepairListItem, MachineRepairListItemFromApi } from '../utils/types';
 import RepairerSelector from '../components/repairer/RepairerSelector';
 import RepairWorkCard from '../components/repairer/RepairWorkCard';
 import KanbanBoard from '../components/repairer/KanbanBoard';
@@ -55,7 +55,7 @@ const RepairerWorkView: React.FC = () => {
     (state: RootState) => state.config,
   );
   const [selectedRepairer, setSelectedRepairer] = useState<string | null>(null);
-  const [allRepairs, setAllRepairs] = useState<MachineRepair[]>([]);
+  const [allRepairs, setAllRepairs] = useState<MachineRepairListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
@@ -80,11 +80,11 @@ const RepairerWorkView: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data: MachineRepairFromApi[] = await getAllMachineRepairs(
+      const data: MachineRepairListItemFromApi[] = await getAllMachineRepairs(
         auth.token,
       );
-      const repairsDataWithDate: MachineRepair[] = data.map(
-        (repair: MachineRepairFromApi) => ({
+      const repairsDataWithDate: MachineRepairListItem[] = data.map(
+        (repair: MachineRepairListItemFromApi) => ({
           ...repair,
           start_timer: repair.start_timer ? new Date(repair.start_timer) : null,
           client_call_times: repair.client_call_times.map(

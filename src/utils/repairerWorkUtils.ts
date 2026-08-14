@@ -1,4 +1,4 @@
-import { MachineRepair } from './types';
+import { MachineRepairListItem } from './types';
 
 /**
  * Liste des états considérés comme "terminés" (machines qui ne doivent plus apparaître)
@@ -21,7 +21,7 @@ export interface RepairerWorkload {
   inProgress: number;
   waiting: number;
   totalHours: number;
-  repairs: MachineRepair[];
+  repairs: MachineRepairListItem[];
 }
 
 /**
@@ -31,9 +31,9 @@ export interface RepairerWorkload {
  * @returns Liste des réparations actives du réparateur
  */
 export const getActiveRepairsForRepairer = (
-  repairs: MachineRepair[],
+  repairs: MachineRepairListItem[],
   repairerName: string,
-): MachineRepair[] => {
+): MachineRepairListItem[] => {
   return repairs.filter(
     (repair) =>
       repair.repairer_name === repairerName &&
@@ -47,8 +47,8 @@ export const getActiveRepairsForRepairer = (
  * @returns Liste des réparations sans réparateur assigné
  */
 export const getUnassignedRepairs = (
-  repairs: MachineRepair[],
-): MachineRepair[] => {
+  repairs: MachineRepairListItem[],
+): MachineRepairListItem[] => {
   return repairs.filter(
     (repair) =>
       !repair.repairer_name &&
@@ -62,7 +62,7 @@ export const getUnassignedRepairs = (
  * @returns Objet avec les statistiques de charge
  */
 export const calculateWorkload = (
-  repairs: MachineRepair[],
+  repairs: MachineRepairListItem[],
 ): {
   notStarted: number;
   inProgress: number;
@@ -97,7 +97,7 @@ export const calculateWorkload = (
  * @returns Map des charges de travail par réparateur
  */
 export const getWorkloadByRepairer = (
-  repairs: MachineRepair[],
+  repairs: MachineRepairListItem[],
   repairerNames: string[],
 ): RepairerWorkload[] => {
   return repairerNames.map((repairerName) => {
@@ -120,7 +120,7 @@ export const getWorkloadByRepairer = (
  * @param repairs Liste des réparations à trier
  * @returns Liste triée
  */
-export const sortByPriority = (repairs: MachineRepair[]): MachineRepair[] => {
+export const sortByPriority = (repairs: MachineRepairListItem[]): MachineRepairListItem[] => {
   return [...repairs].sort((a, b) => {
     // 1. Priorité par état
     const getStatePriority = (state: string | null): number => {
@@ -155,8 +155,8 @@ export const sortByPriority = (repairs: MachineRepair[]): MachineRepair[] => {
  * @returns Objet avec les réparations groupées par état
  */
 export const groupByState = (
-  repairs: MachineRepair[],
-): Record<string, MachineRepair[]> => {
+  repairs: MachineRepairListItem[],
+): Record<string, MachineRepairListItem[]> => {
   return repairs.reduce(
     (acc, repair) => {
       const state = repair.state || 'Non commencé';
@@ -166,7 +166,7 @@ export const groupByState = (
       acc[state].push(repair);
       return acc;
     },
-    {} as Record<string, MachineRepair[]>,
+    {} as Record<string, MachineRepairListItem[]>,
   );
 };
 
@@ -217,7 +217,7 @@ export const getDaysSinceCreation = (createdAt: string): number => {
  * @param repair Réparation à vérifier
  * @returns true si en retard
  */
-export const isDelayed = (repair: MachineRepair): boolean => {
+export const isDelayed = (repair: MachineRepairListItem): boolean => {
   const days = getDaysSinceCreation(repair.createdAt);
   const notStarted = !repair.state || repair.state === 'Non commencé';
   return notStarted && days > 7;
@@ -228,7 +228,7 @@ export const isDelayed = (repair: MachineRepair): boolean => {
  * @param repair Réparation à vérifier
  * @returns true si nécessite attention
  */
-export const needsAttention = (repair: MachineRepair): boolean => {
+export const needsAttention = (repair: MachineRepairListItem): boolean => {
   const days = getDaysSinceCreation(repair.createdAt);
   return days > 3 && (!repair.state || repair.state !== 'En cours');
 };

@@ -50,6 +50,38 @@ export type MachineRepairFromApi = Omit<
   robot_type_name: string | null;
 };
 
+/**
+ * Fields the list endpoint (POST /supervisor/machine-repairs) actually returns.
+ *
+ * The list payload is deliberately narrower than MachineRepair: images,
+ * signature, replaced parts and the postal details are only served by the
+ * detail endpoint. Typing the list this way makes the compiler catch any list
+ * view that reads a field the server no longer sends.
+ */
+export type MachineRepairListItem = Omit<
+  MachineRepair,
+  | 'address'
+  | 'email'
+  | 'replaced_part_list'
+  | 'imageUrls'
+  | 'signatureUrl'
+  | 'warranty'
+  | 'devis'
+  | 'city'
+  | 'postal_code'
+  | 'hivernage'
+  | 'eventId'
+  | 'calendarId'
+>;
+
+export type MachineRepairListItemFromApi = Omit<
+  MachineRepairListItem,
+  'start_timer' | 'client_call_times'
+> & {
+  start_timer: string | null;
+  client_call_times: string[];
+};
+
 // Types for Purchase Orders
 export interface PurchaseOrder {
   id: number;

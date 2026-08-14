@@ -6,6 +6,7 @@ import {
   RobotInventory,
   InstallationPreparationText,
   MachineRepair,
+  MachineRepairListItemFromApi,
   ServiceInvoice,
   ServiceInvoiceItemConfig,
   DolibarrBankAccount,
@@ -104,7 +105,9 @@ export const login = async (data: any) => {
   return apiRequest('/supervisor/login', 'POST', '', data);
 };
 
-export const getAllMachineRepairs = async (token: string) => {
+export const getAllMachineRepairs = async (
+  token: string,
+): Promise<MachineRepairListItemFromApi[]> => {
   const response = await apiRequest(
     '/supervisor/machine-repairs',
     'POST',

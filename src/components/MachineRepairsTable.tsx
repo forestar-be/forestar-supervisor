@@ -36,7 +36,10 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import '../styles/MachineRepairsTable.css';
 import { getAllMachineRepairs, updateRepair } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
-import { MachineRepair, MachineRepairFromApi } from '../utils/types';
+import {
+  MachineRepairListItem,
+  MachineRepairListItemFromApi,
+} from '../utils/types';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SearchIcon from '@mui/icons-material/Search';
 import { IRowNode } from 'ag-grid-community';
@@ -68,7 +71,7 @@ const PAGE_SIZE_OPTIONS = [5, 10, 15, 20, 25, 50, 100];
 // on each render means recreating the whole grid body on every keystroke.
 const AUTO_SIZE_STRATEGY = { type: 'fitGridWidth' } as const;
 
-const getRowId = (params: GetRowIdParams<MachineRepair>) =>
+const getRowId = (params: GetRowIdParams<MachineRepairListItem>) =>
   String(params.data.id);
 
 const formatState = (params: any) =>
@@ -155,7 +158,7 @@ const MachineRepairsTable: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const gridRef = useRef<AgGridReact>(null);
-  const [machineRepairs, setMachineRepairs] = useState<MachineRepair[]>([]);
+  const [machineRepairs, setMachineRepairs] = useState<MachineRepairListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
   // Value actually applied to the grid, debounced behind customerFilterText.
@@ -253,7 +256,7 @@ const MachineRepairsTable: React.FC = () => {
   }, [customerSearchWords, selectedStates, selectedRepairers]);
 
   const doesExternalFilterPass = useCallback(
-    (node: IRowNode<MachineRepair>): boolean => {
+    (node: IRowNode<MachineRepairListItem>): boolean => {
       if (node.data) {
         const { first_name, last_name, phone, state, repairer_name } =
           node.data;
@@ -304,11 +307,11 @@ const MachineRepairsTable: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data: MachineRepairFromApi[] = await getAllMachineRepairs(
+        const data: MachineRepairListItemFromApi[] = await getAllMachineRepairs(
           auth.token,
         );
-        const repairsDataWithDate: MachineRepair[] = data.map(
-          (repair: MachineRepairFromApi) => ({
+        const repairsDataWithDate: MachineRepairListItem[] = data.map(
+          (repair: MachineRepairListItemFromApi) => ({
             ...repair,
             start_timer: repair.start_timer
               ? new Date(repair.start_timer)
@@ -496,11 +499,11 @@ const MachineRepairsTable: React.FC = () => {
     [navigate],
   );
 
-  const columns: ColDef<MachineRepair>[] = useMemo(
+  const columns: ColDef<MachineRepairListItem>[] = useMemo(
     () => [
       {
         headerName: 'N°',
-        field: 'id' as keyof MachineRepair,
+        field: 'id' as keyof MachineRepairListItem,
         sortable: true,
         filter: false,
         minWidth: 75,
@@ -514,7 +517,7 @@ const MachineRepairsTable: React.FC = () => {
       },
       {
         headerName: 'État',
-        field: 'state' as keyof MachineRepair,
+        field: 'state' as keyof MachineRepairListItem,
         sortable: true,
         filter: true,
         valueFormatter: formatState,
@@ -522,7 +525,7 @@ const MachineRepairsTable: React.FC = () => {
       },
       {
         headerName: 'Appel client',
-        field: 'client_call_times' as keyof MachineRepair,
+        field: 'client_call_times' as keyof MachineRepairListItem,
         sortable: false,
         filter: true,
         hide: isTablet,
@@ -530,7 +533,7 @@ const MachineRepairsTable: React.FC = () => {
       },
       {
         headerName: 'Type',
-        field: 'repair_or_maintenance' as keyof MachineRepair,
+        field: 'repair_or_maintenance' as keyof MachineRepairListItem,
         sortable: true,
         filter: true,
         width: 120,
@@ -545,7 +548,7 @@ const MachineRepairsTable: React.FC = () => {
       },
       {
         headerName: 'Réparateur',
-        field: 'repairer_name' as keyof MachineRepair,
+        field: 'repairer_name' as keyof MachineRepairListItem,
         sortable: true,
         filter: true,
         hide: isTablet,
@@ -580,7 +583,7 @@ const MachineRepairsTable: React.FC = () => {
       },
       {
         headerName: 'Date de création',
-        field: 'createdAt' as keyof MachineRepair,
+        field: 'createdAt' as keyof MachineRepairListItem,
         sortable: true,
         unSortIcon: true,
         filter: 'agDateColumnFilter',

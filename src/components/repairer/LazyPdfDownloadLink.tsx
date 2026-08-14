@@ -3,11 +3,11 @@ import { Button } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import RepairerWorkPdf from '../pdf/RepairerWorkPdf';
-import { MachineRepair } from '../../utils/types';
+import { MachineRepairListItem } from '../../utils/types';
 
 interface LazyPdfDownloadLinkProps {
   repairerName: string;
-  repairs: MachineRepair[];
+  repairs: MachineRepairListItem[];
   adresse: string;
   telephone: string;
   email: string;

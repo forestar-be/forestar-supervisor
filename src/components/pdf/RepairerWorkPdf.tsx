@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
-import { MachineRepair } from '../../utils/types';
+import { MachineRepairListItem } from '../../utils/types';
 import {
   formatWorkTime,
   getDaysSinceCreation,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
 
 interface RepairerWorkPdfProps {
   repairerName: string;
-  repairs: MachineRepair[];
+  repairs: MachineRepairListItem[];
   date: string;
   adresse?: string;
   telephone?: string;
@@ -201,7 +201,7 @@ const RepairerWorkPdf: React.FC<RepairerWorkPdfProps> = ({
   const totalHours = Math.round((totalSeconds / 3600) * 10) / 10;
 
   // Group repairs by state
-  const groupedRepairs: Record<string, MachineRepair[]> = {};
+  const groupedRepairs: Record<string, MachineRepairListItem[]> = {};
   repairs.forEach((repair) => {
     const state = repair.state || 'Non commencé';
     if (!groupedRepairs[state]) {

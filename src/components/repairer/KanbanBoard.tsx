@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { Box } from '@mui/material';
-import { MachineRepair } from '../../utils/types';
+import { MachineRepairListItem } from '../../utils/types';
 import KanbanColumn from './KanbanColumn';
 import { COMPLETED_STATES } from '../../utils/repairerWorkUtils';
 
 interface KanbanBoardProps {
-  repairs: MachineRepair[];
+  repairs: MachineRepairListItem[];
   colorByState: Record<string, string>;
 }
 

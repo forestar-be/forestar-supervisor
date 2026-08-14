@@ -1,11 +1,11 @@
 import React from 'react';
 import { Box, Paper, Typography, Badge } from '@mui/material';
-import { MachineRepair } from '../../utils/types';
+import { MachineRepairListItem } from '../../utils/types';
 import RepairWorkCard from './RepairWorkCard';
 
 interface KanbanColumnProps {
   title: string;
-  repairs: MachineRepair[];
+  repairs: MachineRepairListItem[];
   color: string;
   maxHeight?: string;
   colorByState: Record<string, string>;
