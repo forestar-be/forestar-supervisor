@@ -194,9 +194,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <TextField
                 label="Prénom"
                 value={form.clientFirstName}
-                onChange={(e) =>
-                  updateField('clientFirstName', e.target.value)
-                }
+                onChange={(e) => updateField('clientFirstName', e.target.value)}
                 fullWidth
                 size="small"
               />
@@ -224,9 +222,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <TextField
                 label="Adresse"
                 value={form.clientAddress}
-                onChange={(e) =>
-                  updateField('clientAddress', e.target.value)
-                }
+                onChange={(e) => updateField('clientAddress', e.target.value)}
                 fullWidth
                 size="small"
               />
@@ -269,11 +265,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
             <Typography variant="subtitle2" color="text.secondary">
               Lignes de facture
             </Typography>
-            <Button
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={addLine}
-            >
+            <Button size="small" startIcon={<AddIcon />} onClick={addLine}>
               Ajouter une ligne
             </Button>
           </Box>
@@ -455,9 +447,7 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({
                 <Select
                   value={form.paymentMethod}
                   label="Mode de paiement"
-                  onChange={(e) =>
-                    updateField('paymentMethod', e.target.value)
-                  }
+                  onChange={(e) => updateField('paymentMethod', e.target.value)}
                 >
                   {PAYMENT_OPTIONS.map((o) => (
                     <MenuItem key={o.value} value={o.value}>

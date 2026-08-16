@@ -88,17 +88,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
   const [step, setStep] = useState<ModalStep>({ type: 'initial' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMatchId, setSelectedMatchId] = useState<
-    number | 'new' | null
-  >(null);
+  const [selectedMatchId, setSelectedMatchId] = useState<number | 'new' | null>(
+    null,
+  );
   const [conflictChoice, setConflictChoice] = useState<
     'update' | 'use-existing' | 'create' | null
   >(null);
 
-  const doSend = async (
-    action?: ThirdpartyAction,
-    thirdpartyId?: number,
-  ) => {
+  const doSend = async (action?: ThirdpartyAction, thirdpartyId?: number) => {
     setLoading(true);
     setError(null);
     try {
@@ -305,9 +302,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
               value={selectedMatchId?.toString() ?? ''}
               onChange={(e) => {
                 const val = e.target.value;
-                setSelectedMatchId(
-                  val === 'new' ? 'new' : parseInt(val),
-                );
+                setSelectedMatchId(val === 'new' ? 'new' : parseInt(val));
               }}
             >
               {step.matches.map((match) => (
@@ -319,9 +314,7 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
                     mb: 1,
                     cursor: 'pointer',
                     borderColor:
-                      selectedMatchId === match.id
-                        ? 'primary.main'
-                        : undefined,
+                      selectedMatchId === match.id ? 'primary.main' : undefined,
                   }}
                   onClick={() => setSelectedMatchId(match.id)}
                 >
@@ -465,7 +458,11 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           <Button
             variant="contained"
             startIcon={
-              loading ? <CircularProgress size={18} color="inherit" /> : <SendIcon />
+              loading ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <SendIcon />
+              )
             }
             disabled={loading}
             onClick={handleInitialSend}
@@ -493,7 +490,11 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           <Button
             variant="contained"
             startIcon={
-              loading ? <CircularProgress size={18} color="inherit" /> : <SendIcon />
+              loading ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <SendIcon />
+              )
             }
             disabled={loading || selectedMatchId === null}
             onClick={handleSelectConfirm}
@@ -505,12 +506,14 @@ const SendInvoiceModal: React.FC<SendInvoiceModalProps> = ({
           <Button
             variant="contained"
             startIcon={
-              loading ? <CircularProgress size={18} color="inherit" /> : <SendIcon />
+              loading ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : (
+                <SendIcon />
+              )
             }
             disabled={loading || conflictChoice === null}
-            onClick={() =>
-              handleConflictConfirm(step.dolibarrClient.id)
-            }
+            onClick={() => handleConflictConfirm(step.dolibarrClient.id)}
           >
             Valider et envoyer
           </Button>

@@ -1,6 +1,10 @@
 import React from 'react';
 import EditEntity from './EditEntity';
-import { fetchRobotTypes, addRobotType, deleteRobotType } from '../../utils/api';
+import {
+  fetchRobotTypes,
+  addRobotType,
+  deleteRobotType,
+} from '../../utils/api';
 
 const EditRobotType: React.FC = () => {
   return (

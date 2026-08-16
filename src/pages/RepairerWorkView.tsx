@@ -25,7 +25,10 @@ import ViewKanbanIcon from '@mui/icons-material/ViewKanban';
 import ViewAgendaIcon from '@mui/icons-material/ViewAgenda';
 import { useAuth } from '../hooks/AuthProvider';
 import { getAllMachineRepairs } from '../utils/api';
-import { MachineRepairListItem, MachineRepairListItemFromApi } from '../utils/types';
+import {
+  MachineRepairListItem,
+  MachineRepairListItemFromApi,
+} from '../utils/types';
 import RepairerSelector from '../components/repairer/RepairerSelector';
 import RepairWorkCard from '../components/repairer/RepairWorkCard';
 import KanbanBoard from '../components/repairer/KanbanBoard';

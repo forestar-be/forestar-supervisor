@@ -57,8 +57,7 @@ const DeleteInvoiceModal: React.FC<DeleteInvoiceModalProps> = ({
       .finally(() => setLoading(false));
   }, [auth.token, invoiceId]);
 
-  const isDolibarrPaid =
-    info?.hasDolibarrInvoice && info.dolibarrStatus === 2;
+  const isDolibarrPaid = info?.hasDolibarrInvoice && info.dolibarrStatus === 2;
 
   const handleDelete = async () => {
     if (!auth.token) return;
@@ -84,21 +83,20 @@ const DeleteInvoiceModal: React.FC<DeleteInvoiceModalProps> = ({
   };
 
   return (
-    <Dialog open onClose={deleted ? undefined : onClose} maxWidth="sm" fullWidth>
-      <DialogTitle
-        sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}
-      >
+    <Dialog
+      open
+      onClose={deleted ? undefined : onClose}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
         {deleted ? (
           <CheckCircleIcon color="success" />
         ) : (
           <WarningAmberIcon color="error" />
         )}
         {deleted ? 'Facture supprimée' : 'Supprimer la facture'}
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ ml: 'auto' }}
-        >
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
           {invoiceNumber}
         </Typography>
       </DialogTitle>
@@ -167,9 +165,8 @@ const DeleteInvoiceModal: React.FC<DeleteInvoiceModalProps> = ({
                     </Typography>
                     <Typography variant="body2">
                       Cette facture est payée dans Dolibarr et ne peut pas y
-                      être supprimée automatiquement. Vous devrez créer un
-                      avoir ou l'annuler manuellement dans l'interface
-                      Dolibarr.
+                      être supprimée automatiquement. Vous devrez créer un avoir
+                      ou l'annuler manuellement dans l'interface Dolibarr.
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                       La suppression ici n'affectera que l'application locale,
@@ -196,8 +193,8 @@ const DeleteInvoiceModal: React.FC<DeleteInvoiceModalProps> = ({
                     En Belgique, l'article 5 de l'Arrêté royal n° 1 (TVA) et
                     l'article 226 de la Directive européenne 2006/112/CE
                     imposent une numérotation séquentielle et ininterrompue des
-                    factures. Privilégiez l'émission d'une note de crédit
-                    plutôt que la suppression.
+                    factures. Privilégiez l'émission d'une note de crédit plutôt
+                    que la suppression.
                   </Typography>
                 </Alert>
               </>

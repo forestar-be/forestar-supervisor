@@ -29,7 +29,10 @@ import {
   getDolibarrBankAccounts,
   setDolibarrBankAccount,
 } from '../../utils/api';
-import { ServiceInvoiceItemConfig, DolibarrBankAccount } from '../../utils/types';
+import {
+  ServiceInvoiceItemConfig,
+  DolibarrBankAccount,
+} from '../../utils/types';
 import { toast } from 'react-toastify';
 
 const InvoiceSettings = (): JSX.Element => {
@@ -40,19 +43,30 @@ const InvoiceSettings = (): JSX.Element => {
   const [configsLoading, setConfigsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingConfigId, setEditingConfigId] = useState<number | null>(null);
-  const [editValues, setEditValues] = useState<{ name: string; defaultPrice: number }>({ name: '', defaultPrice: 0 });
+  const [editValues, setEditValues] = useState<{
+    name: string;
+    defaultPrice: number;
+  }>({ name: '', defaultPrice: 0 });
   const configCategory = 'REPAIR';
-  const [newConfig, setNewConfig] = useState({ name: '', unit: 'pièce', defaultPrice: 0 });
+  const [newConfig, setNewConfig] = useState({
+    name: '',
+    unit: 'pièce',
+    defaultPrice: 0,
+  });
 
   // Bank accounts state
   const [bankAccounts, setBankAccounts] = useState<DolibarrBankAccount[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = useState<Record<string, number | null>>({
+  const [selectedAccounts, setSelectedAccounts] = useState<
+    Record<string, number | null>
+  >({
     cash: null,
     card: null,
     transfer: null,
   });
   const [bankAccountLoading, setBankAccountLoading] = useState(true);
-  const [bankAccountSaving, setBankAccountSaving] = useState<string | null>(null);
+  const [bankAccountSaving, setBankAccountSaving] = useState<string | null>(
+    null,
+  );
 
   const fetchConfigs = useCallback(async () => {
     if (!token) return;
@@ -79,7 +93,9 @@ const InvoiceSettings = (): JSX.Element => {
         setSelectedAccounts((prev) => ({ ...prev, ...data.selectedAccounts }));
       })
       .catch(() => {
-        toast.error('Impossible de charger les comptes bancaires depuis Dolibarr');
+        toast.error(
+          'Impossible de charger les comptes bancaires depuis Dolibarr',
+        );
       })
       .finally(() => setBankAccountLoading(false));
   }, [token]);
@@ -102,7 +118,10 @@ const InvoiceSettings = (): JSX.Element => {
     }
   };
 
-  const handleUpdateConfig = async (id: number, updates: Partial<ServiceInvoiceItemConfig>) => {
+  const handleUpdateConfig = async (
+    id: number,
+    updates: Partial<ServiceInvoiceItemConfig>,
+  ) => {
     if (!token) return;
     try {
       setSaving(true);
@@ -147,9 +166,15 @@ const InvoiceSettings = (): JSX.Element => {
     }
   };
 
-  const filteredConfigs = configs.filter((c) => (c.category || 'REPAIR') === configCategory);
+  const filteredConfigs = configs.filter(
+    (c) => (c.category || 'REPAIR') === configCategory,
+  );
 
-  const bankAccountRows: { key: string; label: string; filter: (a: DolibarrBankAccount) => boolean }[] = [
+  const bankAccountRows: {
+    key: string;
+    label: string;
+    filter: (a: DolibarrBankAccount) => boolean;
+  }[] = [
     { key: 'cash', label: 'Espèces', filter: (a) => a.type === 2 },
     { key: 'card', label: 'Carte bancaire', filter: (a) => a.type !== 2 },
     { key: 'transfer', label: 'Virement', filter: (a) => a.type !== 2 },
@@ -162,7 +187,8 @@ const InvoiceSettings = (): JSX.Element => {
         Comptes bancaires Dolibarr
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Comptes utilisés pour enregistrer les paiements dans Dolibarr, selon le mode de paiement de la facture.
+        Comptes utilisés pour enregistrer les paiements dans Dolibarr, selon le
+        mode de paiement de la facture.
       </Typography>
 
       {bankAccountLoading ? (
@@ -174,8 +200,14 @@ const InvoiceSettings = (): JSX.Element => {
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 4 }}>
           {bankAccountRows.map(({ key, label, filter }) => (
-            <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" sx={{ minWidth: 130, fontWeight: 500 }}>
+            <Box
+              key={key}
+              sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ minWidth: 130, fontWeight: 500 }}
+              >
                 {label}
               </Typography>
               <FormControl size="small" sx={{ flex: 1 }}>
@@ -199,7 +231,13 @@ const InvoiceSettings = (): JSX.Element => {
               <Button
                 variant="contained"
                 size="small"
-                startIcon={bankAccountSaving === key ? <CircularProgress size={16} /> : <SaveIcon />}
+                startIcon={
+                  bankAccountSaving === key ? (
+                    <CircularProgress size={16} />
+                  ) : (
+                    <SaveIcon />
+                  )
+                }
                 onClick={() => handleSaveBankAccount(key)}
                 disabled={bankAccountSaving === key || !selectedAccounts[key]}
               >
@@ -216,7 +254,8 @@ const InvoiceSettings = (): JSX.Element => {
       </Typography>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Les postes configurés ici apparaîtront comme options rapides lors de la création de factures de réparation.
+        Les postes configurés ici apparaîtront comme options rapides lors de la
+        création de factures de réparation.
       </Typography>
 
       {configsLoading ? (
@@ -242,7 +281,9 @@ const InvoiceSettings = (): JSX.Element => {
                   <TextField
                     size="small"
                     value={editValues.name}
-                    onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
+                    onChange={(e) =>
+                      setEditValues({ ...editValues, name: e.target.value })
+                    }
                     sx={{ flex: 1 }}
                     autoFocus
                   />
@@ -251,7 +292,10 @@ const InvoiceSettings = (): JSX.Element => {
                     type="number"
                     value={editValues.defaultPrice}
                     onChange={(e) =>
-                      setEditValues({ ...editValues, defaultPrice: parseFloat(e.target.value) || 0 })
+                      setEditValues({
+                        ...editValues,
+                        defaultPrice: parseFloat(e.target.value) || 0,
+                      })
                     }
                     sx={{ width: 100 }}
                   />
@@ -268,7 +312,10 @@ const InvoiceSettings = (): JSX.Element => {
                   >
                     <CheckIcon />
                   </IconButton>
-                  <IconButton size="small" onClick={() => setEditingConfigId(null)}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setEditingConfigId(null)}
+                  >
                     ×
                   </IconButton>
                 </>
@@ -291,7 +338,10 @@ const InvoiceSettings = (): JSX.Element => {
                       size="small"
                       onClick={() => {
                         setEditingConfigId(config.id);
-                        setEditValues({ name: config.name, defaultPrice: config.defaultPrice });
+                        setEditValues({
+                          name: config.name,
+                          defaultPrice: config.defaultPrice,
+                        });
                       }}
                     >
                       <EditIcon fontSize="small" />
@@ -300,7 +350,11 @@ const InvoiceSettings = (): JSX.Element => {
                   <Tooltip title={config.isActive ? 'Désactiver' : 'Activer'}>
                     <IconButton
                       size="small"
-                      onClick={() => handleUpdateConfig(config.id, { isActive: !config.isActive })}
+                      onClick={() =>
+                        handleUpdateConfig(config.id, {
+                          isActive: !config.isActive,
+                        })
+                      }
                     >
                       {config.isActive ? (
                         <VisibilityIcon fontSize="small" />
@@ -310,7 +364,11 @@ const InvoiceSettings = (): JSX.Element => {
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Supprimer">
-                    <IconButton size="small" color="error" onClick={() => handleDeleteConfig(config.id)}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteConfig(config.id)}
+                    >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -339,7 +397,9 @@ const InvoiceSettings = (): JSX.Element => {
               label="Nom du poste"
               size="small"
               value={newConfig.name}
-              onChange={(e) => setNewConfig({ ...newConfig, name: e.target.value })}
+              onChange={(e) =>
+                setNewConfig({ ...newConfig, name: e.target.value })
+              }
               placeholder="Ex: Déplacement, Main d'oeuvre..."
               sx={{ flex: 1, minWidth: 200 }}
             />
@@ -348,7 +408,9 @@ const InvoiceSettings = (): JSX.Element => {
               <Select
                 value={newConfig.unit}
                 label="Unité"
-                onChange={(e) => setNewConfig({ ...newConfig, unit: e.target.value })}
+                onChange={(e) =>
+                  setNewConfig({ ...newConfig, unit: e.target.value })
+                }
               >
                 <MenuItem value="pièce">Pièce</MenuItem>
                 <MenuItem value="heure">Heure</MenuItem>
@@ -363,7 +425,10 @@ const InvoiceSettings = (): JSX.Element => {
               inputProps={{ min: 0, step: 0.01 }}
               value={newConfig.defaultPrice}
               onChange={(e) =>
-                setNewConfig({ ...newConfig, defaultPrice: parseFloat(e.target.value) || 0 })
+                setNewConfig({
+                  ...newConfig,
+                  defaultPrice: parseFloat(e.target.value) || 0,
+                })
               }
               sx={{ width: 130 }}
             />

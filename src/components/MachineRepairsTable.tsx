@@ -159,7 +159,9 @@ const MachineRepairsTable: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const gridRef = useRef<AgGridReact>(null);
-  const [machineRepairs, setMachineRepairs] = useState<MachineRepairListItem[]>([]);
+  const [machineRepairs, setMachineRepairs] = useState<MachineRepairListItem[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [customerFilterText, setCustomerFilterText] = useState('');
   // Value actually applied to the grid, debounced behind customerFilterText.
@@ -306,8 +308,7 @@ const MachineRepairsTable: React.FC = () => {
 
           // Check if any of the search words match either the full name or the phone number
           return words.every(
-            (word) =>
-              fullName.includes(word) || normalizedPhone.includes(word),
+            (word) => fullName.includes(word) || normalizedPhone.includes(word),
           );
         }
       }
@@ -444,9 +445,7 @@ const MachineRepairsTable: React.FC = () => {
 
   const renderRepairerCell = useCallback(
     (params: any) => {
-      const handleRepairerChange = async (
-        event: SelectChangeEvent<string>,
-      ) => {
+      const handleRepairerChange = async (event: SelectChangeEvent<string>) => {
         const newValue =
           event.target.value === 'Non affecté' ? null : event.target.value;
         const oldValue = params.value ?? null;

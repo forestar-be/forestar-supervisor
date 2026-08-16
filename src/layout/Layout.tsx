@@ -98,7 +98,9 @@ const Layout = ({ children }: Props): JSX.Element => {
           <List>
             {menuItems.map((item, index) => (
               <ListItem key={index} disablePadding>
-                <ListItemButton onClick={() => handleMenuItemClick(item.path, item.href)}>
+                <ListItemButton
+                  onClick={() => handleMenuItemClick(item.path, item.href)}
+                >
                   <ListItemIcon
                     sx={{
                       color:

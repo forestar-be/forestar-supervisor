@@ -79,10 +79,7 @@ const ServiceInvoiceDetail: React.FC = () => {
     fetchInvoice();
   }, [fetchInvoice]);
 
-  const handleAction = async (
-    action: string,
-    fn: () => Promise<any>,
-  ) => {
+  const handleAction = async (action: string, fn: () => Promise<any>) => {
     try {
       setActionLoading(action);
       setActionError(null);
@@ -102,13 +99,19 @@ const ServiceInvoiceDetail: React.FC = () => {
   };
 
   const handleMarkPaid = () =>
-    handleAction('paid', () => markServiceInvoicePaid(auth.token, parseInt(id!)));
+    handleAction('paid', () =>
+      markServiceInvoicePaid(auth.token, parseInt(id!)),
+    );
 
   const handleRevertToSent = () =>
-    handleAction('revert', () => markServiceInvoiceSent(auth.token, parseInt(id!)));
+    handleAction('revert', () =>
+      markServiceInvoiceSent(auth.token, parseInt(id!)),
+    );
 
   const handleResync = () =>
-    handleAction('resync', () => resyncServiceInvoice(auth.token, parseInt(id!)));
+    handleAction('resync', () =>
+      resyncServiceInvoice(auth.token, parseInt(id!)),
+    );
 
   const handleDownloadPdf = async () => {
     if (!auth.token || !id) return;

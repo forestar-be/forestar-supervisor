@@ -257,18 +257,15 @@ export const StyledAgGridWrapper = styled(Box)(({ theme }) => ({
 
   // Filter active indicator (the small circle/dot when filter is active)
   '& .ag-header-cell-filter-button::after': {
-    backgroundColor: theme.palette.mode === 'dark'
-      ? '#FCD34D' // Amber/yellow for dark mode
-      : '#F59E0B', // Orange for light mode
-    color: theme.palette.mode === 'dark'
-      ? '#FCD34D'
-      : '#F59E0B',
+    backgroundColor:
+      theme.palette.mode === 'dark'
+        ? '#FCD34D' // Amber/yellow for dark mode
+        : '#F59E0B', // Orange for light mode
+    color: theme.palette.mode === 'dark' ? '#FCD34D' : '#F59E0B',
   },
 
   '& .ag-header-icon.ag-header-cell-filter-button::after': {
-    backgroundColor: theme.palette.mode === 'dark'
-      ? '#FCD34D'
-      : '#F59E0B',
+    backgroundColor: theme.palette.mode === 'dark' ? '#FCD34D' : '#F59E0B',
   },
 
   // Scrollbars

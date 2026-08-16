@@ -133,9 +133,7 @@ const App = (): JSX.Element => {
                     <Route path="/login" element={<Login />} />
                     <Route
                       path="/devis/client/signature"
-                      element={
-                        <RedirectToRobot />
-                      }
+                      element={<RedirectToRobot />}
                     />
                     <Route element={<AuthRoute />}>
                       <Route
@@ -160,10 +158,7 @@ const App = (): JSX.Element => {
                         <Route path="appels" element={<PhoneCallbacks />} />
                         <Route path="calendrier" element={<DailyCalendar />} />
                         <Route path="ouvrier" element={<RepairerWorkView />} />
-                        <Route
-                          path="factures"
-                          element={<ServiceInvoices />}
-                        />
+                        <Route path="factures" element={<ServiceInvoices />} />
                         <Route
                           path="factures/nouveau"
                           element={<ServiceInvoiceCreate />}

@@ -804,23 +804,17 @@ export const downloadSalesExcel = async (
   startDate: string,
   endDate: string,
 ): Promise<Blob> => {
-  const response = await fetch(
-    `${API_URL}/supervisor/sales-summary/excel`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ startDate, endDate }),
+  const response = await fetch(`${API_URL}/supervisor/sales-summary/excel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     },
-  );
+    body: JSON.stringify({ startDate, endDate }),
+  });
 
   if (!response.ok) {
-    throw new HttpError(
-      'Failed to download Excel file',
-      response.status,
-    );
+    throw new HttpError('Failed to download Excel file', response.status);
   }
 
   return response.blob();
@@ -873,10 +867,7 @@ export const updateServiceInvoice = (
 ): Promise<ServiceInvoice> =>
   apiRequest(`/supervisor/service-invoices/${id}`, 'PUT', token, data);
 
-export const deleteServiceInvoice = (
-  token: string,
-  id: number,
-): Promise<any> =>
+export const deleteServiceInvoice = (token: string, id: number): Promise<any> =>
   apiRequest(`/supervisor/service-invoices/${id}`, 'DELETE', token);
 
 export const sendServiceInvoice = (
@@ -898,10 +889,7 @@ export const markServiceInvoiceSent = (
 ): Promise<ServiceInvoice> =>
   apiRequest(`/supervisor/service-invoices/${id}/mark-sent`, 'PUT', token);
 
-export const resyncServiceInvoice = (
-  token: string,
-  id: number,
-): Promise<any> =>
+export const resyncServiceInvoice = (token: string, id: number): Promise<any> =>
   apiRequest(`/supervisor/service-invoices/${id}/resync`, 'POST', token);
 
 export const getServiceInvoicePdf = async (
@@ -937,7 +925,12 @@ export const createServiceInvoiceCalendar = (
   id: number,
   data: any,
 ): Promise<any> =>
-  apiRequest(`/supervisor/service-invoices/${id}/calendar`, 'POST', token, data);
+  apiRequest(
+    `/supervisor/service-invoices/${id}/calendar`,
+    'POST',
+    token,
+    data,
+  );
 
 export const deleteServiceInvoiceCalendar = (
   token: string,
@@ -1011,8 +1004,15 @@ export const searchDolibarrThirdparties = (
 
 export const getDolibarrBankAccounts = (
   token: string,
-): Promise<{ accounts: DolibarrBankAccount[]; selectedAccounts: Record<string, number | null> }> =>
-  apiRequest('/supervisor/service-invoices/dolibarr-bank-accounts', 'GET', token);
+): Promise<{
+  accounts: DolibarrBankAccount[];
+  selectedAccounts: Record<string, number | null>;
+}> =>
+  apiRequest(
+    '/supervisor/service-invoices/dolibarr-bank-accounts',
+    'GET',
+    token,
+  );
 
 export const setDolibarrBankAccount = (
   token: string,

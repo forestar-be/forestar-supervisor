@@ -97,9 +97,7 @@ const ServiceInvoiceCreate: React.FC = () => {
       });
       navigate(`/factures/${result.id}`);
     } catch (err: any) {
-      setError(
-        isHttpError(err) ? err.message : 'Erreur lors de la création',
-      );
+      setError(isHttpError(err) ? err.message : 'Erreur lors de la création');
     } finally {
       setSaving(false);
     }
@@ -177,17 +175,11 @@ const ServiceInvoiceCreate: React.FC = () => {
               ))}
             </List>
           )}
-          {searchQuery.trim() &&
-            !searching &&
-            searchResults.length === 0 && (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 1 }}
-              >
-                Aucune réparation trouvée
-              </Typography>
-            )}
+          {searchQuery.trim() && !searching && searchResults.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Aucune réparation trouvée
+            </Typography>
+          )}
         </Paper>
       )}
 

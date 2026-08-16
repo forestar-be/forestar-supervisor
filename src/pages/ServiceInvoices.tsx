@@ -35,10 +35,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SearchIcon from '@mui/icons-material/Search';
 import { getServiceInvoices, getServiceInvoicePdf } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
-import {
-  ServiceInvoice,
-  ServiceInvoiceStatus,
-} from '../utils/types';
+import { ServiceInvoice, ServiceInvoiceStatus } from '../utils/types';
 import {
   formatCurrency,
   getInvoiceStatusLabel,
@@ -118,13 +115,11 @@ const compareDates = (valueA: string, valueB: string) =>
   new Date(valueA).getTime() - new Date(valueB).getTime();
 
 const statusLabelToValue: Record<string, string> = {
-  'Brouillon': 'DRAFT',
-  'Envoyée': 'SENT',
-  'Payée': 'PAID',
+  Brouillon: 'DRAFT',
+  Envoyée: 'SENT',
+  Payée: 'PAID',
 };
 const statusLabels = Object.keys(statusLabelToValue);
-
-
 
 const ServiceInvoices: React.FC = () => {
   const auth = useAuth();
@@ -134,7 +129,9 @@ const ServiceInvoices: React.FC = () => {
   const [invoices, setInvoices] = useState<ServiceInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
-  const [selectedStatusLabels, setSelectedStatusLabels] = useState<string[]>([]);
+  const [selectedStatusLabels, setSelectedStatusLabels] = useState<string[]>(
+    [],
+  );
 
   const [paginationPageSize, setPaginationPageSize] = useState(() =>
     loadGridPageSize(GRID_STATE_KEY, 20),
@@ -195,16 +192,13 @@ const ServiceInvoices: React.FC = () => {
     onFirstDataRendered(e, GRID_STATE_KEY);
   }, []);
 
-  const handlePaginationChanged = useCallback(
-    (e: PaginationChangedEvent) => {
-      if (!e.api) return;
-      const newSize = e.api.paginationGetPageSize();
-      setPaginationPageSize((current) =>
-        newSize !== current ? newSize : current,
-      );
-    },
-    [],
-  );
+  const handlePaginationChanged = useCallback((e: PaginationChangedEvent) => {
+    if (!e.api) return;
+    const newSize = e.api.paginationGetPageSize();
+    setPaginationPageSize((current) =>
+      newSize !== current ? newSize : current,
+    );
+  }, []);
 
   const handleDownloadPdf = useCallback(
     async (invoice: ServiceInvoice) => {
@@ -224,7 +218,9 @@ const ServiceInvoices: React.FC = () => {
     let filtered = invoices;
 
     if (selectedStatusLabels.length > 0) {
-      const statusValues = selectedStatusLabels.map((l) => statusLabelToValue[l]);
+      const statusValues = selectedStatusLabels.map(
+        (l) => statusLabelToValue[l],
+      );
       filtered = filtered.filter((inv) => statusValues.includes(inv.status));
     }
 
@@ -474,11 +470,7 @@ const ServiceInvoices: React.FC = () => {
             gap: 2,
           }}
         >
-          <Typography
-            variant="h5"
-            component="h1"
-            sx={{ flexShrink: 0, mr: 2 }}
-          >
+          <Typography variant="h5" component="h1" sx={{ flexShrink: 0, mr: 2 }}>
             Factures de service
           </Typography>
           <Box sx={{ minWidth: 150 }}>

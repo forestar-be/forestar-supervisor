@@ -120,7 +120,9 @@ export const getWorkloadByRepairer = (
  * @param repairs Liste des réparations à trier
  * @returns Liste triée
  */
-export const sortByPriority = (repairs: MachineRepairListItem[]): MachineRepairListItem[] => {
+export const sortByPriority = (
+  repairs: MachineRepairListItem[],
+): MachineRepairListItem[] => {
   return [...repairs].sort((a, b) => {
     // 1. Priorité par état
     const getStatePriority = (state: string | null): number => {

@@ -20,9 +20,7 @@ export const getInvoiceStatusLabel = (status: ServiceInvoiceStatus): string => {
   }
 };
 
-export const getInvoiceStatusColor = (
-  status: ServiceInvoiceStatus,
-): string => {
+export const getInvoiceStatusColor = (status: ServiceInvoiceStatus): string => {
   switch (status) {
     case ServiceInvoiceStatus.DRAFT:
       return '#2196f3'; // blue

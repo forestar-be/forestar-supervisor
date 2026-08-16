@@ -1,4 +1,4 @@
-import type {UsePDFInstance} from '@react-pdf/renderer';
+import type { UsePDFInstance } from '@react-pdf/renderer';
 import React from 'react';
 import {
   Box,

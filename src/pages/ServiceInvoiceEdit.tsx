@@ -91,9 +91,7 @@ const ServiceInvoiceEdit: React.FC = () => {
         >
           Retour aux factures
         </Button>
-        <Alert severity="error">
-          {loadError || 'Facture introuvable'}
-        </Alert>
+        <Alert severity="error">{loadError || 'Facture introuvable'}</Alert>
       </Box>
     );
   }
