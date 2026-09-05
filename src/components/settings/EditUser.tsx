@@ -14,6 +14,7 @@ import {
   Box,
 } from '@mui/material';
 import { useAuth } from '../../hooks/AuthProvider';
+import { SSO_ENABLED } from '../../hooks/session';
 import { useTheme } from '@mui/material/styles';
 import { toast } from 'react-toastify';
 
@@ -29,6 +30,14 @@ export interface User {
     | 'INSTALLER'
     | 'FACTURATION';
 }
+
+/**
+ * URL de la console Zitadel où les identités sont réellement administrées.
+ * Dérivée de l'issuer plutôt que codée en dur : l'instance de recette et celle
+ * de production n'ont pas le même domaine.
+ */
+const ZITADEL_CONSOLE_URL =
+  process.env.REACT_APP_SSO_CONSOLE_URL || 'https://auth.forestar.be/ui/console';
 
 const EditUser = () => {
   const auth = useAuth();
@@ -154,7 +163,9 @@ const EditUser = () => {
         return params.value;
       },
     },
-    {
+    // En mode SSO, la colonne d'actions disparaît : créer, modifier ou
+    // supprimer une identité se fait dans Zitadel, pas ici.
+    ...(SSO_ENABLED ? [] : [{
       headerName: 'Actions',
       field: 'id',
       cellRenderer: (params: any) => (
@@ -176,19 +187,42 @@ const EditUser = () => {
           </Button>
         </>
       ),
-    },
+    }]),
   ];
 
   return (
     <Box height={'100%'}>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleAddUser}
-        sx={{ mb: 2 }}
-      >
-        Ajouter un utilisateur
-      </Button>
+      {SSO_ENABLED ? (
+        // AC-02 : plus aucun mot de passe Forestar n'est créé depuis cet écran.
+        // La liste reste affichée parce que la table `User` continue de porter
+        // le rôle du chemin historique jusqu'à son décommissionnement (R024);
+        // elle devient un miroir en lecture seule, l'autorité est Zitadel.
+        <Box sx={{ mb: 2 }}>
+          <p>
+            Les comptes sont administrés dans Zitadel. Cette liste reflète les
+            comptes hérités encore présents côté serveur et ne peut plus être
+            modifiée ici.
+          </p>
+          <Button
+            variant="contained"
+            color="primary"
+            href={ZITADEL_CONSOLE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Ouvrir la console Zitadel
+          </Button>
+        </Box>
+      ) : (
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleAddUser}
+          sx={{ mb: 2 }}
+        >
+          Ajouter un utilisateur
+        </Button>
+      )}
       <div
         className={`ag-theme-quartz${theme.palette.mode === 'dark' ? '-dark' : ''}`}
         style={{ height: '100%', width: '100%' }}

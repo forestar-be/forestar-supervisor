@@ -13,7 +13,12 @@ import {
   RepairForInvoice,
 } from './types';
 
+import { getSessionClient, SSO_ENABLED } from '../hooks/session';
+
 export const API_URL = process.env.REACT_APP_API_URL;
+
+/** Méthodes sans effet de bord : elles ne portent pas de jeton CSRF. */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export class HttpError extends Error {
   constructor(
@@ -39,14 +44,25 @@ const apiRequest = async (
   additionalHeaders: HeadersInit = { 'Content-Type': 'application/json' },
   stringifyBody: boolean = true,
 ) => {
-  const headers: HeadersInit = {
-    Authorization: `Bearer ${token}`,
-    ...additionalHeaders,
+  // En mode SSO, `token` est vide et l'en-tête `Authorization` disparaît :
+  // l'authentification passe par le cookie `__Host-`, que le navigateur envoie
+  // seul, plus un jeton CSRF sur chaque mutation.
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(additionalHeaders as Record<string, string>),
   };
+
+  if (SSO_ENABLED && !SAFE_METHODS.has(method.toUpperCase())) {
+    const csrf = getSessionClient().getState().csrfToken;
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+  }
 
   const options: RequestInit = {
     method,
     headers,
+    // Sans `credentials`, le navigateur n'envoie pas le cookie à une API d'une
+    // autre origine, et toute requête revient 401.
+    ...(SSO_ENABLED ? { credentials: 'include' as RequestCredentials } : {}),
   };
 
   if (body) {
@@ -71,7 +87,15 @@ const apiRequest = async (
     console.warn('Error parsing response', response, error);
   }
 
+  // En mode SSO, une session finie se manifeste par un 401 : la session
+  // serveur est expirée ou révoquée, et la seule réaction utile est de
+  // repartir vers l'IdP.
+  if (SSO_ENABLED && response.status === 401) {
+    getSessionClient().login();
+  }
+
   if (
+    !SSO_ENABLED &&
     response.status === 403 &&
     data?.message &&
     data?.message === 'jwt expired'
