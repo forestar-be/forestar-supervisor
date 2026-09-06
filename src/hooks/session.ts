@@ -20,6 +20,24 @@ export const API_URL = process.env.REACT_APP_API_URL ?? '';
 export const SSO_ENABLED = process.env.REACT_APP_AUTH_MODE === 'oidc';
 
 /**
+ * Valeur de `useAuth().token` en mode SSO.
+ *
+ * Ce n'est pas un jeton : aucun secret n'atteint le JavaScript, c'est tout
+ * l'objet du programme. C'est une **sentinelle non vide**, et elle existe
+ * parce que le code hérité se sert de `token` comme synonyme de « connecté »
+ * bien plus souvent que pour construire un en-tête `Authorization` — 134
+ * endroits contre 13, comptés le 2026-09-06. Avec une chaîne vide, tous ces
+ * tests devenaient faux : menus et boutons disparaissaient, des chargements
+ * ne partaient jamais, et `AppShell` de forestar-robot renvoyait `null`, donc
+ * une page entièrement blanche sur une session parfaitement valide.
+ *
+ * Corollaire indispensable : **aucun en-tête `Authorization` ne doit être
+ * construit à partir de cette valeur**. Tous les points qui le font sont
+ * gardés par `SSO_ENABLED`.
+ */
+export const SSO_SESSION_TOKEN = 'sso-cookie-session';
+
+/**
  * Rôles admis. Le serveur reste l'autorité — la matrice R005 protège
  * `/supervisor` — mais refuser ici évite d'afficher une interface complète à
  * quelqu'un dont chaque appel repartira en 403.

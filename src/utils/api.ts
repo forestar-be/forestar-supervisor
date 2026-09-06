@@ -20,6 +20,34 @@ export const API_URL = process.env.REACT_APP_API_URL;
 /** Méthodes sans effet de bord : elles ne portent pas de jeton CSRF. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/**
+ * En-têtes des appels qui n'empruntent pas `apiRequest`, parce qu'ils envoient
+ * un `FormData` ou récupèrent un `Blob`.
+ *
+ * Ils posaient `Authorization` en dur et rien d'autre : en mode SSO ils
+ * partaient donc sans cookie ni jeton CSRF et échouaient, là où tous les
+ * appels passant par `apiRequest` fonctionnaient. Trouvé en recette le
+ * 2026-09-06, en même temps que la sentinelle `SSO_SESSION_TOKEN`.
+ */
+const rawInit = (
+  token: string,
+  method: string,
+  extraHeaders: Record<string, string> = {},
+): RequestInit => {
+  if (!SSO_ENABLED) {
+    return {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
+    };
+  }
+  const csrf = getSessionClient().getState().csrfToken;
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (csrf && !SAFE_METHODS.has(method.toUpperCase())) {
+    headers['X-CSRF-Token'] = csrf;
+  }
+  return { method, credentials: 'include', headers };
+};
+
 export class HttpError extends Error {
   constructor(
     public message: string,
@@ -44,11 +72,17 @@ const apiRequest = async (
   additionalHeaders: HeadersInit = { 'Content-Type': 'application/json' },
   stringifyBody: boolean = true,
 ) => {
-  // En mode SSO, `token` est vide et l'en-tête `Authorization` disparaît :
+  // En mode SSO, `token` vaut une sentinelle non vide et l'en-tête
   // l'authentification passe par le cookie `__Host-`, que le navigateur envoie
   // seul, plus un jeton CSRF sur chaque mutation.
   const headers: Record<string, string> = {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    // `SSO_ENABLED` et pas seulement la vérité de `token` : depuis le
+    // 2026-09-06 celui-ci vaut une sentinelle non vide en mode SSO, pour
+    // que les tests `if (!token)` du code hérité restent justes. Sans
+    // cette garde, la sentinelle partirait en en-tête `Authorization`.
+    ...(!SSO_ENABLED && token
+      ? { Authorization: `Bearer ${token}` }
+      : {}),
     ...(additionalHeaders as Record<string, string>),
   };
 
@@ -258,13 +292,7 @@ export const addImage = async (token: string, id: string, file: File) => {
 
   const response = await fetch(
     `${API_URL}/supervisor/machine-repairs/${id}/image`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    },
+    { ...rawInit(token, 'PUT'), body: formData },
   );
 
   if (!response.ok) {
@@ -417,13 +445,7 @@ export const uploadRobotImage = async (
 
   const response = await fetch(
     `${API_URL}/supervisor/robot-inventory/${id}/image`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    },
+    { ...rawInit(token, 'PUT'), body: formData },
   );
 
   if (!response.ok) {
@@ -594,13 +616,7 @@ export const updatePurchaseOrderStatus = async (
 
     const response = await fetch(
       `${API_URL}/supervisor/purchase-orders/${id}/status`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      },
+      { ...rawInit(token, 'PATCH'), body: formData },
     );
 
     if (!response.ok) {
@@ -829,11 +845,7 @@ export const downloadSalesExcel = async (
   endDate: string,
 ): Promise<Blob> => {
   const response = await fetch(`${API_URL}/supervisor/sales-summary/excel`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    ...rawInit(token, 'POST', { 'Content-Type': 'application/json' }),
     body: JSON.stringify({ startDate, endDate }),
   });
 
@@ -922,9 +934,7 @@ export const getServiceInvoicePdf = async (
 ): Promise<Blob> => {
   const response = await fetch(
     `${API_URL}/supervisor/service-invoices/${id}/pdf`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    },
+    rawInit(token, 'GET'),
   );
   if (!response.ok) {
     throw new HttpError('Erreur téléchargement PDF', response.status);
