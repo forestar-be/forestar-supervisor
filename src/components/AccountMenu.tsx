@@ -32,6 +32,15 @@ const ICONS: Record<string, React.ReactElement> = {
   'admin-org': <BusinessIcon fontSize="small" />,
 };
 
+interface Props {
+  /**
+   * Garde optionnelle jouée avant de quitter l'application. Elle renvoie `false`
+   * pour annuler. `forestar-rental-management` s'en sert pour ne pas perdre une
+   * saisie en cours; les autres applications n'en ont pas.
+   */
+  beforeLeave?: () => boolean;
+}
+
 /**
  * R028 — Bouton avatar et menu de compte.
  *
@@ -44,7 +53,7 @@ const ICONS: Record<string, React.ReactElement> = {
  * `prompt=select_account`; sans ce prompt la session en cours serait rouverte
  * en silence et le bouton paraîtrait inerte.
  */
-const AccountMenu = (): JSX.Element | null => {
+const AccountMenu = ({ beforeLeave }: Props = {}): JSX.Element | null => {
   const auth = useAuth();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
@@ -60,6 +69,11 @@ const AccountMenu = (): JSX.Element | null => {
   const adminEntries = entries.filter((e) => e.group === 'admin');
   const roles = roleLabelsOf(auth.roles);
   const close = () => setAnchor(null);
+  const leave = (action: () => void) => () => {
+    close();
+    if (beforeLeave && !beforeLeave()) return;
+    action();
+  };
 
   return (
     <>
@@ -153,23 +167,13 @@ const AccountMenu = (): JSX.Element | null => {
         ))}
 
         <Divider />
-        <MenuItem
-          onClick={() => {
-            close();
-            auth.switchAccount();
-          }}
-        >
+        <MenuItem onClick={leave(() => auth.switchAccount())}>
           <ListItemIcon>
             <SwapHorizIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Changer de compte" />
         </MenuItem>
-        <MenuItem
-          onClick={() => {
-            close();
-            auth.logOut();
-          }}
-        >
+        <MenuItem onClick={leave(() => auth.logOut())}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" />
           </ListItemIcon>
