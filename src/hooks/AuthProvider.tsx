@@ -5,6 +5,7 @@ import {
   AuthProvider as SsoSessionProvider,
   useAuth as useSsoSession,
   type ForestarRole,
+  type SessionUser,
 } from '@forestar-be/core';
 import {
   API_URL as SSO_API_URL,
@@ -19,6 +20,10 @@ interface AuthContextValue {
   expiresAt: string;
   loginAction: (data: any) => Promise<{ success: boolean; message: string }>;
   logOut: () => void;
+  /** Repart vers l'IdP en demandant le sélecteur de comptes. */
+  switchAccount: () => void;
+  /** Identité de la session SSO. `null` en mode historique. */
+  user: SessionUser | null;
   isAdmin: boolean;
   /** Vrai tant que la première lecture de session n'a pas abouti (SSO). */
   isLoading: boolean;
@@ -38,6 +43,8 @@ const AuthContext = createContext<AuthContextValue>({
     return { success: false, message: 'Impossible de vous authentifier' };
   },
   logOut: () => {},
+  switchAccount: () => {},
+  user: null,
   isAdmin: false,
   isLoading: false,
   isAuthenticated: false,
@@ -118,6 +125,9 @@ const LegacyAuthProvider = ({ children }: any) => {
         expiresAt,
         loginAction,
         logOut,
+        // Aucun sélecteur de comptes hors SSO : il n'y a qu'un login local.
+        switchAccount: () => {},
+        user: null,
         isAdmin,
         isLoading: false,
         isAuthenticated: Boolean(token),
@@ -161,6 +171,8 @@ const SsoAuthBridge = ({ children }: any) => {
         logOut: () => {
           void session.logout();
         },
+        switchAccount: () => session.switchAccount(),
+        user: session.user,
         isAdmin: session.hasRole('forestar.admin'),
         isLoading: session.isLoading,
         isAuthenticated: session.isAuthenticated,

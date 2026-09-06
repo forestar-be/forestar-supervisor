@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/AuthProvider';
 import { ALLOWED_ROLES } from '../hooks/session';
+import AccessDenied from './AccessDenied';
 
 /**
  * Garde des routes internes.
@@ -35,17 +36,7 @@ const AuthRoute = () => {
   }
 
   if (!auth.hasRole(...ALLOWED_ROLES)) {
-    return (
-      <div>
-        <p>
-          <strong>Accès non autorisé.</strong> Votre compte est bien
-          authentifié, mais il ne porte pas les droits nécessaires à Forestar Supervisor.
-        </p>
-        <button type="button" onClick={auth.logOut}>
-          Se déconnecter
-        </button>
-      </div>
-    );
+    return <AccessDenied application="Atelier" allowedRoles={ALLOWED_ROLES} />;
   }
 
   return <Outlet />;

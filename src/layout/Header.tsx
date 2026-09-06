@@ -27,6 +27,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import MenuIcon from '@mui/icons-material/Menu';
 import HeaderClient from './HeaderClient';
+import AccountMenu from '../components/AccountMenu';
 
 interface Props {
   onSidebarOpen: () => void;
@@ -245,28 +246,36 @@ const Header = ({ onSidebarOpen }: Props): JSX.Element | null => {
                   <SettingsIcon fontSize="medium" />
                 </Tooltip>
               </IconButton>
-              <IconButton
-                onClick={auth.logOut}
-                aria-label="Déconnexion"
-                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
-              >
-                <Tooltip title="Déconnexion">
-                  <LogoutIcon fontSize="medium" />
-                </Tooltip>
-              </IconButton>
+              {auth.ssoEnabled ? (
+                <AccountMenu />
+              ) : (
+                <IconButton
+                  onClick={auth.logOut}
+                  aria-label="Déconnexion"
+                  color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                >
+                  <Tooltip title="Déconnexion">
+                    <LogoutIcon fontSize="medium" />
+                  </Tooltip>
+                </IconButton>
+              )}
             </Box>
           )}
           {auth.token && isExtraSmall && (
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton
-                onClick={auth.logOut}
-                aria-label="Déconnexion"
-                color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
-              >
-                <Tooltip title="Déconnexion">
-                  <LogoutIcon fontSize="medium" />
-                </Tooltip>
-              </IconButton>
+              {auth.ssoEnabled ? (
+                <AccountMenu />
+              ) : (
+                <IconButton
+                  onClick={auth.logOut}
+                  aria-label="Déconnexion"
+                  color={theme.palette.mode === 'dark' ? 'warning' : 'inherit'}
+                >
+                  <Tooltip title="Déconnexion">
+                    <LogoutIcon fontSize="medium" />
+                  </Tooltip>
+                </IconButton>
+              )}
             </Box>
           )}
           <Divider
