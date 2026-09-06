@@ -12,8 +12,8 @@ importers:
         specifier: ^33.1.1
         version: 33.1.1
       '@forestar-be/core':
-        specifier: ^0.2.1
-        version: 0.2.1(next@16.3.4(@babel/core@7.22.11)(@types/node@22.13.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^0.2.2
+        version: 0.2.2(next@16.3.4(@babel/core@7.22.11)(@types/node@22.13.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@hello-pangea/dnd':
         specifier: ^18.0.1
         version: 18.0.1(@types/react@18.3.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1028,8 +1028,8 @@ packages:
     resolution: {integrity: sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  '@forestar-be/core@0.2.1':
-    resolution: {integrity: sha512-wf/4xinh4SqOa0cM9dnoodP/ZMWp+oBnC5m4CaAGppSAsM1J/j03VIW8yu3BuX2ZyRjqpJD97Vhug/6fbzBaQg==, tarball: https://npm.pkg.github.com/download/@forestar-be/core/0.2.1/7c630ea32d8427708de0dd8d22c88201d92432fc}
+  '@forestar-be/core@0.2.2':
+    resolution: {integrity: sha512-xT64qt0eL0FWflPYcOPhzu5wbQgUfS+6wu7cVUzPQgyTC07riY8srxRxSlAfBznuqbQ/H9IqQ39/OcYWRsEb8g==, tarball: https://npm.pkg.github.com/download/@forestar-be/core/0.2.2/3d0cc9cb32b4c2f58f3ef7aca46e2d0d0394be5b}
     peerDependencies:
       next: '>=15'
       react: '>=18'
@@ -7425,7 +7425,7 @@ snapshots:
 
   '@eslint/js@8.57.1': {}
 
-  '@forestar-be/core@0.2.1(next@16.3.4(@babel/core@7.22.11)(@types/node@22.13.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@forestar-be/core@0.2.2(next@16.3.4(@babel/core@7.22.11)(@types/node@22.13.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       next: 16.3.4(@babel/core@7.22.11)(@types/node@22.13.11)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
