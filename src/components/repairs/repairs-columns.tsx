@@ -42,18 +42,11 @@ function RepairerCell({
 }: {
   repair: MachineRepairListItem;
   repairerNames: string[];
-  onChange: (
-    id: number,
-    previous: string | null,
-    next: string | null,
-  ) => void;
+  onChange: (id: number, previous: string | null, next: string | null) => void;
 }) {
   const value = repair.repairer_name ?? 'Non affecté';
   return (
-    <div
-      onClick={(event) => event.stopPropagation()}
-      className="min-w-[130px]"
-    >
+    <div onClick={(event) => event.stopPropagation()} className="min-w-[130px]">
       <Select
         value={value}
         onValueChange={(next) =>
@@ -98,13 +91,14 @@ export function buildRepairsColumns({
       id: 'id',
       accessorKey: 'id',
       header: 'N°',
-      size: 70,
+      size: 64,
       cell: ({ getValue }) => (
         <span className="font-medium">#{getValue<number>()}</span>
       ),
     },
     {
       id: 'state',
+      size: 170,
       accessorFn: (row) => row.state || 'Non commencé',
       header: 'État',
       cell: ({ getValue }) => {
@@ -121,6 +115,7 @@ export function buildRepairsColumns({
     },
     {
       id: 'lastCall',
+      size: 150,
       accessorFn: (row) => row.client_call_times.length,
       header: 'Appel client',
       enableSorting: false,
@@ -140,11 +135,13 @@ export function buildRepairsColumns({
     },
     {
       id: 'repair_or_maintenance',
+      size: 110,
       accessorKey: 'repair_or_maintenance',
       header: 'Type',
     },
     {
       id: 'machineType',
+      size: 200,
       accessorFn: (row) =>
         row.robot_type_name
           ? `${row.robot_type_name} (${row.machine_type_name || ''})`
@@ -153,6 +150,7 @@ export function buildRepairsColumns({
     },
     {
       id: 'repairer_name',
+      size: 160,
       accessorFn: (row) => row.repairer_name || 'Non affecté',
       header: 'Réparateur',
       cell: ({ row }) => (
@@ -165,16 +163,20 @@ export function buildRepairsColumns({
     },
     {
       id: 'client',
-      accessorFn: (row) => `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+      size: 170,
+      accessorFn: (row) =>
+        `${row.first_name || ''} ${row.last_name || ''}`.trim(),
       header: 'Client',
     },
     {
       id: 'phone',
+      size: 140,
       accessorFn: (row) => row.phone || '-',
       header: 'Téléphone',
     },
     {
       id: 'invoice',
+      size: 110,
       accessorFn: (row) => row.serviceInvoice?.status ?? null,
       header: 'Facture',
       enableSorting: false,
@@ -189,7 +191,9 @@ export function buildRepairsColumns({
             onClick={(event) => event.stopPropagation()}
             className="inline-flex"
           >
-            <StatusBadge tone={INVOICE_STATUS_TONE[invoice.status] ?? 'neutral'}>
+            <StatusBadge
+              tone={INVOICE_STATUS_TONE[invoice.status] ?? 'neutral'}
+            >
               {INVOICE_STATUS_LABELS[invoice.status] ?? invoice.status}
             </StatusBadge>
           </Link>
@@ -198,9 +202,11 @@ export function buildRepairsColumns({
     },
     {
       id: 'createdAt',
+      size: 150,
       accessorKey: 'createdAt',
       header: 'Date de création',
-      cell: ({ getValue }) => dayjs(getValue<string>()).format('DD/MM/YYYY HH:mm'),
+      cell: ({ getValue }) =>
+        dayjs(getValue<string>()).format('DD/MM/YYYY HH:mm'),
     },
   ];
 }

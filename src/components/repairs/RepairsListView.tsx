@@ -16,6 +16,7 @@ import { getAllMachineRepairs, updateRepair } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { notifyError, notifySuccess } from '@/lib/notifications';
 import { usePersistedState } from '@/lib/use-persisted-state';
+import { useMediaQuery } from '@/lib/use-media-query';
 import { useAppSelector } from '@/store/hooks';
 import type {
   MachineRepairListItem,
@@ -26,10 +27,7 @@ import { buildRepairsColumns } from './repairs-columns';
 const SEARCH_DEBOUNCE_MS = 250;
 
 const normalize = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
+  value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 const DEFAULT_TABLE_STATE: DataTableState = {
   sorting: [{ id: 'createdAt', desc: true }],
@@ -60,6 +58,47 @@ export default function RepairsListView() {
       'atelier.liste.tableState',
       DEFAULT_TABLE_STATE,
     );
+
+  // Colonnes masquées par défaut selon la largeur, comme l'ancienne grille
+  // (seuils décalés de la largeur de la barre latérale). Un choix explicite
+  // fait dans le menu « Colonnes » l'emporte, car il est persisté.
+  const isLaptop = useMediaQuery('(max-width: 1440px)');
+  const isTablet = useMediaQuery('(max-width: 768px)');
+  const isMobile = useMediaQuery('(max-width: 480px)');
+  const responsiveHidden = useMemo(() => {
+    const hidden: Record<string, boolean> = {};
+    if (isLaptop) {
+      hidden.machineType = false;
+      hidden.lastCall = false;
+    }
+    if (isTablet) {
+      hidden.repair_or_maintenance = false;
+      hidden.repairer_name = false;
+      hidden.invoice = false;
+    }
+    if (isMobile) hidden.createdAt = false;
+    return hidden;
+  }, [isLaptop, isTablet, isMobile]);
+  const effectiveTableState = useMemo<DataTableState>(
+    () => ({
+      ...tableState,
+      columnVisibility: { ...responsiveHidden, ...tableState.columnVisibility },
+    }),
+    [tableState, responsiveHidden],
+  );
+  // Ne persister que les écarts au défaut de la largeur courante : sinon un
+  // tri fait sur mobile figerait les colonnes masquées sur le bureau.
+  const persistTableState = useCallback(
+    (next: DataTableState) => {
+      const columnVisibility = Object.fromEntries(
+        Object.entries(next.columnVisibility).filter(
+          ([id, visible]) => (responsiveHidden[id] ?? true) !== visible,
+        ),
+      );
+      setTableState({ ...next, columnVisibility });
+    },
+    [responsiveHidden, setTableState],
+  );
 
   const colorByState = useMemo<Record<string, string>>(() => {
     try {
@@ -96,9 +135,7 @@ export default function RepairsListView() {
       .then((data: MachineRepairListItemFromApi[]) => {
         const withDates: MachineRepairListItem[] = data.map((repair) => ({
           ...repair,
-          start_timer: repair.start_timer
-            ? new Date(repair.start_timer)
-            : null,
+          start_timer: repair.start_timer ? new Date(repair.start_timer) : null,
           client_call_times: repair.client_call_times.map(
             (date) => new Date(date),
           ),
@@ -145,7 +182,9 @@ export default function RepairsListView() {
           notifyError('Erreur lors de la mise à jour du réparateur');
           // Le serveur a refusé : on revient à la valeur d'origine.
           setMachineRepairs((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, repairer_name: previous } : r)),
+            prev.map((r) =>
+              r.id === id ? { ...r, repairer_name: previous } : r,
+            ),
           );
         });
     },
@@ -232,8 +271,8 @@ export default function RepairsListView() {
         getRowId={(row) => String(row.id)}
         onRowClick={(row) => router.push(`/reparation/${row.id}`)}
         getRowClassName={() => 'cursor-pointer'}
-        state={tableState}
-        onStateChange={setTableState}
+        state={effectiveTableState}
+        onStateChange={persistTableState}
         enableColumnVisibility
         emptyMessage="Aucune réparation ne correspond à ces filtres"
         toolbar={
