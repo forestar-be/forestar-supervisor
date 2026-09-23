@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { UsePDFInstance } from '@react-pdf/renderer';
 import {
-  Archive,
   ArchiveRestore,
   CalendarCheck,
   CalendarPlus,
@@ -11,23 +9,29 @@ import {
   HardDriveUpload,
   Info,
   Mail,
+  PackageCheck,
   Phone,
   Printer,
   Trash2,
 } from 'lucide-react';
 import { Button, ConfirmDialog, Spinner } from '@forestar-be/ui';
-import { notifyWarning } from '@/lib/notifications';
 
 interface RepairHeaderProps {
   id: string;
-  isRunning: boolean;
   onDelete: () => Promise<void>;
   isDeleting: boolean;
-  onSendDrive: () => Promise<void>;
-  isLoadingDrive: boolean;
+
+  // R002-S05 — PDF généré par le serveur : ces quatre actions restent
+  // disponibles sur une fiche archivée (D-18), aucune ne dépend de `readOnly`.
+  onDownloadPdf: () => Promise<void>;
+  isLoadingDownload: boolean;
+  onPrintPdf: () => Promise<void>;
+  isLoadingPrint: boolean;
   onSendEmail: () => Promise<void>;
   isLoadingEmail: boolean;
-  instance: UsePDFInstance;
+  onSendDropbox: () => Promise<void>;
+  isLoadingDropbox: boolean;
+
   onCall: () => Promise<void>;
   loadingCall: boolean;
   onOpenCallHistory: () => void;
@@ -39,9 +43,13 @@ interface RepairHeaderProps {
   isPrintingTickets: boolean;
   /** Fiche archivée (R001, D-18) : lecture seule. Désarchiver et Supprimer restent actifs. */
   readOnly: boolean;
-  onArchive: () => Promise<void>;
   onUnarchive: () => Promise<void>;
   isArchiving: boolean;
+  // R003-S05 — remise au client et archivage sans sortie, disponibles sur une
+  // fiche active dans tout état (D-18) : jamais proposés sur une fiche déjà
+  // archivée (le bouton Désarchiver les remplace).
+  onHandoverOpen: () => void;
+  onArchiveWithoutExit: () => Promise<void>;
 }
 
 /**
@@ -49,14 +57,16 @@ interface RepairHeaderProps {
  */
 export function RepairHeader({
   id,
-  isRunning,
   onDelete,
   isDeleting,
-  onSendDrive,
-  isLoadingDrive,
+  onDownloadPdf,
+  isLoadingDownload,
+  onPrintPdf,
+  isLoadingPrint,
   onSendEmail,
   isLoadingEmail,
-  instance,
+  onSendDropbox,
+  isLoadingDropbox,
   onCall,
   loadingCall,
   onOpenCallHistory,
@@ -67,9 +77,10 @@ export function RepairHeader({
   onPrintTickets,
   isPrintingTickets,
   readOnly,
-  onArchive,
   onUnarchive,
   isArchiving,
+  onHandoverOpen,
+  onArchiveWithoutExit,
 }: RepairHeaderProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -104,36 +115,45 @@ export function RepairHeader({
             )}
           </Button>
         ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => void onArchive()}
-            disabled={isArchiving}
-          >
-            {isArchiving ? (
-              <Spinner size="sm" />
-            ) : (
-              <>
-                <Archive className="size-4" />
-                Archiver
-              </>
-            )}
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onHandoverOpen}
+              disabled={isArchiving}
+            >
+              <PackageCheck className="size-4" />
+              Machine rendue au client
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => void onArchiveWithoutExit()}
+              disabled={isArchiving}
+            >
+              {isArchiving ? (
+                <Spinner size="sm" />
+              ) : (
+                'Archiver sans sortie'
+              )}
+            </Button>
+          </>
         )}
         <Button
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() => void onSendDrive()}
-          disabled={isLoadingDrive || instance.loading || !instance.blob}
+          onClick={() => void onSendDropbox()}
+          disabled={isLoadingDropbox}
         >
-          {isLoadingDrive ? (
+          {isLoadingDropbox ? (
             <Spinner size="sm" />
           ) : (
             <>
               <HardDriveUpload className="size-4" />
-              Sauvegarder Google Drive
+              Envoyer sur Dropbox
             </>
           )}
         </Button>
@@ -142,7 +162,7 @@ export function RepairHeader({
           variant="secondary"
           size="sm"
           onClick={() => void onSendEmail()}
-          disabled={isLoadingEmail || instance.loading || !instance.blob}
+          disabled={isLoadingEmail}
         >
           {isLoadingEmail ? (
             <Spinner size="sm" />
@@ -156,23 +176,33 @@ export function RepairHeader({
         <Button
           type="button"
           size="sm"
-          nativeButton={false}
-          disabled={instance.loading || !instance.url}
-          render={
-            <a
-              href={instance.url ?? undefined}
-              download={`fiche_reparation_${id}.pdf`}
-              onClick={(event) => {
-                if (isRunning) {
-                  event.preventDefault();
-                  notifyWarning('Arrêtez le chronomètre avant de télécharger le PDF');
-                }
-              }}
-            />
-          }
+          onClick={() => void onDownloadPdf()}
+          disabled={isLoadingDownload}
         >
-          <Download className="size-4" />
-          Télécharger
+          {isLoadingDownload ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <Download className="size-4" />
+              Télécharger
+            </>
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => void onPrintPdf()}
+          disabled={isLoadingPrint}
+        >
+          {isLoadingPrint ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <Printer className="size-4" />
+              Imprimer
+            </>
+          )}
         </Button>
         <Button
           type="button"

@@ -217,5 +217,25 @@ export function buildRepairsColumns({
       cell: ({ getValue }) =>
         dayjs(getValue<string>()).format('DD/MM/YYYY HH:mm'),
     },
+    {
+      id: 'entry_date',
+      size: 120,
+      accessorKey: 'entry_date',
+      header: 'Entrée',
+      cell: ({ getValue }) => {
+        const value = getValue<string | null>();
+        return value ? dayjs(value).format('DD/MM/YYYY') : '—';
+      },
+    },
+    {
+      id: 'exit_date',
+      size: 120,
+      accessorKey: 'exit_date',
+      header: 'Sortie',
+      cell: ({ getValue }) => {
+        const value = getValue<string | null>();
+        return value ? dayjs(value).format('DD/MM/YYYY') : '—';
+      },
+    },
   ];
 }
