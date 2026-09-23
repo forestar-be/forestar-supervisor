@@ -356,8 +356,14 @@ export function CalendarPageClient() {
             </div>
           ) : (
             <ul className="flex flex-col gap-1">
-              {calendars.map((calendar) => (
-                <li key={calendar.id} className="flex items-center justify-between gap-2">
+              {calendars.map((calendar, index) => (
+                // L'API de test sert parfois deux agendas avec le même id
+                // (données de seed) : l'index dans la clé évite la collision
+                // React sans changer le comportement (sélection par id).
+                <li
+                  key={`${calendar.id}-${index}`}
+                  className="flex items-center justify-between gap-2"
+                >
                   <label className="flex items-center gap-2 text-sm">
                     <Checkbox
                       checked={selectedCalendars.includes(calendar.id)}
