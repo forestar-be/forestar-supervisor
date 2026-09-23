@@ -14,6 +14,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  cn,
   Spinner,
   StatusBadge,
   toast,
@@ -588,6 +589,24 @@ export function RepairPageClient() {
     </button>
   );
 
+  // Sections Détails et Coordonnées : en lecture, libellés et valeurs
+  // s'alignent en colonnes (grille de quatre colonnes, chaque champ en occupe
+  // deux par sous-grille, un champ large toute la ligne) ; en édition, les
+  // champs empilés se rangent sur deux colonnes.
+  const fieldsGridClass = (editable: boolean) =>
+    editable
+      ? 'grid grid-cols-1 items-end gap-3 sm:grid-cols-2'
+      : 'grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2.5 sm:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)]';
+  const fieldClass = (editable: boolean) =>
+    editable ? undefined : 'col-span-2 grid grid-cols-subgrid items-baseline';
+  const wideFieldClass = (editable: boolean) =>
+    editable
+      ? 'sm:col-span-2'
+      : 'col-span-full grid grid-cols-subgrid items-baseline sm:[&>:last-child]:col-span-3';
+  const detailsEditable = !!editableSections.repairDetails;
+  const clientEditable = !!editableSections.clientInfo;
+  const detailFieldClass = fieldClass(detailsEditable);
+
   const renderCheckboxField = (
     label: string,
     name: 'warranty' | 'devis' | 'hivernage',
@@ -609,7 +628,9 @@ export function RepairPageClient() {
       );
     }
     return (
-      <div className="flex items-baseline gap-2 text-sm">
+      <div
+        className={cn('flex items-baseline gap-2 text-sm', detailFieldClass)}
+      >
         <span className="font-medium text-muted-foreground">{label} :</span>
         <span>
           {value ? 'Oui' : 'Non'}
@@ -695,7 +716,7 @@ export function RepairPageClient() {
                 {renderSectionToggle('repairDetails')}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <div className="flex flex-wrap gap-3">
+                <div className={fieldsGridClass(detailsEditable)}>
                   <RepairSelect
                     label="Type de machine"
                     name="machine_type_name"
@@ -703,7 +724,7 @@ export function RepairPageClient() {
                     options={machineType}
                     editable={!!editableSections.repairDetails}
                     onChange={(v) => handleSelectField('machine_type_name', v)}
-                    className="min-w-48 flex-1"
+                    className={detailFieldClass}
                   />
                   <RepairField
                     label="Type"
@@ -711,10 +732,8 @@ export function RepairPageClient() {
                     value={repair.repair_or_maintenance}
                     editable={!!editableSections.repairDetails}
                     onChange={handleChange}
-                    className="min-w-48 flex-1"
+                    className={detailFieldClass}
                   />
-                </div>
-                <div className="flex flex-wrap gap-3">
                   <RepairSelect
                     label="Marque"
                     name="brand_name"
@@ -722,7 +741,7 @@ export function RepairPageClient() {
                     options={brands}
                     editable={!!editableSections.repairDetails}
                     onChange={(v) => handleSelectField('brand_name', v)}
-                    className="min-w-48 flex-1"
+                    className={detailFieldClass}
                   />
                   <RepairField
                     label="Code du robot"
@@ -730,10 +749,8 @@ export function RepairPageClient() {
                     value={repair.robot_code || ''}
                     editable={!!editableSections.repairDetails}
                     onChange={handleChange}
-                    className="min-w-48 flex-1"
+                    className={detailFieldClass}
                   />
-                </div>
-                <div className="flex flex-wrap gap-3">
                   <RepairSelect
                     label="Type de robot"
                     name="robot_type_name"
@@ -741,15 +758,13 @@ export function RepairPageClient() {
                     options={robotType}
                     editable={!!editableSections.repairDetails}
                     onChange={(v) => handleSelectField('robot_type_name', v)}
-                    className="min-w-48 flex-1"
+                    className={detailFieldClass}
                   />
                   {renderCheckboxField(
                     'Garantie',
                     'warranty',
                     repair.warranty ?? false,
                   )}
-                </div>
-                <div className="flex flex-wrap gap-4">
                   {renderCheckboxField(
                     'Devis',
                     'devis',
@@ -888,65 +903,62 @@ export function RepairPageClient() {
                 {renderSectionToggle('clientInfo')}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <div className="flex flex-wrap gap-3">
+                <div className={fieldsGridClass(clientEditable)}>
                   <RepairField
                     label="Prénom"
                     name="first_name"
                     value={repair.first_name}
-                    editable={!!editableSections.clientInfo}
+                    editable={clientEditable}
                     onChange={handleChange}
-                    className="min-w-40 flex-1"
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Nom"
                     name="last_name"
                     value={repair.last_name}
-                    editable={!!editableSections.clientInfo}
+                    editable={clientEditable}
                     onChange={handleChange}
-                    className="min-w-40 flex-1"
+                    className={fieldClass(clientEditable)}
                   />
-                </div>
-                <RepairField
-                  label="Adresse"
-                  name="address"
-                  value={repair.address}
-                  editable={!!editableSections.clientInfo}
-                  onChange={handleChange}
-                />
-                <div className="flex flex-wrap gap-3">
+                  <RepairField
+                    label="Adresse"
+                    name="address"
+                    value={repair.address}
+                    editable={clientEditable}
+                    onChange={handleChange}
+                    className={wideFieldClass(clientEditable)}
+                  />
                   <RepairField
                     label="Code postal"
                     name="postal_code"
                     value={repair.postal_code ?? ''}
-                    editable={!!editableSections.clientInfo}
+                    editable={clientEditable}
                     onChange={handleChange}
-                    className="min-w-32 flex-1"
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Ville"
                     name="city"
                     value={repair.city ?? ''}
-                    editable={!!editableSections.clientInfo}
+                    editable={clientEditable}
                     onChange={handleChange}
-                    className="min-w-40 flex-1"
-                  />
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <RepairField
-                    label="Email"
-                    name="email"
-                    value={repair.email}
-                    editable={!!editableSections.clientInfo}
-                    onChange={handleChange}
-                    className="min-w-48 flex-1"
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Téléphone"
                     name="phone"
                     value={repair.phone}
-                    editable={!!editableSections.clientInfo}
+                    editable={clientEditable}
                     onChange={handleChange}
-                    className="min-w-40 flex-1"
+                    className={fieldClass(clientEditable)}
+                  />
+                  <RepairField
+                    label="Email"
+                    name="email"
+                    value={repair.email}
+                    editable={clientEditable}
+                    onChange={handleChange}
+                    className={wideFieldClass(clientEditable)}
                   />
                 </div>
 

@@ -18,15 +18,12 @@ export default function KanbanColumn({
   colorByState,
 }: KanbanColumnProps) {
   return (
-    <div className="flex h-full w-[320px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+    <div className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <div
         className="sticky top-0 z-10 flex items-center gap-2 border-b-2 px-4 py-3"
         style={{ borderColor: color, backgroundColor: `${color}15` }}
       >
-        <h3
-          className="flex-1 truncate text-base font-semibold"
-          title={title}
-        >
+        <h3 className="flex-1 truncate text-base font-semibold" title={title}>
           {title}
         </h3>
         <span
@@ -37,7 +34,7 @@ export default function KanbanColumn({
         </span>
       </div>
 
-      <div className="flex max-h-[calc(100vh-22rem)] flex-col gap-3 overflow-y-auto p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
         {repairs.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
             Aucune réparation

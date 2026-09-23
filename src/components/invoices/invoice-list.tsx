@@ -249,80 +249,73 @@ export default function InvoiceList() {
     [downloadingId, handleDownloadPdf],
   );
 
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Factures de service"
-        actions={
-          <Button
-            render={<Link href="/factures/nouveau" />}
-            nativeButton={false}
-          >
-            <Plus />
-            Nouvelle facture
-          </Button>
-        }
-      />
+  const newInvoiceButton = (
+    <Button render={<Link href="/factures/nouveau" />} nativeButton={false}>
+      <Plus />
+      Nouvelle facture
+    </Button>
+  );
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-56">
-          <MultiCombobox
-            options={STATUS_OPTIONS}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            placeholder="Tous les statuts"
-          />
-        </div>
-        <div className="relative w-72">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher client, N° facture..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setTableState({})}
-          aria-label="Réinitialiser le tableau"
-        >
-          <RotateCcw />
-          Réinitialiser
-        </Button>
-      </div>
-
-      {!loading && invoices.length === 0 ? (
+  if (!loading && invoices.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <PageHeader title="Factures de service" actions={newInvoiceButton} />
         <EmptyState
           icon={Search}
           title="Aucune facture"
           description="Aucune facture de réparation n'a encore été créée."
-          action={
+          action={newInvoiceButton}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <DataTable
+        className="min-h-0 flex-1"
+        title="Factures de service"
+        toolbar={
+          <>
+            <MultiCombobox
+              options={STATUS_OPTIONS}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              placeholder="Tous les statuts"
+              className="w-full sm:w-52"
+            />
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher client, N° facture..."
+                aria-label="Rechercher une facture"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="pl-8"
+              />
+            </div>
             <Button
-              render={<Link href="/factures/nouveau" />}
-              nativeButton={false}
+              variant="outline"
+              onClick={() => setTableState({})}
+              aria-label="Réinitialiser le tableau"
             >
-              <Plus />
-              Nouvelle facture
+              <RotateCcw />
+              Réinitialiser
             </Button>
-          }
-        />
-      ) : (
-        <DataTable
-          className="min-h-0 flex-1"
-          columns={columns}
-          data={filteredInvoices}
-          loading={loading}
-          getRowId={(row) => String(row.id)}
-          onRowClick={(row) => router.push(`/factures/${row.id}`)}
-          state={hydrated ? tableState : undefined}
-          onStateChange={setTableState}
-          initialState={{ sorting: [{ id: 'createdAt', desc: true }] }}
-          enableColumnVisibility
-          emptyMessage="Aucune facture ne correspond aux filtres"
-        />
-      )}
+            {newInvoiceButton}
+          </>
+        }
+        columns={columns}
+        data={filteredInvoices}
+        loading={loading}
+        getRowId={(row) => String(row.id)}
+        onRowClick={(row) => router.push(`/factures/${row.id}`)}
+        state={hydrated ? tableState : undefined}
+        onStateChange={setTableState}
+        initialState={{ sorting: [{ id: 'createdAt', desc: true }] }}
+        enableColumnVisibility
+        emptyMessage="Aucune facture ne correspond aux filtres"
+      />
     </div>
   );
 }

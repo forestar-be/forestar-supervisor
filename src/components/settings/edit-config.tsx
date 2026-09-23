@@ -153,10 +153,7 @@ export default function EditConfig() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {config.length} élément(s) de configuration
-        </p>
+      <div className="flex items-center justify-end">
         <Button size="sm" onClick={handleAdd}>
           <Plus />
           Ajouter un élément de configuration

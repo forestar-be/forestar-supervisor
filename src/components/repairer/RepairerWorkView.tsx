@@ -37,9 +37,7 @@ export default function RepairerWorkView() {
   // `null` tant que l'utilisateur n'a rien choisi explicitement : le premier
   // réparateur de la liste est alors utilisé, calculé au rendu plutôt que
   // fixé par un effet (donnée dérivée, cf. règle `react-hooks/set-state-in-effect`).
-  const [explicitRepairer, setSelectedRepairer] = useState<string | null>(
-    null,
-  );
+  const [explicitRepairer, setSelectedRepairer] = useState<string | null>(null);
   const selectedRepairer =
     explicitRepairer && repairerNames.includes(explicitRepairer)
       ? explicitRepairer
@@ -113,50 +111,48 @@ export default function RepairerWorkView() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Ouvrier"
         actions={
-          selectedRepairer && sortedRepairs.length > 0 ? (
-            <PdfActions
-              repairerName={selectedRepairer}
-              repairs={sortedRepairs}
-              adresse={adresse}
-              telephone={telephone}
-              email={email}
-              siteWeb={siteWeb}
+          <>
+            <RepairerSelector
+              repairerNames={repairerNames}
+              selectedRepairer={selectedRepairer}
+              onSelect={setSelectedRepairer}
+              workloadCounts={workloadCounts}
+              disabled={loading}
             />
-          ) : undefined
+            <ToggleGroup
+              value={[viewMode]}
+              onValueChange={(next) => {
+                if (next[0]) setViewMode(next[0] as ViewMode);
+              }}
+              className="hidden md:flex"
+              aria-label="Mode d'affichage"
+            >
+              <ToggleGroupItem value="kanban" aria-label="Vue Kanban">
+                <LayoutGrid className="size-4" />
+                Kanban
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="Vue liste">
+                <ListIcon className="size-4" />
+                Liste
+              </ToggleGroupItem>
+            </ToggleGroup>
+            {selectedRepairer && sortedRepairs.length > 0 && (
+              <PdfActions
+                repairerName={selectedRepairer}
+                repairs={sortedRepairs}
+                adresse={adresse}
+                telephone={telephone}
+                email={email}
+                siteWeb={siteWeb}
+              />
+            )}
+          </>
         }
       />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <RepairerSelector
-          repairerNames={repairerNames}
-          selectedRepairer={selectedRepairer}
-          onSelect={setSelectedRepairer}
-          workloadCounts={workloadCounts}
-          disabled={loading}
-        />
-
-        <ToggleGroup
-          value={[viewMode]}
-          onValueChange={(next) => {
-            if (next[0]) setViewMode(next[0] as ViewMode);
-          }}
-          className="hidden md:flex"
-          aria-label="Mode d'affichage"
-        >
-          <ToggleGroupItem value="kanban" aria-label="Vue Kanban">
-            <LayoutGrid className="size-4" />
-            Kanban
-          </ToggleGroupItem>
-          <ToggleGroupItem value="list" aria-label="Vue liste">
-            <ListIcon className="size-4" />
-            Liste
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
 
       {!selectedRepairer && repairerNames.length === 0 && (
         <Alert>
@@ -177,9 +173,20 @@ export default function RepairerWorkView() {
 
       {selectedRepairer && activeRepairs.length > 0 && (
         <>
-          <div className="hidden md:block">
+          {/* Le kanban occupe la hauteur restante de la page : chaque colonne
+              défile seule, sans double barre de défilement. */}
+          <div
+            className={
+              viewMode === 'kanban'
+                ? 'hidden min-h-0 flex-1 md:flex'
+                : 'hidden md:block'
+            }
+          >
             {viewMode === 'kanban' ? (
-              <KanbanBoard repairs={sortedRepairs} colorByState={colorByState} />
+              <KanbanBoard
+                repairs={sortedRepairs}
+                colorByState={colorByState}
+              />
             ) : (
               <GroupedRepairList
                 repairs={sortedRepairs}
