@@ -242,7 +242,7 @@ export default function RepairsListView() {
   }, [setTableState]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Réparations/Entretiens"
         actions={
@@ -264,6 +264,7 @@ export default function RepairsListView() {
       />
 
       <DataTable
+        className="min-h-0 flex-1"
         key={hydrated ? 'hydrated' : 'initial'}
         columns={columns}
         data={filteredRepairs}

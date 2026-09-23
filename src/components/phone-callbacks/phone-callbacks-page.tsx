@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Circle, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
+import {
+  CheckCircle2,
+  Circle,
+  Pencil,
+  Phone,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import {
   Button,
   ConfirmDialog,
@@ -58,10 +65,9 @@ export function PhoneCallbacksPageClient() {
   // synchrone depuis l'effet — la règle de lint du projet l'interdit.
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<CompletionFilter>('all');
-  const [tableState, setTableState] = usePersistedState<Partial<DataTableState>>(
-    'atelier.phoneCallbacksTable',
-    {},
-  );
+  const [tableState, setTableState] = usePersistedState<
+    Partial<DataTableState>
+  >('atelier.phoneCallbacksTable', {});
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PhoneCallback | null>(null);
@@ -275,7 +281,7 @@ export function PhoneCallbacksPageClient() {
   );
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-2 md:p-6">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Gestion des rappels téléphoniques"
         actions={
@@ -296,7 +302,8 @@ export function PhoneCallbacksPageClient() {
         <ToggleGroup
           value={[filter]}
           onValueChange={(values) => {
-            const next = values[values.length - 1] as CompletionFilter | undefined;
+            const next = values[values.length - 1] as
+              CompletionFilter | undefined;
             if (next) setFilter(next);
           }}
           aria-label="Filtrer les rappels"
@@ -316,6 +323,7 @@ export function PhoneCallbacksPageClient() {
       </div>
 
       <DataTable
+        className="min-h-0 flex-1"
         columns={columns}
         data={filteredCallbacks}
         loading={loading}

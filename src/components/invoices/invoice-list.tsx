@@ -14,7 +14,11 @@ import {
   getInvoiceStatusTone,
   getPaymentMethodLabel,
 } from '@/lib/invoice';
-import { PaymentMethod, ServiceInvoice, ServiceInvoiceStatus } from '@/lib/types';
+import {
+  PaymentMethod,
+  ServiceInvoice,
+  ServiceInvoiceStatus,
+} from '@/lib/types';
 import {
   Button,
   DataTable,
@@ -250,7 +254,10 @@ export default function InvoiceList() {
       <PageHeader
         title="Factures de service"
         actions={
-          <Button render={<Link href="/factures/nouveau" />} nativeButton={false}>
+          <Button
+            render={<Link href="/factures/nouveau" />}
+            nativeButton={false}
+          >
             <Plus />
             Nouvelle facture
           </Button>
@@ -303,6 +310,7 @@ export default function InvoiceList() {
         />
       ) : (
         <DataTable
+          className="min-h-0 flex-1"
           columns={columns}
           data={filteredInvoices}
           loading={loading}

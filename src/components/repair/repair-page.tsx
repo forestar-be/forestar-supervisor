@@ -10,7 +10,10 @@ import { CheckCircle2, Pencil, Save, SearchX } from 'lucide-react';
 import {
   Checkbox,
   EmptyState,
-  Separator,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Spinner,
   StatusBadge,
   toast,
@@ -46,7 +49,10 @@ import { WorkingTimeEditor } from './working-time-editor';
 import { ReplacedPartsSection } from './replaced-parts-section';
 import { PhotosSection } from './photos-section';
 import { CallHistoryDialog } from './call-history-dialog';
-import { CalendarEventDialog, type CalendarEventData } from './calendar-event-dialog';
+import {
+  CalendarEventDialog,
+  type CalendarEventData,
+} from './calendar-event-dialog';
 
 const RepairPdfSection = dynamic(() => import('./repair-pdf-section'), {
   ssr: false,
@@ -125,8 +131,16 @@ export function RepairPageClient() {
     }
   }, [config]);
 
-  const { totalSeconds, seconds, minutes, hours, days, isRunning, pause, reset } =
-    useStopwatch({ autoStart: false });
+  const {
+    totalSeconds,
+    seconds,
+    minutes,
+    hours,
+    days,
+    isRunning,
+    pause,
+    reset,
+  } = useStopwatch({ autoStart: false });
 
   // Chargement de la fiche. `id` est garanti non vide par le segment
   // dynamique `[id]` : pas de branche « identifiant manquant » à porter ici.
@@ -275,11 +289,9 @@ export function RepairPageClient() {
     if (imageIndex === -1) return;
     setLoading(true);
     try {
-      const { imageUrls } = (await deleteImage(
-        auth.token,
-        id,
-        imageIndex,
-      )) as { imageUrls: string[] };
+      const { imageUrls } = (await deleteImage(auth.token, id, imageIndex)) as {
+        imageUrls: string[];
+      };
       setInitialRepair((prev) => (prev ? { ...prev, imageUrls } : prev));
       setRepair((prev) => (prev ? { ...prev, imageUrls } : prev));
       notifySuccess('Image supprimée avec succès');
@@ -303,9 +315,8 @@ export function RepairPageClient() {
         }
         return {
           quantity:
-            repair.replaced_part_list.find(
-              (p) => p.replacedPart.name === name,
-            )?.quantity || 1,
+            repair.replaced_part_list.find((p) => p.replacedPart.name === name)
+              ?.quantity || 1,
           replacedPart: part,
         };
       });
@@ -443,7 +454,11 @@ export function RepairPageClient() {
     setIsLoadingSendEmail(true);
     try {
       const formData = new FormData();
-      formData.append('attachment', instance.blob, `fiche_reparation_${id}.pdf`);
+      formData.append(
+        'attachment',
+        instance.blob,
+        `fiche_reparation_${id}.pdf`,
+      );
       await sendEmailApi(auth.token, id, formData);
       notifySuccess('Email envoyé avec succès');
     } catch (error) {
@@ -468,7 +483,11 @@ export function RepairPageClient() {
     setIsLoadingAddDrive(true);
     try {
       const formData = new FormData();
-      formData.append('attachment', instance.blob, `fiche_reparation_${id}.pdf`);
+      formData.append(
+        'attachment',
+        instance.blob,
+        `fiche_reparation_${id}.pdf`,
+      );
       await sendDriveApi(auth.token, id, formData);
       notifySuccess('PDF ajouté au Google Drive avec succès');
     } catch (error) {
@@ -536,7 +555,7 @@ export function RepairPageClient() {
 
   if (notFound) {
     return (
-      <div className="p-4 pt-2 md:p-6">
+      <div>
         <EmptyState
           icon={SearchX}
           title="Réparation introuvable"
@@ -601,7 +620,7 @@ export function RepairPageClient() {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-2 md:p-6">
+    <div className="flex flex-col gap-4">
       {loading && repair && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
           <Spinner size="lg" />
@@ -667,279 +686,301 @@ export function RepairPageClient() {
       )}
 
       {repair && (
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
           {/* Colonne gauche : détails + informations techniques */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">Détails</h2>
-              {renderSectionToggle('repairDetails')}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <RepairSelect
-                label="Type de machine"
-                name="machine_type_name"
-                value={repair.machine_type_name}
-                options={machineType}
-                editable={!!editableSections.repairDetails}
-                onChange={(v) => handleSelectField('machine_type_name', v)}
-                className="min-w-48 flex-1"
-              />
-              <RepairField
-                label="Type"
-                name="repair_or_maintenance"
-                value={repair.repair_or_maintenance}
-                editable={!!editableSections.repairDetails}
-                onChange={handleChange}
-                className="min-w-48 flex-1"
-              />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <RepairSelect
-                label="Marque"
-                name="brand_name"
-                value={repair.brand_name}
-                options={brands}
-                editable={!!editableSections.repairDetails}
-                onChange={(v) => handleSelectField('brand_name', v)}
-                className="min-w-48 flex-1"
-              />
-              <RepairField
-                label="Code du robot"
-                name="robot_code"
-                value={repair.robot_code || ''}
-                editable={!!editableSections.repairDetails}
-                onChange={handleChange}
-                className="min-w-48 flex-1"
-              />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <RepairSelect
-                label="Type de robot"
-                name="robot_type_name"
-                value={repair.robot_type_name || ''}
-                options={robotType}
-                editable={!!editableSections.repairDetails}
-                onChange={(v) => handleSelectField('robot_type_name', v)}
-                className="min-w-48 flex-1"
-              />
-              {renderCheckboxField('Garantie', 'warranty', repair.warranty ?? false)}
-            </div>
-            <div className="flex flex-wrap gap-4">
-              {renderCheckboxField(
-                'Devis',
-                'devis',
-                repair.devis,
-                getSuffixPrice(repair.devis, priceDevis),
-              )}
-              {renderCheckboxField(
-                'Hivernage',
-                'hivernage',
-                repair.hivernage,
-                getSuffixPrice(repair.hivernage, priceHivernage),
-              )}
-            </div>
-            <RepairField
-              label="Description"
-              name="fault_description"
-              value={repair.fault_description}
-              editable={!!editableSections.repairDetails}
-              isMultiline
-              onChange={handleChange}
-            />
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader className="flex items-center gap-2">
+                <CardTitle className="text-lg font-semibold">Détails</CardTitle>
+                {renderSectionToggle('repairDetails')}
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <div className="flex flex-wrap gap-3">
+                  <RepairSelect
+                    label="Type de machine"
+                    name="machine_type_name"
+                    value={repair.machine_type_name}
+                    options={machineType}
+                    editable={!!editableSections.repairDetails}
+                    onChange={(v) => handleSelectField('machine_type_name', v)}
+                    className="min-w-48 flex-1"
+                  />
+                  <RepairField
+                    label="Type"
+                    name="repair_or_maintenance"
+                    value={repair.repair_or_maintenance}
+                    editable={!!editableSections.repairDetails}
+                    onChange={handleChange}
+                    className="min-w-48 flex-1"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <RepairSelect
+                    label="Marque"
+                    name="brand_name"
+                    value={repair.brand_name}
+                    options={brands}
+                    editable={!!editableSections.repairDetails}
+                    onChange={(v) => handleSelectField('brand_name', v)}
+                    className="min-w-48 flex-1"
+                  />
+                  <RepairField
+                    label="Code du robot"
+                    name="robot_code"
+                    value={repair.robot_code || ''}
+                    editable={!!editableSections.repairDetails}
+                    onChange={handleChange}
+                    className="min-w-48 flex-1"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <RepairSelect
+                    label="Type de robot"
+                    name="robot_type_name"
+                    value={repair.robot_type_name || ''}
+                    options={robotType}
+                    editable={!!editableSections.repairDetails}
+                    onChange={(v) => handleSelectField('robot_type_name', v)}
+                    className="min-w-48 flex-1"
+                  />
+                  {renderCheckboxField(
+                    'Garantie',
+                    'warranty',
+                    repair.warranty ?? false,
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  {renderCheckboxField(
+                    'Devis',
+                    'devis',
+                    repair.devis,
+                    getSuffixPrice(repair.devis, priceDevis),
+                  )}
+                  {renderCheckboxField(
+                    'Hivernage',
+                    'hivernage',
+                    repair.hivernage,
+                    getSuffixPrice(repair.hivernage, priceHivernage),
+                  )}
+                </div>
+                <RepairField
+                  label="Description"
+                  name="fault_description"
+                  value={repair.fault_description}
+                  editable={!!editableSections.repairDetails}
+                  isMultiline
+                  onChange={handleChange}
+                />
+              </CardContent>
+            </Card>
 
-            <Separator className="my-2" />
+            <Card>
+              <CardHeader className="flex items-center gap-2">
+                <CardTitle className="text-lg font-semibold">
+                  Informations techniques
+                </CardTitle>
+                {renderSectionToggle('technicalInfo')}
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <RepairSelect
+                  label="État"
+                  name="state"
+                  value={repair.state || 'Non commencé'}
+                  options={Object.keys(colorByState)}
+                  editable={!!editableSections.technicalInfo}
+                  onChange={(v) => handleSelectField('state', v)}
+                  colorByValue={colorByState}
+                  className="max-w-sm"
+                />
+                <RepairField
+                  label="Dernier appel au client"
+                  name="last_client_call_time"
+                  value={
+                    repair.client_call_times.length
+                      ? repair.client_call_times[
+                          repair.client_call_times.length - 1
+                        ].toLocaleString('fr-FR')
+                      : 'Aucun appel'
+                  }
+                  editable={false}
+                  onChange={() => {}}
+                  endAdornment={
+                    repair.client_call_times.length ? (
+                      <CheckCircle2 className="size-4 text-success" />
+                    ) : undefined
+                  }
+                />
+                <RepairSelect
+                  label="Réparateur"
+                  name="repairer_name"
+                  value={repair.repairer_name || 'Non attribué'}
+                  options={repairerNames}
+                  editable={!!editableSections.technicalInfo}
+                  onChange={(v) => handleSelectField('repairer_name', v)}
+                  className="max-w-sm"
+                />
+                <RepairField
+                  label="Remarques atelier"
+                  name="remark"
+                  value={repair.remark ?? ''}
+                  editable={!!editableSections.technicalInfo}
+                  isMultiline
+                  onChange={handleChange}
+                />
 
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">Informations techniques</h2>
-              {renderSectionToggle('technicalInfo')}
-            </div>
-            <RepairSelect
-              label="État"
-              name="state"
-              value={repair.state || 'Non commencé'}
-              options={Object.keys(colorByState)}
-              editable={!!editableSections.technicalInfo}
-              onChange={(v) => handleSelectField('state', v)}
-              colorByValue={colorByState}
-              className="max-w-sm"
-            />
-            <RepairField
-              label="Dernier appel au client"
-              name="last_client_call_time"
-              value={
-                repair.client_call_times.length
-                  ? repair.client_call_times[
-                      repair.client_call_times.length - 1
-                    ].toLocaleString('fr-FR')
-                  : 'Aucun appel'
-              }
-              editable={false}
-              onChange={() => {}}
-              endAdornment={
-                repair.client_call_times.length ? (
-                  <CheckCircle2 className="size-4 text-success" />
-                ) : undefined
-              }
-            />
-            <RepairSelect
-              label="Réparateur"
-              name="repairer_name"
-              value={repair.repairer_name || 'Non attribué'}
-              options={repairerNames}
-              editable={!!editableSections.technicalInfo}
-              onChange={(v) => handleSelectField('repairer_name', v)}
-              className="max-w-sm"
-            />
-            <RepairField
-              label="Remarques atelier"
-              name="remark"
-              value={repair.remark ?? ''}
-              editable={!!editableSections.technicalInfo}
-              isMultiline
-              onChange={handleChange}
-            />
+                <WorkingTimeEditor
+                  workingTimeInSec={repair.working_time_in_sec}
+                  editable={!!editableSections.technicalInfo}
+                  isRunning={isRunning}
+                  hours={hours}
+                  days={days}
+                  minutes={minutes}
+                  seconds={seconds}
+                  onManualTimeChange={handleManualTimeChange}
+                  onStart={handleStartTimer}
+                  onStop={handleStopTimer}
+                  onReset={handleResetTimer}
+                />
+                <div className="flex items-baseline gap-2 text-sm">
+                  <span className="font-medium text-muted-foreground">
+                    Total temps :
+                  </span>
+                  <span className="font-semibold">
+                    {getWorkingTimePrice(repair, hourlyRate)}
+                  </span>
+                </div>
 
-            <WorkingTimeEditor
-              workingTimeInSec={repair.working_time_in_sec}
-              editable={!!editableSections.technicalInfo}
-              isRunning={isRunning}
-              hours={hours}
-              days={days}
-              minutes={minutes}
-              seconds={seconds}
-              onManualTimeChange={handleManualTimeChange}
-              onStart={handleStartTimer}
-              onStop={handleStopTimer}
-              onReset={handleResetTimer}
-            />
-            <div className="flex items-baseline gap-2 text-sm">
-              <span className="font-medium text-muted-foreground">
-                Total temps :
-              </span>
-              <span className="font-semibold">
-                {getWorkingTimePrice(repair, hourlyRate)}
-              </span>
-            </div>
-
-            <ReplacedPartsSection
-              values={repair.replaced_part_list}
-              possibleValues={replacedParts}
-              editable={!!editableSections.technicalInfo}
-              onSelectionChange={handleReplacedPartsSelectionChange}
-              onQuantityChange={handleUpdateReplacedPartQuantity}
-              onDelete={handleDeleteReplacedPart}
-            />
-            <div className="flex items-baseline gap-2 text-sm">
-              <span className="font-medium text-muted-foreground">
-                Total pièces :
-              </span>
-              <span className="font-semibold">
-                {getTotalPriceParts(repair)}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2 text-sm">
-              <span className="font-medium text-muted-foreground">Total :</span>
-              <span className="font-semibold">
-                {getTotalPrice(repair, hourlyRate, priceHivernage)}
-              </span>
-            </div>
+                <ReplacedPartsSection
+                  values={repair.replaced_part_list}
+                  possibleValues={replacedParts}
+                  editable={!!editableSections.technicalInfo}
+                  onSelectionChange={handleReplacedPartsSelectionChange}
+                  onQuantityChange={handleUpdateReplacedPartQuantity}
+                  onDelete={handleDeleteReplacedPart}
+                />
+                <div className="flex items-baseline gap-2 text-sm">
+                  <span className="font-medium text-muted-foreground">
+                    Total pièces :
+                  </span>
+                  <span className="font-semibold">
+                    {getTotalPriceParts(repair)}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 text-sm">
+                  <span className="font-medium text-muted-foreground">
+                    Total :
+                  </span>
+                  <span className="font-semibold">
+                    {getTotalPrice(repair, hourlyRate, priceHivernage)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Colonne droite : coordonnées client, signature, photos */}
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">Coordonnées du client</h2>
-              {renderSectionToggle('clientInfo')}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <RepairField
-                label="Prénom"
-                name="first_name"
-                value={repair.first_name}
-                editable={!!editableSections.clientInfo}
-                onChange={handleChange}
-                className="min-w-40 flex-1"
-              />
-              <RepairField
-                label="Nom"
-                name="last_name"
-                value={repair.last_name}
-                editable={!!editableSections.clientInfo}
-                onChange={handleChange}
-                className="min-w-40 flex-1"
-              />
-            </div>
-            <RepairField
-              label="Adresse"
-              name="address"
-              value={repair.address}
-              editable={!!editableSections.clientInfo}
-              onChange={handleChange}
-            />
-            <div className="flex flex-wrap gap-3">
-              <RepairField
-                label="Code postal"
-                name="postal_code"
-                value={repair.postal_code ?? ''}
-                editable={!!editableSections.clientInfo}
-                onChange={handleChange}
-                className="min-w-32 flex-1"
-              />
-              <RepairField
-                label="Ville"
-                name="city"
-                value={repair.city ?? ''}
-                editable={!!editableSections.clientInfo}
-                onChange={handleChange}
-                className="min-w-40 flex-1"
-              />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <RepairField
-                label="Email"
-                name="email"
-                value={repair.email}
-                editable={!!editableSections.clientInfo}
-                onChange={handleChange}
-                className="min-w-48 flex-1"
-              />
-              <RepairField
-                label="Téléphone"
-                name="phone"
-                value={repair.phone}
-                editable={!!editableSections.clientInfo}
-                onChange={handleChange}
-                className="min-w-40 flex-1"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              {repair.signatureUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={repair.signatureUrl}
-                  alt="Signature client"
-                  loading="lazy"
-                  width={150}
-                  className="bg-white"
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader className="flex items-center gap-2">
+                <CardTitle className="text-lg font-semibold">
+                  Coordonnées du client
+                </CardTitle>
+                {renderSectionToggle('clientInfo')}
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <div className="flex flex-wrap gap-3">
+                  <RepairField
+                    label="Prénom"
+                    name="first_name"
+                    value={repair.first_name}
+                    editable={!!editableSections.clientInfo}
+                    onChange={handleChange}
+                    className="min-w-40 flex-1"
+                  />
+                  <RepairField
+                    label="Nom"
+                    name="last_name"
+                    value={repair.last_name}
+                    editable={!!editableSections.clientInfo}
+                    onChange={handleChange}
+                    className="min-w-40 flex-1"
+                  />
+                </div>
+                <RepairField
+                  label="Adresse"
+                  name="address"
+                  value={repair.address}
+                  editable={!!editableSections.clientInfo}
+                  onChange={handleChange}
                 />
-              ) : (
-                <span className="text-sm text-muted-foreground">
-                  Pas de signature disponible
-                </span>
-              )}
-              <span className="text-xs text-muted-foreground">
-                Signature client
-              </span>
-            </div>
+                <div className="flex flex-wrap gap-3">
+                  <RepairField
+                    label="Code postal"
+                    name="postal_code"
+                    value={repair.postal_code ?? ''}
+                    editable={!!editableSections.clientInfo}
+                    onChange={handleChange}
+                    className="min-w-32 flex-1"
+                  />
+                  <RepairField
+                    label="Ville"
+                    name="city"
+                    value={repair.city ?? ''}
+                    editable={!!editableSections.clientInfo}
+                    onChange={handleChange}
+                    className="min-w-40 flex-1"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <RepairField
+                    label="Email"
+                    name="email"
+                    value={repair.email}
+                    editable={!!editableSections.clientInfo}
+                    onChange={handleChange}
+                    className="min-w-48 flex-1"
+                  />
+                  <RepairField
+                    label="Téléphone"
+                    name="phone"
+                    value={repair.phone}
+                    editable={!!editableSections.clientInfo}
+                    onChange={handleChange}
+                    className="min-w-40 flex-1"
+                  />
+                </div>
 
-            <Separator className="my-2" />
+                <div className="flex flex-col gap-1">
+                  {repair.signatureUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={repair.signatureUrl}
+                      alt="Signature client"
+                      loading="lazy"
+                      width={150}
+                      className="bg-white"
+                    />
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Pas de signature disponible
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    Signature client
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
 
-            <PhotosSection
-              imageUrls={repair.imageUrls}
-              onAdd={handleAddImage}
-              onDelete={handleDeleteImage}
-            />
+            <Card>
+              <CardContent>
+                <PhotosSection
+                  imageUrls={repair.imageUrls}
+                  onAdd={handleAddImage}
+                  onDelete={handleDeleteImage}
+                />
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}
