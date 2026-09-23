@@ -23,7 +23,6 @@ import InvoiceSettings from './invoice-settings';
 import InstallationPreparationTextEditor from './installation-preparation-text-editor';
 import InstallationPreparationTextPreview from './installation-preparation-text-preview';
 import {
-  PageHeader,
   Select,
   SelectContent,
   SelectItem,
@@ -64,43 +63,51 @@ export default function SettingsTabs() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader title="Paramètres" />
-
       <Tabs
         value={tab}
         onValueChange={(v) => v && setTab(v)}
         className="flex min-h-0 flex-1 flex-col"
       >
-        <div className="md:hidden">
-          <Select value={tab} onValueChange={(v) => v && setTab(v)}>
-            <SelectTrigger className="w-full">
-              <SelectValue>
-                {(v: string) => tabs.find((t) => t.value === v)?.label ?? v}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {tabs.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Titre et onglets partagent la ligne tant qu'il y a la place. */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <h1 className="text-2xl">Paramètres</h1>
+          <div className="w-full md:hidden">
+            <Select value={tab} onValueChange={(v) => v && setTab(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {(v: string) => tabs.find((t) => t.value === v)?.label ?? v}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {tabs.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <TabsList className="hidden md:flex">
+            {tabs.map((t) => (
+              <TabsTrigger key={t.value} value={t.value}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
 
-        <TabsList className="hidden md:flex">
-          {tabs.map((t) => (
-            <TabsTrigger key={t.value} value={t.value}>
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="parts" className="mt-4 min-h-0 flex-1 overflow-auto">
+        <TabsContent
+          value="parts"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
           <EditRepairedPart />
         </TabsContent>
 
-        <TabsContent value="repairers" className="mt-4 min-h-0 flex-1 overflow-auto">
+        <TabsContent
+          value="repairers"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
           <EditEntity
             entityName="Réparateur"
             fetchEntities={fetchRepairers}
@@ -109,7 +116,10 @@ export default function SettingsTabs() {
           />
         </TabsContent>
 
-        <TabsContent value="brands" className="mt-4 min-h-0 flex-1 overflow-auto">
+        <TabsContent
+          value="brands"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
           <EditEntity
             entityName="Marque"
             fetchEntities={fetchBrands}
@@ -118,7 +128,10 @@ export default function SettingsTabs() {
           />
         </TabsContent>
 
-        <TabsContent value="machineTypes" className="mt-4 min-h-0 flex-1 overflow-auto">
+        <TabsContent
+          value="machineTypes"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
           <EditEntity
             entityName="Type de machine"
             fetchEntities={fetchMachineType}
@@ -127,7 +140,10 @@ export default function SettingsTabs() {
           />
         </TabsContent>
 
-        <TabsContent value="robotTypes" className="mt-4 min-h-0 flex-1 overflow-auto">
+        <TabsContent
+          value="robotTypes"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
           <EditRobotType />
         </TabsContent>
 
@@ -159,12 +175,18 @@ export default function SettingsTabs() {
           <InvoiceSettings />
         </TabsContent>
 
-        <TabsContent value="config" className="mt-4 min-h-0 flex-1 overflow-auto">
+        <TabsContent
+          value="config"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
           <EditConfig />
         </TabsContent>
 
         {isAdmin && (
-          <TabsContent value="users" className="mt-4 min-h-0 flex-1 overflow-auto">
+          <TabsContent
+            value="users"
+            className="mt-4 min-h-0 flex-1 overflow-auto"
+          >
             <EditUser />
           </TabsContent>
         )}

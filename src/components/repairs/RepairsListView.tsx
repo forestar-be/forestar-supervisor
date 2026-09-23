@@ -9,7 +9,6 @@ import {
   DataTable,
   Input,
   MultiCombobox,
-  PageHeader,
   type DataTableState,
 } from '@forestar-be/ui';
 import { getAllMachineRepairs, updateRepair } from '@/lib/api';
@@ -243,28 +242,9 @@ export default function RepairsListView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Réparations/Entretiens"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setResetOpen(true)}
-            >
-              <RotateCcw />
-              Réinitialiser
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleOpenGoogleDrive}>
-              <FolderOpen />
-              Google Drive
-            </Button>
-          </div>
-        }
-      />
-
       <DataTable
         className="min-h-0 flex-1"
+        title="Réparations/Entretiens"
         key={hydrated ? 'hydrated' : 'initial'}
         columns={columns}
         data={filteredRepairs}
@@ -277,7 +257,7 @@ export default function RepairsListView() {
         enableColumnVisibility
         emptyMessage="Aucune réparation ne correspond à ces filtres"
         toolbar={
-          <div className="flex flex-1 flex-wrap items-center gap-2">
+          <>
             <MultiCombobox
               options={availableStates.map((state) => ({
                 value: state,
@@ -286,7 +266,7 @@ export default function RepairsListView() {
               value={selectedStates}
               onChange={setSelectedStates}
               placeholder="Tous les états"
-              className="w-full sm:w-56"
+              className="w-full sm:w-48"
               renderOption={(option) => (
                 <span className="flex items-center gap-2">
                   <span
@@ -307,9 +287,9 @@ export default function RepairsListView() {
               value={selectedRepairers}
               onChange={setSelectedRepairers}
               placeholder="Tous les réparateurs"
-              className="w-full sm:w-56"
+              className="w-full sm:w-48"
             />
-            <div className="relative w-full sm:w-64">
+            <div className="relative w-full sm:w-56">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={customerFilterText}
@@ -319,7 +299,15 @@ export default function RepairsListView() {
                 className="pl-8"
               />
             </div>
-          </div>
+            <Button variant="outline" onClick={() => setResetOpen(true)}>
+              <RotateCcw />
+              Réinitialiser
+            </Button>
+            <Button variant="outline" onClick={handleOpenGoogleDrive}>
+              <FolderOpen />
+              Google Drive
+            </Button>
+          </>
         }
       />
 

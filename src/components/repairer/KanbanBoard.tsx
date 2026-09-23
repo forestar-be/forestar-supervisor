@@ -22,7 +22,10 @@ interface KanbanBoardProps {
 }
 
 /** Tableau Kanban : une colonne par état présent parmi les réparations (hors états terminés). */
-export default function KanbanBoard({ repairs, colorByState }: KanbanBoardProps) {
+export default function KanbanBoard({
+  repairs,
+  colorByState,
+}: KanbanBoardProps) {
   const columns = useMemo(() => {
     const statesInRepairs = new Set<string>();
     repairs.forEach((repair) => {
@@ -47,7 +50,7 @@ export default function KanbanBoard({ repairs, colorByState }: KanbanBoardProps)
   }, [repairs, colorByState]);
 
   return (
-    <div className="flex items-start gap-4 overflow-x-auto pb-2">
+    <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-2">
       {columns.map((column) => (
         <KanbanColumn
           key={column.state}

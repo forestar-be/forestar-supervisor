@@ -5,8 +5,8 @@ import {
   CheckCircle2,
   Circle,
   Pencil,
-  Phone,
   Plus,
+  RotateCcw,
   Trash2,
 } from 'lucide-react';
 import {
@@ -15,7 +15,6 @@ import {
   DataTable,
   type ColumnDef,
   type DataTableState,
-  PageHeader,
   StatusBadge,
   ToggleGroup,
   ToggleGroupItem,
@@ -282,48 +281,44 @@ export function PhoneCallbacksPageClient() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <PageHeader
-        title="Gestion des rappels téléphoniques"
-        actions={
-          <Button
-            type="button"
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="size-4" />
-            Nouveau rappel
-          </Button>
-        }
-      />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup
-          value={[filter]}
-          onValueChange={(values) => {
-            const next = values[values.length - 1] as
-              CompletionFilter | undefined;
-            if (next) setFilter(next);
-          }}
-          aria-label="Filtrer les rappels"
-        >
-          <ToggleGroupItem value="all">Tous</ToggleGroupItem>
-          <ToggleGroupItem value="pending">À faire</ToggleGroupItem>
-          <ToggleGroupItem value="completed">Terminés</ToggleGroupItem>
-        </ToggleGroup>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setTableState({})}
-        >
-          <Phone className="size-4" />
-          Réinitialiser le tableau
-        </Button>
-      </div>
-
       <DataTable
         className="min-h-0 flex-1"
+        title="Gestion des rappels téléphoniques"
+        toolbar={
+          <>
+            <ToggleGroup
+              value={[filter]}
+              onValueChange={(values) => {
+                const next = values[values.length - 1] as
+                  CompletionFilter | undefined;
+                if (next) setFilter(next);
+              }}
+              aria-label="Filtrer les rappels"
+            >
+              <ToggleGroupItem value="all">Tous</ToggleGroupItem>
+              <ToggleGroupItem value="pending">À faire</ToggleGroupItem>
+              <ToggleGroupItem value="completed">Terminés</ToggleGroupItem>
+            </ToggleGroup>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTableState({})}
+            >
+              <RotateCcw className="size-4" />
+              Réinitialiser
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setDialogOpen(true);
+              }}
+            >
+              <Plus className="size-4" />
+              Nouveau rappel
+            </Button>
+          </>
+        }
         columns={columns}
         data={filteredCallbacks}
         loading={loading}

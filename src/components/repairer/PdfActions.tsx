@@ -119,7 +119,7 @@ export default function PdfActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" size="sm" onClick={handlePrint} disabled={printing}>
+      <Button variant="outline" onClick={handlePrint} disabled={printing}>
         <Printer />
         Imprimer
       </Button>
@@ -140,7 +140,7 @@ export default function PdfActions({
           fileName={fileName}
         >
           {({ loading }) => (
-            <Button size="sm" disabled={loading}>
+            <Button disabled={loading}>
               <Download />
               {loading ? 'Génération...' : 'Télécharger PDF'}
             </Button>
@@ -148,7 +148,6 @@ export default function PdfActions({
         </modules.PDFDownloadLink>
       ) : (
         <Button
-          size="sm"
           onMouseEnter={preloadDownload}
           onFocus={preloadDownload}
           onClick={preloadDownload}

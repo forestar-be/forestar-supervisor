@@ -66,7 +66,12 @@ export function RepairSelect({
         {label} :
       </span>
       <span
-        className="rounded px-2 py-0.5 text-sm text-foreground"
+        className={cn(
+          'justify-self-start text-sm text-foreground',
+          // La pastille de couleur ne décale la valeur que si elle existe :
+          // sans elle, la valeur s'aligne sur celles des autres champs.
+          color && '-my-0.5 rounded px-2 py-0.5',
+        )}
         style={color ? { backgroundColor: color, color: '#000' } : undefined}
       >
         {value}

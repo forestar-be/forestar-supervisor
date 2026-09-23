@@ -30,7 +30,12 @@ import {
   ToggleGroupItem,
 } from '@forestar-be/ui';
 import { useAuth } from '@/lib/auth';
-import { fetchCalendarEvents, fetchCalendars, type Calendar, type CalendarEvent } from '@/lib/api';
+import {
+  fetchCalendarEvents,
+  fetchCalendars,
+  type Calendar,
+  type CalendarEvent,
+} from '@/lib/api';
 import { notifyError } from '@/lib/notifications';
 import { usePersistedState } from '@/lib/use-persisted-state';
 import dayjs from '@/lib/dayjs';
@@ -64,7 +69,9 @@ export function CalendarPageClient() {
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [pdfOrientation, setPdfOrientation] = usePersistedState<PdfOrientation>(
     'atelier.calendarPdfOrientation',
@@ -234,7 +241,8 @@ export function CalendarPageClient() {
       {
         id: 'time',
         header: 'Horaire',
-        cell: ({ row }) => formatEventTime(row.original.start, row.original.end),
+        cell: ({ row }) =>
+          formatEventTime(row.original.start, row.original.end),
       },
       {
         accessorKey: 'title',
@@ -280,7 +288,7 @@ export function CalendarPageClient() {
   const HOURS = Array.from({ length: 17 }, (_, i) => i + 7);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <PageHeader
         title="Agenda"
         actions={
@@ -316,9 +324,12 @@ export function CalendarPageClient() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
+      {/* Sur grand écran, les deux panneaux occupent la hauteur restante de la
+          page et défilent seuls. `minmax(0, 1fr)` : sans lui, un titre
+          d'événement long élargissait la colonne au-delà de la page. */}
+      <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* Calendriers */}
-        <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 lg:min-h-0 lg:overflow-y-auto">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Calendriers</h2>
             <Button
@@ -331,25 +342,6 @@ export function CalendarPageClient() {
               <Settings className="size-4" />
             </Button>
           </div>
-          <div className="flex justify-between gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedCalendars(calendars.map((cal) => cal.id))}
-            >
-              Tout sélectionner
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedCalendars([])}
-            >
-              Tout désélectionner
-            </Button>
-          </div>
-
           {loadingCalendars && calendars.length === 0 ? (
             <div className="flex justify-center p-2">
               <Spinner />
@@ -386,32 +378,43 @@ export function CalendarPageClient() {
             </ul>
           )}
 
-          <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
+          <div className="mt-auto flex flex-col gap-2 border-t border-border pt-3">
             <Button
               type="button"
               onClick={() => void handlePrint()}
               disabled={printing || loading || selectedCalendars.length === 0}
             >
-              {printing ? <Spinner size="sm" /> : <Printer className="size-4" />}
+              {printing ? (
+                <Spinner size="sm" />
+              ) : (
+                <Printer className="size-4" />
+              )}
               Imprimer le planning
             </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => void handleDownload()}
-              disabled={downloading || loading || selectedCalendars.length === 0}
+              disabled={
+                downloading || loading || selectedCalendars.length === 0
+              }
             >
-              {downloading ? <Spinner size="sm" /> : <Download className="size-4" />}
+              {downloading ? (
+                <Spinner size="sm" />
+              ) : (
+                <Download className="size-4" />
+              )}
               Télécharger le PDF
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Format PDF : {pdfOrientation === 'portrait' ? 'Portrait' : 'Paysage'}
+              Format PDF :{' '}
+              {pdfOrientation === 'portrait' ? 'Portrait' : 'Paysage'}
             </p>
           </div>
         </div>
 
         {/* Événements */}
-        <div className="rounded-md border border-border bg-card p-4">
+        <div className="flex min-w-0 flex-col rounded-xl border border-border bg-card p-4 lg:min-h-0">
           <h2 className="mb-3 text-base font-semibold">
             Programme du {dayjs(selectedDate).format('dddd D MMMM YYYY')}
           </h2>
@@ -430,6 +433,7 @@ export function CalendarPageClient() {
             </Alert>
           ) : viewMode === 'table' ? (
             <DataTable
+              className="min-h-0 flex-1"
               columns={columns}
               data={sortedEvents}
               pageSize={100}
@@ -438,7 +442,7 @@ export function CalendarPageClient() {
               emptyMessage="Aucun événement pour cette journée."
             />
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
               <div className="flex flex-col gap-1.5">
                 {allDayEvents.map((event) => {
                   const calendar = getCalendarById(event.calendarId);
@@ -449,11 +453,15 @@ export function CalendarPageClient() {
                       onClick={() => handleEventClick(event)}
                       className="rounded p-2 text-left shadow-sm hover:shadow-md"
                       style={{
-                        backgroundColor: calendar ? `${calendar.color}22` : '#eee',
+                        backgroundColor: calendar
+                          ? `${calendar.color}22`
+                          : '#eee',
                         borderLeft: `4px solid ${calendar?.color || '#ccc'}`,
                       }}
                     >
-                      <p className="truncate text-sm font-semibold">{event.title}</p>
+                      <p className="truncate text-sm font-semibold">
+                        {event.title}
+                      </p>
                       {WITH_LOCATION && event.location && (
                         <p className="truncate text-xs text-muted-foreground">
                           {event.location}
@@ -464,13 +472,19 @@ export function CalendarPageClient() {
                 })}
               </div>
 
-              <div className="relative mt-2 flex" style={{ height: '800px' }}>
+              <div
+                className="relative mt-2 flex shrink-0"
+                style={{ height: '800px' }}
+              >
                 <div className="relative w-14 border-r border-border py-1">
                   {HOURS.map((hour) => (
                     <span
                       key={hour}
                       className="absolute text-xs font-semibold"
-                      style={{ top: `${(hour - 7) * 50}px`, right: 'calc(100% - 55px)' }}
+                      style={{
+                        top: `${(hour - 7) * 50}px`,
+                        right: 'calc(100% - 55px)',
+                      }}
                     >
                       {hour}:00
                     </span>
@@ -480,7 +494,8 @@ export function CalendarPageClient() {
                   {timedEvents.map((event) => {
                     const calendar = getCalendarById(event.calendarId);
                     const startHour =
-                      dayjs(event.start).hour() + dayjs(event.start).minute() / 60;
+                      dayjs(event.start).hour() +
+                      dayjs(event.start).minute() / 60;
                     const endHour =
                       dayjs(event.end).hour() + dayjs(event.end).minute() / 60;
                     const top = (startHour - 7) * 50;
@@ -495,11 +510,15 @@ export function CalendarPageClient() {
                           top: `${top}px`,
                           width: 'calc(100% - 8px)',
                           height: `${height}px`,
-                          backgroundColor: calendar ? `${calendar.color}22` : '#eee',
+                          backgroundColor: calendar
+                            ? `${calendar.color}22`
+                            : '#eee',
                           borderLeft: `4px solid ${calendar?.color || '#ccc'}`,
                         }}
                       >
-                        <p className="truncate text-sm font-semibold">{event.title}</p>
+                        <p className="truncate text-sm font-semibold">
+                          {event.title}
+                        </p>
                         <p className="truncate text-xs">
                           {formatEventTime(event.start, event.end)}
                         </p>
@@ -536,7 +555,9 @@ export function CalendarPageClient() {
             <span className="text-sm font-medium">Orientation</span>
             <RadioGroup
               value={pdfOrientation}
-              onValueChange={(value) => setPdfOrientation(value as PdfOrientation)}
+              onValueChange={(value) =>
+                setPdfOrientation(value as PdfOrientation)
+              }
             >
               <label className="flex items-center gap-2 text-sm">
                 <RadioGroupItem value="portrait" />
