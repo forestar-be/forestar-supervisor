@@ -174,6 +174,17 @@ export const deleteImage = (token: string, id: string, imageIndex: number) =>
     token,
   );
 
+/**
+ * R004-S04 — HTML des deux tickets 80 mm (D-11 : un seul gabarit, côté
+ * serveur). `client.request` renvoie déjà du texte pour `text/html`
+ * (`parseBody`) : pas de `.json()` à appeler ici.
+ */
+export const getRepairTicketHtml = (
+  token: string,
+  id: number | string,
+): Promise<string> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/ticket`, 'GET', token);
+
 // ── Référentiels ──
 
 export const fetchReplacedParts = (token: string) =>

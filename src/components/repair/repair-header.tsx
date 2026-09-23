@@ -10,6 +10,7 @@ import {
   Info,
   Mail,
   Phone,
+  Printer,
   Trash2,
 } from 'lucide-react';
 import { Button, ConfirmDialog, Spinner } from '@forestar-be/ui';
@@ -32,6 +33,8 @@ interface RepairHeaderProps {
   onCalendarEventCreate: () => void;
   onCalendarEventView: () => void;
   loadingCalendarEvent: boolean;
+  onPrintTickets: () => Promise<void>;
+  isPrintingTickets: boolean;
 }
 
 /**
@@ -54,6 +57,8 @@ export function RepairHeader({
   onCalendarEventCreate,
   onCalendarEventView,
   loadingCalendarEvent,
+  onPrintTickets,
+  isPrintingTickets,
 }: RepairHeaderProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -122,6 +127,22 @@ export function RepairHeader({
         >
           <Download className="size-4" />
           Télécharger
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => void onPrintTickets()}
+          disabled={isPrintingTickets}
+        >
+          {isPrintingTickets ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <Printer className="size-4" />
+              Imprimer les tickets
+            </>
+          )}
         </Button>
         {hasCalendarEvent ? (
           <Button
