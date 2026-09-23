@@ -2,10 +2,12 @@ import { createApiClient, isHttpError } from '@forestar-be/core';
 import type { LoginResponse } from '@forestar-be/core/auth';
 import { API_URL, getSessionClient, SSO_ENABLED } from './session';
 import type {
+  ArchiveFilter,
   ConfigElement,
   DolibarrBankAccount,
   InstallationPreparationText,
   MachineRepair,
+  MachineRepairArchiveResult,
   MachineRepairListItemFromApi,
   RepairForInvoice,
   ServiceInvoice,
@@ -105,14 +107,19 @@ export const getAuthUrlGg = (
 
 // ── Réparations ──
 
+/**
+ * Liste des fiches. `archived` pilote le filtre d'archivage côté serveur
+ * (`active` par défaut si omis) : « active », « archived » ou « all ».
+ */
 export const getAllMachineRepairs = async (
   token: string,
+  archived?: ArchiveFilter,
 ): Promise<MachineRepairListItemFromApi[]> => {
   const response = await apiRequest<{ data: MachineRepairListItemFromApi[] }>(
     '/supervisor/machine-repairs',
     'POST',
     token,
-    { filter: {} },
+    { filter: {}, ...(archived ? { archived } : {}) },
   );
   return response.data;
 };
@@ -123,8 +130,25 @@ export const fetchRepairById = (id: string, token: string) =>
 export const updateRepair = (token: string, id: string, data: unknown) =>
   apiRequest(`/supervisor/machine-repairs/${id}`, 'PATCH', token, data);
 
+/** Suppression définitive : `confirm` doit valoir le numéro de la fiche. */
 export const deleteRepair = (token: string, id: string) =>
-  apiRequest(`/supervisor/machine-repairs/${id}`, 'DELETE', token);
+  apiRequest(
+    `/supervisor/machine-repairs/${id}?confirm=${encodeURIComponent(id)}`,
+    'DELETE',
+    token,
+  );
+
+export const archiveRepair = (
+  token: string,
+  id: string,
+): Promise<MachineRepairArchiveResult> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/archive`, 'POST', token);
+
+export const unarchiveRepair = (
+  token: string,
+  id: string,
+): Promise<MachineRepairArchiveResult> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/unarchive`, 'POST', token);
 
 export const sendEmailApi = (
   token: string,

@@ -38,6 +38,14 @@ export interface MachineRepair {
   hivernage: boolean;
   eventId: string | null;
   calendarId: string | null;
+  /** Atelier R001 — `null` : fiche active. Sinon, date d'archivage (ISO). */
+  archived_at: string | null;
+  /** Atelier R003 — date de remise au client. Hors périmètre R001. */
+  entry_date: string | null;
+  exit_date: string | null;
+  /** Atelier R003 — chemin et date du PDF déjà envoyé sur Dropbox. */
+  dropbox_pdf_path: string | null;
+  dropbox_pdf_uploaded_at: string | null;
   serviceInvoice?: {
     id: number;
     invoiceNumber: string;
@@ -54,6 +62,16 @@ export type MachineRepairFromApi = Omit<
   machine_type_name: string;
   robot_type_name: string | null;
 };
+
+/**
+ * Réponse de `POST /machine-repairs/:id/archive` et `/unarchive` : les
+ * colonnes scalaires de la fiche (pas de relations, pas d'URL d'images). On
+ * ne type que ce que l'atelier consomme réellement après l'appel.
+ */
+export type MachineRepairArchiveResult = Pick<MachineRepair, 'id' | 'archived_at'>;
+
+/** Filtre d'archivage transmis à `POST /supervisor/machine-repairs`. */
+export type ArchiveFilter = 'active' | 'archived' | 'all';
 
 /**
  * Fields the list endpoint (POST /supervisor/machine-repairs) actually returns.
@@ -77,6 +95,8 @@ export type MachineRepairListItem = Omit<
   | 'hivernage'
   | 'eventId'
   | 'calendarId'
+  | 'dropbox_pdf_path'
+  | 'dropbox_pdf_uploaded_at'
 >;
 
 export type MachineRepairListItemFromApi = Omit<

@@ -8,6 +8,8 @@ import { useStopwatch } from 'react-timer-hook';
 import type { UsePDFInstance } from '@react-pdf/renderer';
 import { CheckCircle2, Pencil, Save, SearchX } from 'lucide-react';
 import {
+  Alert,
+  AlertDescription,
   Checkbox,
   EmptyState,
   Card,
@@ -19,9 +21,11 @@ import {
   StatusBadge,
   toast,
 } from '@forestar-be/ui';
+import dayjs from '@/lib/dayjs';
 import { useAuth } from '@/lib/auth';
 import {
   addImage,
+  archiveRepair,
   createRepairCalendarEvent,
   deleteImage,
   deleteRepair,
@@ -29,6 +33,7 @@ import {
   isHttpError,
   sendDriveApi,
   sendEmailApi,
+  unarchiveRepair,
   updateRepair,
 } from '@/lib/api';
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
@@ -74,6 +79,17 @@ const INVOICE_STATUS_TONE: Record<string, 'success' | 'warning' | 'info'> = {
 };
 
 /**
+ * Message serveur d'un 409 `repair_archived` (fiche archivée entre-temps
+ * dans un autre onglet), ou `null` pour toute autre erreur — laquelle garde
+ * son message générique habituel.
+ */
+function archivedConflictMessage(error: unknown): string | null {
+  if (!isHttpError(error)) return null;
+  const data = error.data as { code?: string } | undefined;
+  return data?.code === 'repair_archived' ? error.message : null;
+}
+
+/**
  * Fiche réparation, portée de `src/pages/SingleRepair.tsx` (CRA + MUI) vers
  * Next 16 + `@forestar-be/ui`. Chaque section (« Détails », « Informations
  * techniques », « Coordonnées du client ») garde un unique bouton
@@ -95,6 +111,7 @@ export function RepairPageClient() {
   const [isLoadingAddDrive, setIsLoadingAddDrive] = useState(false);
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [editableSections, setEditableSections] = useState<
     Partial<Record<EditableSection, boolean>>
   >({});
@@ -131,6 +148,10 @@ export function RepairPageClient() {
       return {} as Record<string, string>;
     }
   }, [config]);
+
+  // Fiche archivée (R001, D-18) : lecture seule tant qu'elle n'est pas
+  // désarchivée. Dérivé de `archived_at`, jamais d'un état local séparé.
+  const readOnly = Boolean(repair?.archived_at);
 
   const {
     totalSeconds,
@@ -206,8 +227,10 @@ export function RepairPageClient() {
       setInitialRepair(repairData);
     } catch (error) {
       console.error('Error updating repair:', error);
+      const archivedMessage = archivedConflictMessage(error);
       notifyError(
-        "Une erreur s'est produite lors de la mise à jour de la réparation",
+        archivedMessage ??
+          "Une erreur s'est produite lors de la mise à jour de la réparation",
       );
     } finally {
       setLoading(false);
@@ -256,6 +279,7 @@ export function RepairPageClient() {
   };
 
   const toggleEditableSection = (section: EditableSection) => {
+    if (readOnly) return;
     const isSectionEditable = !editableSections[section];
     setEditableSections((prev) => ({ ...prev, [section]: isSectionEditable }));
     if (!isSectionEditable && repair && initialRepair) {
@@ -280,7 +304,10 @@ export function RepairPageClient() {
       notifySuccess('Image ajoutée avec succès');
     } catch (error) {
       console.error('Error adding image:', error);
-      notifyError("Une erreur s'est produite lors de l'ajout de l'image");
+      const archivedMessage = archivedConflictMessage(error);
+      notifyError(
+        archivedMessage ?? "Une erreur s'est produite lors de l'ajout de l'image",
+      );
     }
   };
 
@@ -298,8 +325,10 @@ export function RepairPageClient() {
       notifySuccess('Image supprimée avec succès');
     } catch (error) {
       console.error('Error deleting image:', error);
+      const archivedMessage = archivedConflictMessage(error);
       notifyError(
-        "Une erreur s'est produite lors de la suppression de l'image",
+        archivedMessage ??
+          "Une erreur s'est produite lors de la suppression de l'image",
       );
     } finally {
       setLoading(false);
@@ -398,6 +427,43 @@ export function RepairPageClient() {
       );
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Archiver/désarchiver met à jour la fiche affichée sans rechargement
+  // complet (R001-S05) : on ne fusionne que `archived_at`, seul champ que la
+  // réponse garantit d'intéresser ici.
+  const handleArchive = async () => {
+    if (!repair || !id) return;
+    setIsArchiving(true);
+    try {
+      const { archived_at } = await archiveRepair(auth.token, id);
+      setRepair((prev) => (prev ? { ...prev, archived_at } : prev));
+      setInitialRepair((prev) => (prev ? { ...prev, archived_at } : prev));
+      notifySuccess('Fiche archivée avec succès');
+    } catch (error) {
+      console.error('Error archiving repair:', error);
+      notifyError("Une erreur s'est produite lors de l'archivage de la fiche");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleUnarchive = async () => {
+    if (!repair || !id) return;
+    setIsArchiving(true);
+    try {
+      const { archived_at } = await unarchiveRepair(auth.token, id);
+      setRepair((prev) => (prev ? { ...prev, archived_at } : prev));
+      setInitialRepair((prev) => (prev ? { ...prev, archived_at } : prev));
+      notifySuccess('Fiche désarchivée avec succès');
+    } catch (error) {
+      console.error('Error unarchiving repair:', error);
+      notifyError(
+        "Une erreur s'est produite lors du désarchivage de la fiche",
+      );
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -577,7 +643,8 @@ export function RepairPageClient() {
   const renderSectionToggle = (section: EditableSection) => (
     <button
       type="button"
-      className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+      className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      disabled={readOnly}
       onClick={() => toggleEditableSection(section)}
       aria-label={editableSections[section] ? 'Enregistrer' : 'Modifier'}
     >
@@ -678,15 +745,29 @@ export function RepairPageClient() {
             onCalendarEventCreate={handleCalendarEventCreate}
             onCalendarEventView={handleCalendarEventView}
             loadingCalendarEvent={isLoadingCalendarEvent}
+            readOnly={readOnly}
+            onArchive={handleArchive}
+            onUnarchive={handleUnarchive}
+            isArchiving={isArchiving}
           />
         )}
       </RepairPdfSection>
+
+      {repair?.archived_at && (
+        <Alert>
+          <AlertDescription>
+            Fiche archivée le{' '}
+            {dayjs(repair.archived_at).tz('Europe/Brussels').format('DD/MM/YYYY')}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <CallHistoryDialog
         open={isCallTimesModalOpen}
         onOpenChange={setIsCallTimesModalOpen}
         callTimes={repair?.client_call_times ?? []}
         onRemove={(index) => void handleRemoveCall(index)}
+        readOnly={readOnly}
       />
 
       {repair?.serviceInvoice && (
@@ -855,6 +936,7 @@ export function RepairPageClient() {
                   onStart={handleStartTimer}
                   onStop={handleStopTimer}
                   onReset={handleResetTimer}
+                  readOnly={readOnly}
                 />
                 <div className="flex items-baseline gap-2 text-sm">
                   <span className="font-medium text-muted-foreground">
@@ -872,6 +954,7 @@ export function RepairPageClient() {
                   onSelectionChange={handleReplacedPartsSelectionChange}
                   onQuantityChange={handleUpdateReplacedPartQuantity}
                   onDelete={handleDeleteReplacedPart}
+                  readOnly={readOnly}
                 />
                 <div className="flex items-baseline gap-2 text-sm">
                   <span className="font-medium text-muted-foreground">
@@ -990,6 +1073,7 @@ export function RepairPageClient() {
                   imageUrls={repair.imageUrls}
                   onAdd={handleAddImage}
                   onDelete={handleDeleteImage}
+                  readOnly={readOnly}
                 />
               </CardContent>
             </Card>

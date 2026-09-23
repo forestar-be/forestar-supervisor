@@ -9,6 +9,8 @@ import {
   DataTable,
   Input,
   MultiCombobox,
+  ToggleGroup,
+  ToggleGroupItem,
   type DataTableState,
 } from '@forestar-be/ui';
 import { getAllMachineRepairs, updateRepair } from '@/lib/api';
@@ -18,6 +20,7 @@ import { usePersistedState } from '@/lib/use-persisted-state';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { useAppSelector } from '@/store/hooks';
 import type {
+  ArchiveFilter,
   MachineRepairListItem,
   MachineRepairListItemFromApi,
 } from '@/lib/types';
@@ -51,6 +54,14 @@ export default function RepairsListView() {
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedRepairers, setSelectedRepairers] = useState<string[]>([]);
   const [resetOpen, setResetOpen] = useState(false);
+
+  // Filtre d'archivage : transmis au serveur (voir `fetchData`), pas filtré
+  // en local comme les états et réparateurs. Persisté pour rester entre deux
+  // visites (AC-07).
+  const [archiveFilter, setArchiveFilter] = usePersistedState<ArchiveFilter>(
+    'atelier.repairs.archive',
+    'active',
+  );
 
   const [tableState, setTableState, hydrated] =
     usePersistedState<DataTableState>(
@@ -129,8 +140,8 @@ export default function RepairsListView() {
   // la mise à jour du tableau se fait dans les callbacks `.then`/`.finally`,
   // qui s'exécutent après la réponse réseau et non de façon synchrone dans
   // le corps de l'effet (cf. règle de lint `react-hooks/set-state-in-effect`).
-  const fetchData = useCallback((token: string) => {
-    getAllMachineRepairs(token)
+  const fetchData = useCallback((token: string, archived: ArchiveFilter) => {
+    getAllMachineRepairs(token, archived)
       .then((data: MachineRepairListItemFromApi[]) => {
         const withDates: MachineRepairListItem[] = data.map((repair) => ({
           ...repair,
@@ -153,8 +164,8 @@ export default function RepairsListView() {
   }, []);
 
   useEffect(() => {
-    fetchData(auth.token);
-  }, [auth.token, fetchData]);
+    fetchData(auth.token, archiveFilter);
+  }, [auth.token, archiveFilter, fetchData]);
 
   const handleOpenGoogleDrive = useCallback(() => {
     const url = config['URL drive réparations/entretiens'];
@@ -258,6 +269,17 @@ export default function RepairsListView() {
         emptyMessage="Aucune réparation ne correspond à ces filtres"
         toolbar={
           <>
+            <ToggleGroup
+              value={[archiveFilter]}
+              onValueChange={(next) => {
+                if (next[0]) setArchiveFilter(next[0] as ArchiveFilter);
+              }}
+              aria-label="Filtre d'archivage"
+            >
+              <ToggleGroupItem value="active">Actives</ToggleGroupItem>
+              <ToggleGroupItem value="archived">Archivées</ToggleGroupItem>
+              <ToggleGroupItem value="all">Toutes</ToggleGroupItem>
+            </ToggleGroup>
             <MultiCombobox
               options={availableStates.map((state) => ({
                 value: state,
