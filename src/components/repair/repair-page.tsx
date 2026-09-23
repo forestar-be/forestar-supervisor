@@ -26,12 +26,14 @@ import {
   deleteImage,
   deleteRepair,
   fetchRepairById,
+  getRepairTicketHtml,
   isHttpError,
   sendDriveApi,
   sendEmailApi,
   updateRepair,
 } from '@/lib/api';
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
+import { printHtml } from '@/lib/print-html';
 import { useAppSelector } from '@/store/hooks';
 import type { MachineRepair, MachineRepairFromApi } from '@/lib/types';
 import {
@@ -95,6 +97,8 @@ export function RepairPageClient() {
   const [isLoadingAddDrive, setIsLoadingAddDrive] = useState(false);
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  // R004-S04 — réimpression des tickets 80 mm depuis la fiche.
+  const [isPrintingTickets, setIsPrintingTickets] = useState(false);
   const [editableSections, setEditableSections] = useState<
     Partial<Record<EditableSection, boolean>>
   >({});
@@ -501,6 +505,26 @@ export function RepairPageClient() {
     }
   };
 
+  // R004-S04 — réimprime les tickets 80 mm (D-11). Disponible sur une fiche
+  // active comme archivée (D-18) : pas de garde d'état ici.
+  const handlePrintTickets = async () => {
+    if (!id) return;
+    setIsPrintingTickets(true);
+    try {
+      const html = await getRepairTicketHtml(auth.token, id);
+      await printHtml(html);
+    } catch (error) {
+      console.error('Error printing tickets:', error);
+      notifyError(
+        isHttpError(error)
+          ? error.message
+          : "Impossible de charger les tickets. Réessayez.",
+      );
+    } finally {
+      setIsPrintingTickets(false);
+    }
+  };
+
   const handleCalendarEventCreate = () => {
     setCalendarEventError(null);
     setIsCalendarEventModalOpen(true);
@@ -678,6 +702,8 @@ export function RepairPageClient() {
             onCalendarEventCreate={handleCalendarEventCreate}
             onCalendarEventView={handleCalendarEventView}
             loadingCalendarEvent={isLoadingCalendarEvent}
+            onPrintTickets={handlePrintTickets}
+            isPrintingTickets={isPrintingTickets}
           />
         )}
       </RepairPdfSection>
