@@ -12,8 +12,8 @@ importers:
         specifier: ^0.6.0
         version: 0.6.0(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@forestar-be/ui':
-        specifier: ^0.8.1
-        version: 0.8.1(@date-fns/tz@1.5.0)(@types/prop-types@15.7.14)(@types/react@19.3.0)(date-fns@4.4.0)(lucide-react@1.47.0(react@19.3.0))(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(prop-types@15.8.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^0.9.0
+        version: 0.9.0(@date-fns/tz@1.5.0)(@types/prop-types@15.7.14)(@types/react@19.3.0)(date-fns@4.4.0)(lucide-react@1.47.0(react@19.3.0))(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(prop-types@15.8.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@react-pdf/renderer':
         specifier: ^4.9.0
         version: 4.9.0(react@19.3.0)
@@ -369,8 +369,8 @@ packages:
       react-dom:
         optional: true
 
-  '@forestar-be/ui@0.8.1':
-    resolution: {integrity: sha512-yPerbcmGW9BbGhJAtF/F1b+Sqb2MKahzOd07IG13BkuoMDsn1w/wm4pWA6kTix8ejsu+9aaVzvrHzejRzgJXPQ==, tarball: https://npm.pkg.github.com/download/@forestar-be/ui/0.8.1/9d5eb52ec1db812f51672e1718a65b386d457143}
+  '@forestar-be/ui@0.9.0':
+    resolution: {integrity: sha512-hgZYYkpZGU6VGmK2Zwr/UuSR2x4UptRIKiP+l/Bt6dIqplV+XOZX84HCG5Xf4eszzVy2N76WO0eoFkJMN2k9MQ==, tarball: https://npm.pkg.github.com/download/@forestar-be/ui/0.9.0/1da45fd55d0c35ef9600d268655536e383e7a38d}
     peerDependencies:
       date-fns: '>=4'
       lucide-react: '>=1'
@@ -3394,7 +3394,7 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@forestar-be/ui@0.8.1(@date-fns/tz@1.5.0)(@types/prop-types@15.7.14)(@types/react@19.3.0)(date-fns@4.4.0)(lucide-react@1.47.0(react@19.3.0))(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(prop-types@15.8.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@forestar-be/ui@0.9.0(@date-fns/tz@1.5.0)(@types/prop-types@15.7.14)(@types/react@19.3.0)(date-fns@4.4.0)(lucide-react@1.47.0(react@19.3.0))(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(prop-types@15.8.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@base-ui/react': 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@dnd-kit/core': 6.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
