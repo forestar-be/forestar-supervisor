@@ -1,127 +1,57 @@
-import React from 'react';
-import { Box, Paper, Typography, Badge } from '@mui/material';
-import { MachineRepairListItem } from '../../utils/types';
+'use client';
+
+import type { MachineRepairListItem } from '@/lib/types';
 import RepairWorkCard from './RepairWorkCard';
 
 interface KanbanColumnProps {
   title: string;
   repairs: MachineRepairListItem[];
   color: string;
-  maxHeight?: string;
   colorByState: Record<string, string>;
 }
 
-/**
- * Colonne Kanban pour afficher un groupe de réparations
- */
-const KanbanColumn: React.FC<KanbanColumnProps> = ({
+/** Colonne Kanban : un état, ses réparations, un compteur coloré. */
+export default function KanbanColumn({
   title,
   repairs,
   color,
-  maxHeight = 'calc(100vh - 300px)',
   colorByState,
-}) => {
+}: KanbanColumnProps) {
   return (
-    <Paper
-      elevation={2}
-      sx={{
-        width: 350,
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-      }}
-    >
-      {/* En-tête de colonne */}
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: '2px solid',
-          borderColor: color,
-          backgroundColor: `${color}15`,
-          position: 'sticky',
-          top: 0,
-          zIndex: 1,
-        }}
+    <div className="flex h-full w-[320px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <div
+        className="sticky top-0 z-10 flex items-center gap-2 border-b-2 px-4 py-3"
+        style={{ borderColor: color, backgroundColor: `${color}15` }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography
-            component="h6"
-            title={title}
-            sx={{
-              flexGrow: 1,
-              fontWeight: 600,
-              fontSize: '1.1rem!important',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {title}
-          </Typography>
-          <Badge
-            badgeContent={repairs.length}
-            color="primary"
-            sx={{
-              '& .MuiBadge-badge': {
-                backgroundColor: color,
-                color: '#fff',
-                fontWeight: 'bold',
-              },
-            }}
-          />
-        </Box>
-      </Box>
+        <h3
+          className="flex-1 truncate text-base font-semibold"
+          title={title}
+        >
+          {title}
+        </h3>
+        <span
+          className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-bold text-white"
+          style={{ backgroundColor: color }}
+        >
+          {repairs.length}
+        </span>
+      </div>
 
-      {/* Liste des réparations avec scroll */}
-      <Box
-        sx={{
-          p: 2,
-          flexGrow: 1,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          maxHeight,
-          height: maxHeight,
-          '&::-webkit-scrollbar': {
-            width: '8px',
-          },
-          '&::-webkit-scrollbar-track': {
-            backgroundColor: '#f1f1f1',
-            borderRadius: '4px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            backgroundColor: color,
-            borderRadius: '4px',
-            '&:hover': {
-              backgroundColor: `${color}cc`,
-            },
-          },
-        }}
-      >
+      <div className="flex max-h-[calc(100vh-22rem)] flex-col gap-3 overflow-y-auto p-3">
         {repairs.length === 0 ? (
-          <Box
-            sx={{
-              textAlign: 'center',
-              py: 4,
-              color: 'text.secondary',
-            }}
-          >
-            <Typography variant="body2">Aucune réparation</Typography>
-          </Box>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Aucune réparation
+          </p>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {repairs.map((repair) => (
-              <RepairWorkCard
-                key={repair.id}
-                repair={repair}
-                colorByState={colorByState}
-              />
-            ))}
-          </Box>
+          repairs.map((repair) => (
+            <RepairWorkCard
+              key={repair.id}
+              repair={repair}
+              colorByState={colorByState}
+            />
+          ))
         )}
-      </Box>
-    </Paper>
+      </div>
+    </div>
   );
-};
-
-export default KanbanColumn;
+}

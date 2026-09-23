@@ -1,12 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
   fetchAllConfig,
-  fetchConfig,
   addConfig,
   updateConfig as apiUpdateConfig,
   deleteConfig as apiDeleteConfig,
-} from '../utils/api';
-import { ConfigElement } from '../components/settings/EditConfig';
+} from '@/lib/api';
+import type { ConfigElement } from '@/lib/types';
 
 interface ConfigState {
   brands: string[];

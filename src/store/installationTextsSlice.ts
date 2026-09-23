@@ -5,12 +5,11 @@ import {
   updateInstallationText,
   deleteInstallationText,
   reorderInstallationTexts,
-} from '../utils/api';
+} from '@/lib/api';
 import {
   InstallationPreparationText,
   InstallationTextType,
-} from '../utils/types';
-import { notifySuccess, notifyError } from '../utils/notifications';
+} from '@/lib/types';
 
 interface InstallationTextsState {
   texts: InstallationPreparationText[];
@@ -50,7 +49,6 @@ export const createInstallationTextThunk = createAsyncThunk(
       type,
       order,
     });
-    notifySuccess("Texte d'installation créé avec succès");
     return result;
   },
 );
@@ -67,7 +65,6 @@ export const updateInstallationTextThunk = createAsyncThunk(
     updates: { content?: string; type?: InstallationTextType; order?: number };
   }) => {
     const result = await updateInstallationText(token, id, updates);
-    notifySuccess("Texte d'installation mis à jour avec succès");
     return result;
   },
 );
@@ -76,7 +73,6 @@ export const deleteInstallationTextThunk = createAsyncThunk(
   'installationTexts/delete',
   async ({ token, id }: { token: string; id: number }) => {
     await deleteInstallationText(token, id);
-    notifySuccess("Texte d'installation supprimé avec succès");
     return id;
   },
 );
@@ -85,7 +81,6 @@ export const reorderInstallationTextsThunk = createAsyncThunk(
   'installationTexts/reorder',
   async ({ token, textIds }: { token: string; textIds: number[] }) => {
     const result = await reorderInstallationTexts(token, textIds);
-    notifySuccess("Ordre des textes d'installation mis à jour avec succès");
     return result;
   },
 );
@@ -130,7 +125,6 @@ const installationTextsSlice = createSlice({
         state.loading = false;
         state.error =
           action.error.message || 'Failed to create installation text';
-        notifyError("Échec de la création du texte d'installation");
       })
 
       // Update text
@@ -152,7 +146,6 @@ const installationTextsSlice = createSlice({
         state.loading = false;
         state.error =
           action.error.message || 'Failed to update installation text';
-        notifyError("Échec de la mise à jour du texte d'installation");
       })
 
       // Delete text
@@ -168,7 +161,6 @@ const installationTextsSlice = createSlice({
         state.loading = false;
         state.error =
           action.error.message || 'Failed to delete installation text';
-        notifyError("Échec de la suppression du texte d'installation");
       })
 
       // Reorder texts
@@ -184,7 +176,6 @@ const installationTextsSlice = createSlice({
         state.loading = false;
         state.error =
           action.error.message || 'Failed to reorder installation texts';
-        notifyError("Échec de la réorganisation des textes d'installation");
       });
   },
 });
