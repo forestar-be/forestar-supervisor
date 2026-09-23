@@ -35,7 +35,10 @@ export default function RepairerSelector({
 }: RepairerSelectorProps) {
   return (
     <Select
-      value={selectedRepairer ?? undefined}
+      // `value` doit rester défini (jamais `undefined`) dès le premier rendu :
+      // sinon Base UI bascule un Select non contrôlé en contrôlé dès que le
+      // réparateur se choisit, ce que React signale en erreur console.
+      value={selectedRepairer}
       onValueChange={(value) => {
         if (value) onSelect(value);
       }}
