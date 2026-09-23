@@ -65,7 +65,9 @@ export default function RepairerWorkView() {
   // Chaîne de promesses (pas d'async/await) : voir la note dans RepairsListView
   // sur `react-hooks/set-state-in-effect`.
   const fetchRepairs = useCallback((token: string) => {
-    getAllMachineRepairs(token)
+    // La vue ouvrier ne montre jamais les fiches archivées (AC-01) : demande
+    // explicite, indépendante du défaut serveur.
+    getAllMachineRepairs(token, 'active')
       .then((data: MachineRepairListItemFromApi[]) => {
         setAllRepairs(
           data.map((repair) => ({

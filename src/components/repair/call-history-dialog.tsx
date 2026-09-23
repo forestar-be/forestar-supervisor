@@ -14,6 +14,8 @@ interface CallHistoryDialogProps {
   onOpenChange: (open: boolean) => void;
   callTimes: Date[];
   onRemove: (index: number) => void;
+  /** Fiche archivée (R001, D-18) : l'historique reste consultable, pas modifiable. */
+  readOnly?: boolean;
 }
 
 /**
@@ -24,6 +26,7 @@ export function CallHistoryDialog({
   onOpenChange,
   callTimes,
   onRemove,
+  readOnly = false,
 }: CallHistoryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,6 +48,7 @@ export function CallHistoryDialog({
                   variant="ghost"
                   size="icon-sm"
                   aria-label="Supprimer cet appel"
+                  disabled={readOnly}
                   onClick={() => onRemove(index)}
                 >
                   <Trash2 className="size-4 text-destructive" />

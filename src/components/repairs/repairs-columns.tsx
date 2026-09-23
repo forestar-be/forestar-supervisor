@@ -45,10 +45,14 @@ function RepairerCell({
   onChange: (id: number, previous: string | null, next: string | null) => void;
 }) {
   const value = repair.repairer_name ?? 'Non affecté';
+  // Fiche archivée (R001, D-18) : en lecture seule, ce changement serait
+  // refusé par le serveur (409 repair_archived) — autant ne pas le proposer.
+  const disabled = Boolean(repair.archived_at);
   return (
     <div onClick={(event) => event.stopPropagation()} className="min-w-[130px]">
       <Select
         value={value}
+        disabled={disabled}
         onValueChange={(next) =>
           onChange(
             repair.id,
@@ -101,14 +105,19 @@ export function buildRepairsColumns({
       size: 170,
       accessorFn: (row) => row.state || 'Non commencé',
       header: 'État',
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
         const state = getValue<string>();
         return (
-          <span
-            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-black"
-            style={{ backgroundColor: colorByState[state] || '#e0e0e0' }}
-          >
-            {state}
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span
+              className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-black"
+              style={{ backgroundColor: colorByState[state] || '#e0e0e0' }}
+            >
+              {state}
+            </span>
+            {row.original.archived_at && (
+              <StatusBadge tone="neutral">Archivée</StatusBadge>
+            )}
           </span>
         );
       },

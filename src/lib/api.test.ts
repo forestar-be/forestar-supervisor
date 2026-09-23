@@ -111,6 +111,61 @@ describe('mode historique', () => {
   });
 });
 
+describe('archivage (R001)', () => {
+  it('getAllMachineRepairs ne transmet `archived` que lorsqu\'il est fourni', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({ data: [] }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.getAllMachineRepairs('jeton');
+    const [, initSansFiltre] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(JSON.parse(initSansFiltre.body as string)).toEqual({ filter: {} });
+
+    await api.getAllMachineRepairs('jeton', 'archived');
+    const [, initAvecFiltre] = fetchSpy.mock.calls[1] as unknown as Call;
+    expect(JSON.parse(initAvecFiltre.body as string)).toEqual({
+      filter: {},
+      archived: 'archived',
+    });
+  });
+
+  it('deleteRepair envoie `confirm` égal au numéro de la fiche', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({ message: 'Succès.' }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.deleteRepair('jeton', '1663');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(
+      `${API}/supervisor/machine-repairs/1663?confirm=1663`,
+    );
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('archiveRepair et unarchiveRepair appellent les bonnes routes en POST', async () => {
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse({ id: 12, archived_at: '2026-09-24T10:00:00.000Z' }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.archiveRepair('jeton', '12');
+    const [archiveUrl, archiveInit] = fetchSpy.mock
+      .calls[0] as unknown as Call;
+    expect(archiveUrl).toBe(`${API}/supervisor/machine-repairs/12/archive`);
+    expect(archiveInit.method).toBe('POST');
+
+    await api.unarchiveRepair('jeton', '12');
+    const [unarchiveUrl, unarchiveInit] = fetchSpy.mock
+      .calls[1] as unknown as Call;
+    expect(unarchiveUrl).toBe(
+      `${API}/supervisor/machine-repairs/12/unarchive`,
+    );
+    expect(unarchiveInit.method).toBe('POST');
+  });
+});
+
 describe('ré-autorisation Google', () => {
   it('un 403 re_auth_gg_required renvoie vers /connection-google', async () => {
     vi.stubGlobal(
