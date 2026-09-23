@@ -640,14 +640,21 @@ export function RepairPageClient() {
   /**
    * R002-S05 — Imprimer ouvre le PDF du serveur dans un nouvel onglet.
    *
-   * Méthode retenue : `window.open('', '_blank')` est appelé de façon
-   * synchrone dans le gestionnaire de clic, **avant** tout `await` — c'est ce
-   * geste-là, dans le droit fil du clic, que les navigateurs autorisent. Le
-   * PDF est ensuite récupéré en `Blob` (il faut l'en-tête `Authorization`,
-   * qu'une simple navigation ne porte pas en mode `legacy`) et son URL est
-   * posée sur la fenêtre déjà ouverte une fois reçue. Ouvrir la fenêtre
-   * après le `await`, avec l'URL déjà connue, se ferait bloquer : ce n'est
-   * plus perçu comme la conséquence directe du clic.
+   * `window.open('', '_blank')` est appelé de façon synchrone dans le
+   * gestionnaire de clic, **avant** tout `await` — c'est ce geste-là, dans le
+   * droit fil du clic, que les navigateurs autorisent. Le PDF est ensuite
+   * récupéré en `Blob` (il faut l'en-tête `Authorization`, qu'une simple
+   * navigation ne porte pas en mode `legacy`).
+   *
+   * **Mesuré, pas supposé** : poser l'URL du blob sur `printWindow.location`
+   * une fois reçue échoue silencieusement — Chromium bloque la navigation
+   * d'un onglet devenu inactif si elle n'est plus synchrone avec le clic
+   * (`printWindow.location.href = url` ne fait rien, ni `.replace()`, ni un
+   * `focus()` préalable ; reproduit hors app avec un simple
+   * `window.open('', '_blank')` + `location.href` différé). Écrire le
+   * document de l'onglet déjà ouvert (`document.write`, sans navigation) n'a
+   * pas ce problème : la méthode retenue est donc un `<embed>` plein cadre
+   * posé par `document.write` plutôt qu'une navigation de `location`.
    */
   const handlePrintPdf = async () => {
     if (!id) return;
@@ -663,7 +670,17 @@ export function RepairPageClient() {
     try {
       const blob = await getRepairPdf(auth.token, id);
       const url = URL.createObjectURL(blob);
-      printWindow.location.href = url;
+      const title = repair?.pdf_file_name ?? `Fiche ${id}`;
+      const escapedTitle = title
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      printWindow.document.write(
+        `<!doctype html><html><head><title>${escapedTitle}</title>` +
+          '<style>html,body{margin:0;height:100%}embed{position:absolute;inset:0;width:100%;height:100%;border:0}</style>' +
+          `</head><body><embed src="${url}" type="application/pdf" /></body></html>`,
+      );
+      printWindow.document.close();
     } catch (error) {
       console.error('Error printing PDF:', error);
       printWindow.close();
