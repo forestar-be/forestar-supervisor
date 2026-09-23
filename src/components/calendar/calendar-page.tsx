@@ -280,7 +280,7 @@ export function CalendarPageClient() {
   const HOURS = Array.from({ length: 17 }, (_, i) => i + 7);
 
   return (
-    <div className="flex flex-col gap-4 p-4 pt-2 md:p-6">
+    <div className="flex flex-col gap-4">
       <PageHeader
         title="Agenda"
         actions={

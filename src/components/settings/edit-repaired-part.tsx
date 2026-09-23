@@ -82,7 +82,9 @@ export default function EditRepairedPart() {
       notifySuccess('Données sauvegardées avec succès');
       setOpen(false);
     } catch {
-      notifyError("Une erreur s'est produite lors de la sauvegarde des données");
+      notifyError(
+        "Une erreur s'est produite lors de la sauvegarde des données",
+      );
     } finally {
       setSaving(false);
     }
@@ -97,7 +99,9 @@ export default function EditRepairedPart() {
       notifySuccess('Pièce supprimée avec succès');
       setToDelete(null);
     } catch {
-      notifyError("Une erreur s'est produite lors de la suppression de la pièce");
+      notifyError(
+        "Une erreur s'est produite lors de la suppression de la pièce",
+      );
     } finally {
       setDeleting(false);
     }
@@ -145,7 +149,7 @@ export default function EditRepairedPart() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{parts.length} pièce(s)</p>
         <Button size="sm" onClick={handleAdd}>
@@ -158,6 +162,7 @@ export default function EditRepairedPart() {
         <EmptyState icon={Wrench} title="Aucune pièce enregistrée" />
       ) : (
         <DataTable
+          className="min-h-0 flex-1"
           columns={columns}
           data={parts}
           loading={loading}
@@ -169,12 +174,18 @@ export default function EditRepairedPart() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedPart ? 'Modifier' : 'Ajouter'} une pièce</DialogTitle>
+            <DialogTitle>
+              {selectedPart ? 'Modifier' : 'Ajouter'} une pièce
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
               <Label>Nom</Label>
-              <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
+              <Input
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
             </div>
             <div>
               <Label>Prix</Label>

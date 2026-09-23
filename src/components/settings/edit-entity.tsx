@@ -139,7 +139,7 @@ export default function EditEntity({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {entities.length} élément(s)
@@ -157,9 +157,13 @@ export default function EditEntity({
       </div>
 
       {!loading && entities.length === 0 ? (
-        <EmptyState icon={List} title={`Aucun élément « ${entityName.toLowerCase()} »`} />
+        <EmptyState
+          icon={List}
+          title={`Aucun élément « ${entityName.toLowerCase()} »`}
+        />
       ) : (
         <DataTable
+          className="min-h-0 flex-1"
           columns={columns}
           data={entities}
           loading={loading}

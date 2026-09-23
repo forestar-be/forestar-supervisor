@@ -245,20 +245,6 @@ export const updateConfig = (token: string, configToUpdate: ConfigElement) =>
 export const fetchAllConfig = (token: string) =>
   apiRequest('/supervisor/allConfig', 'GET', token);
 
-// ── Utilisateurs (mode historique ; en SSO ils vivent dans Zitadel) ──
-
-export const fetchUsers = (token: string) =>
-  apiRequest('/admin/users', 'GET', token);
-
-export const addUser = (token: string, user: unknown) =>
-  apiRequest('/admin/users', 'PUT', token, user);
-
-export const updateUser = (token: string, id: string, user: unknown) =>
-  apiRequest(`/admin/users/${id}`, 'PATCH', token, user);
-
-export const deleteUser = (token: string, id: string) =>
-  apiRequest(`/admin/users/${id}`, 'DELETE', token);
-
 // ── Rappels téléphoniques ──
 
 export interface PhoneCallback {

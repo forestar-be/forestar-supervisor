@@ -77,7 +77,9 @@ export default function EditConfig() {
         ).unwrap();
         notifySuccess(`${element.key} mis à jour`);
       } else {
-        await dispatch(addConfigAsync({ token, configElement: element })).unwrap();
+        await dispatch(
+          addConfigAsync({ token, configElement: element }),
+        ).unwrap();
         notifySuccess(`${element.key} sauvegardé`);
       }
       setOpen(false);
@@ -98,7 +100,9 @@ export default function EditConfig() {
       notifySuccess(`${toDelete} supprimé`);
       setToDelete(null);
     } catch {
-      notifyError(`Une erreur s'est produite lors de la suppression du ${toDelete}`);
+      notifyError(
+        `Une erreur s'est produite lors de la suppression du ${toDelete}`,
+      );
     } finally {
       setDeleting(false);
     }
@@ -148,7 +152,7 @@ export default function EditConfig() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {config.length} élément(s) de configuration
@@ -163,6 +167,7 @@ export default function EditConfig() {
         <EmptyState icon={Settings2} title="Aucun élément de configuration" />
       ) : (
         <DataTable
+          className="min-h-0 flex-1"
           columns={columns}
           data={config}
           loading={loading}
@@ -185,14 +190,18 @@ export default function EditConfig() {
                 autoFocus
                 value={element.key}
                 disabled={isEditing}
-                onChange={(e) => setElement({ ...element, key: e.target.value })}
+                onChange={(e) =>
+                  setElement({ ...element, key: e.target.value })
+                }
               />
             </div>
             <div>
               <Label>Valeur</Label>
               <Textarea
                 value={element.value}
-                onChange={(e) => setElement({ ...element, value: e.target.value })}
+                onChange={(e) =>
+                  setElement({ ...element, value: e.target.value })
+                }
                 rows={3}
               />
             </div>
@@ -201,7 +210,10 @@ export default function EditConfig() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleSave} disabled={saving || !element.key.trim()}>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !element.key.trim()}
+            >
               Sauvegarder
             </Button>
           </DialogFooter>
