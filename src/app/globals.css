@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@import '@forestar-be/ui/theme.css';
+
+/* Tailwind v4 n'analyse pas node_modules : sans cette ligne les classes des
+ * composants du design system ne sont pas générées. */
+@source '../../node_modules/@forestar-be/ui/dist';
