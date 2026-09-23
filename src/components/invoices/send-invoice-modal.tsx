@@ -3,7 +3,12 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { sendServiceInvoice, isHttpError, HttpError } from '@/lib/api';
-import type { DolibarrThirdparty, ThirdpartyConfirmation } from '@/lib/types';
+import type {
+  DolibarrThirdparty,
+  DolibarrThirdpartyMatch,
+  ThirdpartyConfirmation,
+  ThirdpartyDifference,
+} from '@/lib/types';
 import {
   Button,
   Dialog,
@@ -39,13 +44,13 @@ type ModalStep =
   | {
       type: 'select-client';
       invoiceClient: InvoiceClient;
-      matches: DolibarrThirdparty[];
+      matches: DolibarrThirdpartyMatch[];
     }
   | {
       type: 'resolve-conflict';
       invoiceClient: InvoiceClient;
       dolibarrClient: DolibarrThirdparty;
-      differences: { field: string; invoice: string; dolibarr: string }[];
+      differences: ThirdpartyDifference[];
     };
 
 /**
@@ -53,10 +58,9 @@ type ModalStep =
  *
  * Porte les étapes Dolibarr de l'ancien `SendInvoiceModal.tsx` (le backend
  * répond 409 avec `ThirdpartyConfirmation` quand le client de la facture ne
- * correspond pas sans ambiguïté à un tiers Dolibarr). Le contrat réel
- * (`@/lib/types`) diffère des noms utilisés par l'ancien composant local
- * (`dolibarrMatches`, `differences` en `Record`, pas `matches`/tableau) :
- * cette version suit le type canonique.
+ * correspond pas sans ambiguïté à un tiers Dolibarr). Contrat dans
+ * `ThirdpartyConfirmation` (`matches`, `differences` en tableau), calqué sur
+ * `handleSendInvoice` de forestar-server.
  */
 export default function SendInvoiceModal({
   invoiceId,
@@ -68,9 +72,9 @@ export default function SendInvoiceModal({
   const [step, setStep] = useState<ModalStep>({ type: 'initial' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMatchId, setSelectedMatchId] = useState<
-    number | 'new' | null
-  >(null);
+  const [selectedMatchId, setSelectedMatchId] = useState<number | 'new' | null>(
+    null,
+  );
   const [conflictChoice, setConflictChoice] = useState<
     'update' | 'use-existing' | 'create' | null
   >(null);
@@ -99,19 +103,14 @@ export default function SendInvoiceModal({
             type: 'resolve-conflict',
             invoiceClient: data.invoiceClient,
             dolibarrClient: data.dolibarrClient,
-            differences: Object.entries(data.differences).map(
-              ([field, d]) => ({ field, invoice: d.invoice, dolibarr: d.dolibarr }),
-            ),
+            differences: data.differences,
           });
-        } else if (
-          data?.confirmationType === 'select-client' &&
-          data.dolibarrMatches
-        ) {
+        } else if (data?.confirmationType === 'select-client' && data.matches) {
           setSelectedMatchId(null);
           setStep({
             type: 'select-client',
             invoiceClient: data.invoiceClient,
-            matches: data.dolibarrMatches,
+            matches: data.matches,
           });
         } else {
           setError('Réponse inattendue du serveur');
@@ -261,10 +260,10 @@ export default function SendInvoiceModal({
                 Action irréversible
               </p>
               <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-                Un numéro de facture définitif sera attribué et la facture
-                sera envoyée par email à{' '}
-                <span className="font-medium">{clientEmail}</span>. Le
-                brouillon ne pourra plus être modifié.
+                Un numéro de facture définitif sera attribué et la facture sera
+                envoyée par email à{' '}
+                <span className="font-medium">{clientEmail}</span>. Le brouillon
+                ne pourra plus être modifié.
               </p>
             </div>
           )}
@@ -314,6 +313,12 @@ export default function SendInvoiceModal({
                       <p className="truncate text-xs text-muted-foreground">
                         {match.email}
                       </p>
+                      {match.differences.length > 0 && (
+                        <p className="mt-1 text-xs text-warning">
+                          {match.differences.length} différence
+                          {match.differences.length > 1 ? 's' : ''}
+                        </p>
+                      )}
                     </div>
                   </label>
                 ))}
@@ -410,11 +415,7 @@ export default function SendInvoiceModal({
           )}
           {step.type === 'create-client' && (
             <Button onClick={handleCreate} disabled={loading}>
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <UserPlus />
-              )}
+              {loading ? <Loader2 className="animate-spin" /> : <UserPlus />}
               Créer le client et envoyer
             </Button>
           )}

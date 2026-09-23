@@ -380,8 +380,21 @@ export interface ThirdpartyConfirmation {
     town: string;
   };
   dolibarrClient?: DolibarrThirdparty;
-  dolibarrMatches?: DolibarrThirdparty[];
-  differences?: Record<string, { invoice: string; dolibarr: string }>;
+  /** `select-client` : plusieurs tiers Dolibarr candidats. */
+  matches?: DolibarrThirdpartyMatch[];
+  /** `resolve-conflict` : champs qui diffèrent, libellés en français. */
+  differences?: ThirdpartyDifference[];
+}
+
+/** Contrat de la réponse 409 de `POST /supervisor/service-invoices/:id/send`. */
+export interface ThirdpartyDifference {
+  field: string;
+  invoice: string;
+  dolibarr: string;
+}
+
+export interface DolibarrThirdpartyMatch extends DolibarrThirdparty {
+  differences: ThirdpartyDifference[];
 }
 
 export interface RepairForInvoice {

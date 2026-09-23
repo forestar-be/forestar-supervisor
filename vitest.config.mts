@@ -12,9 +12,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
-    // Transformé pour que l'alias de `next/navigation` s'applique aussi à
-    // l'import fait à l'intérieur du paquet.
-    server: { deps: { inline: ['@forestar-be/core'] } },
+    // Transformés pour que l'alias de `next/navigation` s'applique aussi aux
+    // imports faits à l'intérieur des paquets, et que `next/link` (sans
+    // extension, importé par l'ui) se résolve.
+    server: { deps: { inline: ['@forestar-be/core', '@forestar-be/ui'] } },
   },
   resolve: {
     alias: {
