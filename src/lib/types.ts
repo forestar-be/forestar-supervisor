@@ -87,6 +87,20 @@ export interface ClientDetail extends Client {
   serviceInvoices: ClientDetailInvoice[];
 }
 
+/** `GET /supervisor/clients/duplicates` (AC-03) : une paire de clients au nom proche. */
+export interface ClientDuplicatePair {
+  a: ClientSummary;
+  b: ClientSummary;
+  sameName: boolean;
+}
+
+/** `POST /supervisor/clients/:id/merge` (AC-04) : le client survivant et ce qu'il a repris. */
+export interface MergeClientsResult {
+  client: Client;
+  movedRepairs: number;
+  movedInvoices: number;
+}
+
 export interface MachineRepair {
   id: number;
   /** Atelier R007 — le client de la fiche (D-19) ; `client_id` est sa clé. */

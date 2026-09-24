@@ -5,6 +5,7 @@ import type {
   ArchiveFilter,
   Client,
   ClientDetail,
+  ClientDuplicatePair,
   ClientField,
   ClientSummary,
   ConfigElement,
@@ -14,6 +15,7 @@ import type {
   MachineRepairArchiveResult,
   MachineRepairHandoverResult,
   MachineRepairListItemFromApi,
+  MergeClientsResult,
   RelatedRepair,
   RepairForInvoice,
   ServiceInvoice,
@@ -259,6 +261,25 @@ export const updateClient = (
   id: number,
   data: Partial<Record<ClientField, string>>,
 ): Promise<Client> => apiRequest(`/supervisor/clients/${id}`, 'PATCH', token, data);
+
+/** Doublons probables (AC-03) : paires de clients au nom proche. */
+export const getClientDuplicates = (
+  token: string,
+): Promise<ClientDuplicatePair[]> =>
+  apiRequest('/supervisor/clients/duplicates', 'GET', token);
+
+/**
+ * Fusion (AC-04) : `loserId` disparaît dans `intoId`, qui garde ses valeurs et
+ * complète ses champs vides par celles de l'autre.
+ */
+export const mergeClients = (
+  token: string,
+  loserId: number,
+  intoId: number,
+): Promise<MergeClientsResult> =>
+  apiRequest(`/supervisor/clients/${loserId}/merge`, 'POST', token, {
+    intoId,
+  });
 
 // ── Référentiels ──
 

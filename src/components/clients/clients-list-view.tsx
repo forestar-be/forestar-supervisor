@@ -10,6 +10,7 @@ import { notifyError } from '@/lib/notifications';
 import { usePersistedState } from '@/lib/use-persisted-state';
 import type { ClientSummary } from '@/lib/types';
 import { buildClientsColumns } from './clients-columns';
+import { DuplicatesBanner } from './duplicates-banner';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -71,6 +72,7 @@ export default function ClientsListView() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <DuplicatesBanner />
       <DataTable
         className="min-h-0 flex-1"
         title="Clients"
