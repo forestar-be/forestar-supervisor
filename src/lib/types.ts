@@ -40,17 +40,74 @@ export interface MachineRepair {
   calendarId: string | null;
   /** Atelier R001 — `null` : fiche active. Sinon, date d'archivage (ISO). */
   archived_at: string | null;
-  /** Atelier R003 — date de remise au client. Hors périmètre R001. */
+  /** Atelier R003 — date d'entrée (dépôt) et date de sortie (remise au client). */
   entry_date: string | null;
   exit_date: string | null;
-  /** Atelier R003 — chemin et date du PDF déjà envoyé sur Dropbox. */
+  /** Atelier R002 — chemin et date du PDF déjà envoyé sur Dropbox. */
   dropbox_pdf_path: string | null;
   dropbox_pdf_uploaded_at: string | null;
+  /**
+   * Atelier R002 — nom D-05 du PDF, calculé par le serveur (`GET /:id`
+   * uniquement : la liste ne le porte pas).
+   */
+  pdf_file_name: string;
+  /**
+   * Atelier R003 — vrai si la fiche est archivée et que son PDF Dropbox
+   * manque ou précède l'archivage (`GET /:id` uniquement) : pilote le
+   * bandeau « PDF non envoyé — Réessayer ».
+   */
+  dropbox_pdf_pending: boolean;
   serviceInvoice?: {
     id: number;
     invoiceNumber: string;
     status: string;
   } | null;
+}
+
+/** Résultat d'un envoi du PDF sur Dropbox (R002-S03), tel que renvoyé par
+ * l'archivage et la remise au client (R003) : `pdf` de leur réponse. */
+export type PdfUploadOutcome =
+  | {
+      uploaded: true;
+      dropbox_pdf_path: string;
+      dropbox_pdf_uploaded_at: string;
+    }
+  | { uploaded: false; code: string; error: string };
+
+/**
+ * Réponse de `POST /machine-repairs/:id/archive` (« Archiver sans sortie »)
+ * et `POST /machine-repairs/:id/handover` (« Machine rendue au client ») :
+ * les colonnes scalaires de la fiche à jour, plus le résultat de l'envoi du
+ * PDF sur Dropbox — jamais bloquant (D-03).
+ */
+export type MachineRepairHandoverResult = Pick<
+  MachineRepair,
+  | 'id'
+  | 'archived_at'
+  | 'entry_date'
+  | 'exit_date'
+  | 'dropbox_pdf_path'
+  | 'dropbox_pdf_uploaded_at'
+> & { pdf: PdfUploadOutcome };
+
+/** Atelier R003 — motif du lien entre deux fiches (`GET /:id/related`). */
+export type RelatedRepairMatch = 'phone' | 'name' | 'robot_code';
+
+/** Une fiche liée par `GET /machine-repairs/:id/related` (passage précédent du client). */
+export interface RelatedRepair {
+  id: number;
+  phone: string;
+  first_name: string;
+  last_name: string;
+  robot_code: string | null;
+  entry_date: string;
+  exit_date: string | null;
+  machine_type_name: string | null;
+  brand_name: string | null;
+  repair_or_maintenance: string;
+  state: string | null;
+  archived_at: string | null;
+  match: RelatedRepairMatch[];
 }
 
 export type MachineRepairFromApi = Omit<
@@ -97,6 +154,8 @@ export type MachineRepairListItem = Omit<
   | 'calendarId'
   | 'dropbox_pdf_path'
   | 'dropbox_pdf_uploaded_at'
+  | 'pdf_file_name'
+  | 'dropbox_pdf_pending'
 >;
 
 export type MachineRepairListItemFromApi = Omit<

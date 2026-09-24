@@ -8,7 +8,9 @@ import type {
   InstallationPreparationText,
   MachineRepair,
   MachineRepairArchiveResult,
+  MachineRepairHandoverResult,
   MachineRepairListItemFromApi,
+  RelatedRepair,
   RepairForInvoice,
   ServiceInvoice,
   ServiceInvoiceItemConfig,
@@ -138,10 +140,11 @@ export const deleteRepair = (token: string, id: string) =>
     token,
   );
 
+/** « Archiver sans sortie » (R003) : archive puis envoie le PDF (D-02, D-03). */
 export const archiveRepair = (
   token: string,
   id: string,
-): Promise<MachineRepairArchiveResult> =>
+): Promise<MachineRepairHandoverResult> =>
   apiRequest(`/supervisor/machine-repairs/${id}/archive`, 'POST', token);
 
 export const unarchiveRepair = (
@@ -150,33 +153,53 @@ export const unarchiveRepair = (
 ): Promise<MachineRepairArchiveResult> =>
   apiRequest(`/supervisor/machine-repairs/${id}/unarchive`, 'POST', token);
 
-export const sendEmailApi = (
+/**
+ * « Machine rendue au client » (R003) : pose la date de sortie (le jour
+ * choisi, `AAAA-MM-JJ`) et archive la fiche en une seule écriture serveur,
+ * sans toucher à son état, puis envoie le PDF (D-02, D-03).
+ */
+export const handOverRepair = (
   token: string,
   id: number | string,
-  data: FormData,
-) =>
-  apiRequest(
-    `/supervisor/machine-repairs/email/${id}`,
-    'PUT',
-    token,
-    data,
-    {},
-    false,
-  );
+  exitDate: string,
+): Promise<MachineRepairHandoverResult> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/handover`, 'POST', token, {
+    exitDate,
+  });
 
-export const sendDriveApi = (
+/** R003 — passages précédents du même client (téléphone, nom, code robot). */
+export const getRelatedRepairs = (
   token: string,
   id: number | string,
-  data: FormData,
-) =>
-  apiRequest(
-    `/supervisor/machine-repairs/drive/${id}`,
-    'PUT',
-    token,
-    data,
-    {},
-    false,
-  );
+): Promise<RelatedRepair[]> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/related`, 'GET', token);
+
+/**
+ * R002-S05 — PDF complet de la fiche, généré par le serveur. `@forestar-be/core`
+ * ne sait exposer ni JSON ni texte pour `application/pdf` : `parseBody` se
+ * rabat sur `response.blob()`, d'où le type de retour.
+ */
+export const getRepairPdf = (
+  token: string,
+  id: number | string,
+): Promise<Blob> => apiRequest(`/supervisor/machine-repairs/${id}/pdf`, 'GET', token);
+
+/** R002-S05 — envoie le PDF généré par le serveur à l'email de la fiche. */
+export const sendRepairEmail = (
+  token: string,
+  id: number | string,
+): Promise<{ message: string }> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/email`, 'POST', token);
+
+/**
+ * R002-S05 — « Envoyer sur Dropbox » (ex-« Sauvegarder Google Drive ») :
+ * envoie le PDF généré par le serveur sur Dropbox, écrase l'envoi précédent.
+ */
+export const sendRepairToDropbox = (
+  token: string,
+  id: number | string,
+): Promise<{ dropbox_pdf_path: string; dropbox_pdf_uploaded_at: string }> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/dropbox`, 'POST', token);
 
 export const addImage = (token: string, id: string, file: File) => {
   const formData = new FormData();
