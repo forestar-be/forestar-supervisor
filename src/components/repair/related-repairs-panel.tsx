@@ -11,7 +11,6 @@ import type { RelatedRepair, RelatedRepairMatch } from '@/lib/types';
 const MATCH_LABELS: Record<RelatedRepairMatch, string> = {
   phone: 'même téléphone',
   name: 'même nom',
-  robot_code: 'même code robot',
 };
 
 function formatDate(value: string | null): string {

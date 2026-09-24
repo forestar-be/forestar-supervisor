@@ -13,6 +13,7 @@ import {
 } from '@forestar-be/ui';
 import dayjs from '@/lib/dayjs';
 import type { MachineRepairListItem } from '@/lib/types';
+import { RepairStateBadge } from './repair-state-badge';
 
 const INVOICE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -171,17 +172,11 @@ export function buildRepairsColumns({
       cell: ({ getValue, row }) => {
         const state = getValue<string>();
         return (
-          <span className="flex flex-wrap items-center gap-1.5">
-            <span
-              className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-black"
-              style={{ backgroundColor: colorByState[state] || '#e0e0e0' }}
-            >
-              {state}
-            </span>
-            {row.original.archived_at && (
-              <StatusBadge tone="neutral">Archivée</StatusBadge>
-            )}
-          </span>
+          <RepairStateBadge
+            state={state}
+            color={colorByState[state]}
+            archived={Boolean(row.original.archived_at)}
+          />
         );
       },
     },

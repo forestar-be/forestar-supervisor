@@ -5,6 +5,7 @@ import {
   ExternalLink,
   FileText,
   HardHat,
+  History,
   Home,
   PhoneCall,
   Settings,
@@ -21,6 +22,7 @@ import { ROBOT_URL } from '@/lib/session';
 
 const navItems: AppShellNavItem[] = [
   { href: '/', label: 'Accueil', icon: Home },
+  { href: '/historique', label: 'Historique', icon: History },
   { href: '/ouvrier', label: 'Ouvrier', icon: HardHat },
   { href: '/appels', label: 'Appels', icon: PhoneCall },
   { href: '/calendrier', label: 'Calendrier', icon: CalendarDays },

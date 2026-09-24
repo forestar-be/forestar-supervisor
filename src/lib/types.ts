@@ -90,8 +90,11 @@ export type MachineRepairHandoverResult = Pick<
   | 'dropbox_pdf_uploaded_at'
 > & { pdf: PdfUploadOutcome };
 
-/** Atelier R003 — motif du lien entre deux fiches (`GET /:id/related`). */
-export type RelatedRepairMatch = 'phone' | 'name' | 'robot_code';
+/**
+ * Atelier R003 — motif du lien entre deux fiches (`GET /:id/related`). Pas de
+ * code robot : c'est un code PIN, partagé par des clients sans rapport (QF-4).
+ */
+export type RelatedRepairMatch = 'phone' | 'name';
 
 /** Une fiche liée par `GET /machine-repairs/:id/related` (passage précédent du client). */
 export interface RelatedRepair {
@@ -99,7 +102,6 @@ export interface RelatedRepair {
   phone: string;
   first_name: string;
   last_name: string;
-  robot_code: string | null;
   entry_date: string;
   exit_date: string | null;
   machine_type_name: string | null;
