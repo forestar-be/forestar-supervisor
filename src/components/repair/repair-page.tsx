@@ -616,11 +616,17 @@ export function RepairPageClient() {
     if (!ensureTimerStopped('de télécharger le PDF')) return;
     setIsLoadingDownload(true);
     try {
-      const blob = await getRepairPdf(auth.token, id);
+      // Le nom D-05 est relu avec le PDF : celui de l'état local date du
+      // chargement de la fiche, et un nom, un téléphone ou une date d'entrée
+      // modifiés depuis l'auraient rendu faux.
+      const [blob, fresh] = await Promise.all([
+        getRepairPdf(auth.token, id),
+        fetchRepairById(id, auth.token) as Promise<MachineRepairFromApi>,
+      ]);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = repair.pdf_file_name;
+      link.download = fresh.pdf_file_name;
       document.body.appendChild(link);
       link.click();
       link.remove();
