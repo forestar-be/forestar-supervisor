@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useStopwatch } from 'react-timer-hook';
-import { CheckCircle2, Pencil, Save, SearchX } from 'lucide-react';
+import { CheckCircle2, Pencil, Repeat, Save, SearchX } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -42,6 +42,9 @@ import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
 import { printHtml } from '@/lib/print-html';
 import { useAppSelector } from '@/store/hooks';
 import type {
+  Client,
+  ClientConflict,
+  ClientField,
   MachineRepair,
   MachineRepairFromApi,
   MachineRepairHandoverResult,
@@ -69,6 +72,32 @@ import {
   CalendarEventDialog,
   type CalendarEventData,
 } from './calendar-event-dialog';
+import { ChangeClientDialog } from './change-client-dialog';
+
+/** Coordonnées du client, dans l'ordre affiché par la carte (R009-S02). */
+const CLIENT_DRAFT_FIELDS: ClientField[] = [
+  'firstName',
+  'lastName',
+  'address',
+  'postalCode',
+  'city',
+  'phone',
+  'email',
+];
+
+type ClientDraft = Record<ClientField, string>;
+
+function clientDraftFrom(client: Client): ClientDraft {
+  return {
+    firstName: client.firstName,
+    lastName: client.lastName,
+    phone: client.phone,
+    email: client.email,
+    address: client.address,
+    postalCode: client.postalCode,
+    city: client.city,
+  };
+}
 
 type EditableSection = 'repairDetails' | 'technicalInfo';
 
@@ -146,6 +175,16 @@ export function RepairPageClient() {
   const [calendarEventError, setCalendarEventError] = useState<string | null>(
     null,
   );
+  // R009-S02 — carte « Coordonnées du client » : édition à part du reste de la
+  // fiche (AC-05), le serveur modifiant le client et non la fiche elle-même.
+  const [clientEditable, setClientEditable] = useState(false);
+  const [clientDraft, setClientDraft] = useState<ClientDraft | null>(null);
+  const [clientConflict, setClientConflict] = useState<ClientConflict | null>(
+    null,
+  );
+  const [isSavingClient, setIsSavingClient] = useState(false);
+  const [isChangeClientOpen, setIsChangeClientOpen] = useState(false);
+  const [isChangingClient, setIsChangingClient] = useState(false);
 
   const {
     brands,
@@ -215,7 +254,12 @@ export function RepairPageClient() {
     };
   }, [id, auth.token]);
 
-  const closeAllEditableSections = () => setEditableSections({});
+  const closeAllEditableSections = () => {
+    setEditableSections({});
+    setClientEditable(false);
+    setClientDraft(null);
+    setClientConflict(null);
+  };
 
   /**
    * Un 409 `repair_archived` veut dire que la fiche a été archivée ailleurs
@@ -238,6 +282,112 @@ export function RepairPageClient() {
       console.error('Error reloading repair after conflict:', error);
     } finally {
       closeAllEditableSections();
+    }
+  };
+
+  // R009-S02 — carte « Coordonnées du client » (AC-05) : édition à part, un
+  // client peut porter plusieurs fiches (D-19), `diffRepairFields` ne s'y
+  // applique donc pas. `PATCH /machine-repairs/:id` avec `client: {…}` modifie
+  // le client lui-même ; un 409 `client_conflict` s'affiche sous le champ en
+  // cause, sans rien enregistrer.
+  const startEditClient = () => {
+    if (!repair || readOnly) return;
+    setClientDraft(clientDraftFrom(repair.client));
+    setClientConflict(null);
+    setClientEditable(true);
+  };
+
+  const cancelEditClient = () => {
+    setClientEditable(false);
+    setClientDraft(null);
+    setClientConflict(null);
+  };
+
+  const handleClientDraftChange = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = event.target;
+    setClientDraft((prev) => (prev ? { ...prev, [name]: value } : prev));
+    // Une nouvelle saisie du champ en conflit efface le message : on ne le
+    // ré-affiche qu'au prochain refus du serveur.
+    if (clientConflict && name === clientConflict.field) {
+      setClientConflict(null);
+    }
+  };
+
+  const handleSaveClient = async () => {
+    if (!repair || !id || !clientDraft) return;
+    const current = clientDraftFrom(repair.client);
+    const changed = CLIENT_DRAFT_FIELDS.reduce<Partial<ClientDraft>>(
+      (acc, field) => {
+        if (clientDraft[field] !== current[field]) acc[field] = clientDraft[field];
+        return acc;
+      },
+      {},
+    );
+    if (Object.keys(changed).length === 0) {
+      cancelEditClient();
+      return;
+    }
+    setIsSavingClient(true);
+    setClientConflict(null);
+    try {
+      const updated = (await updateRepair(auth.token, id, {
+        client: changed,
+      })) as { client: Client };
+      setRepair((prev) => (prev ? { ...prev, client: updated.client } : prev));
+      setInitialRepair((prev) =>
+        prev ? { ...prev, client: updated.client } : prev,
+      );
+      notifySuccess('Client mis à jour avec succès');
+      setClientEditable(false);
+      setClientDraft(null);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      const data = isHttpError(error)
+        ? (error.data as Partial<ClientConflict & { code: string }> | undefined)
+        : undefined;
+      if (data?.code === 'client_conflict' && data.field && data.client) {
+        setClientConflict({ field: data.field, client: data.client });
+      } else {
+        const archivedMessage = archivedConflictMessage(error);
+        notifyError(
+          archivedMessage ??
+            (isHttpError(error)
+              ? error.message
+              : "Une erreur s'est produite lors de la mise à jour du client"),
+        );
+        if (archivedMessage) void reloadRepairAfterConflict();
+      }
+    } finally {
+      setIsSavingClient(false);
+    }
+  };
+
+  // R009-S02 (AC-06) — « Changer de client » : rattache la fiche à un autre
+  // client. La fiche est relue en entier après coup : `client_repair_count`
+  // (encart « Modifie le client pour ses N passages ») n'est renvoyé que par
+  // `GET /:id`, jamais par ce `PATCH`.
+  const handleChangeClientConfirm = async (newClientId: number) => {
+    if (!repair || !id) return;
+    setIsChangingClient(true);
+    try {
+      await updateRepair(auth.token, id, { client_id: newClientId });
+      const fresh = mapRepairFromApi(
+        (await fetchRepairById(id, auth.token)) as MachineRepairFromApi,
+      );
+      setRepair(fresh);
+      setInitialRepair(fresh);
+      notifySuccess('Client changé avec succès');
+    } catch (error) {
+      console.error('Error changing client:', error);
+      notifyError(
+        isHttpError(error)
+          ? error.message
+          : "Une erreur s'est produite lors du changement de client",
+      );
+    } finally {
+      setIsChangingClient(false);
     }
   };
 
@@ -884,6 +1034,34 @@ export function RepairPageClient() {
     );
   }
 
+  // R009-S02 (AC-05) — même traitement du conflit que la fiche client (AC-02) :
+  // le champ en cause, un lien vers le client existant et « Fusionner avec ce
+  // client ». La fusion elle-même est construite en R009-S04.
+  const renderClientConflict = (field: 'phone' | 'email') => {
+    if (!repair || !clientConflict || clientConflict.field !== field) {
+      return undefined;
+    }
+    const { client } = clientConflict;
+    const name = `${client.firstName} ${client.lastName}`.trim() || `n° ${client.id}`;
+    return (
+      <span className="flex flex-wrap items-center gap-x-2">
+        <span>
+          Un client a déjà {field === 'phone' ? 'ce téléphone' : 'cet email'} :{' '}
+          {name}.
+        </span>
+        <Link href={`/clients/${client.id}`} className="underline">
+          Voir ce client
+        </Link>
+        <Link
+          href={`/clients/fusionner?a=${repair.client.id}&b=${client.id}`}
+          className="underline"
+        >
+          Fusionner avec ce client
+        </Link>
+      </span>
+    );
+  };
+
   const renderSectionToggle = (section: EditableSection) => (
     <button
       type="button"
@@ -1253,77 +1431,151 @@ export function RepairPageClient() {
           {/* Colonne droite : coordonnées client, signature, photos */}
           <div className="flex flex-col gap-4">
             <Card>
-              <CardHeader className="flex items-center gap-2">
+              <CardHeader className="flex flex-wrap items-center gap-2">
                 <CardTitle className="text-lg font-semibold">
                   Coordonnées du client
                 </CardTitle>
-                {/* R007-S04 (D-19) — le client n'appartient plus à la fiche :
-                    ces coordonnées se modifient depuis la fiche client
-                    (R009-S02), pas encore câblé ici. */}
-                {/* `key={id}` : remonte le bouton à chaque changement de
-                    fiche, pour qu'il se recharge sans `setState` synchrone
-                    dans son effet. */}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={`/clients/${repair.client.id}`} />}
+                >
+                  Voir le client
+                </Button>
+                {!readOnly && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsChangeClientOpen(true)}
+                  >
+                    <Repeat />
+                    Changer de client
+                  </Button>
+                )}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    disabled={isSavingClient}
+                    onClick={() =>
+                      clientEditable ? void handleSaveClient() : startEditClient()
+                    }
+                    aria-label={clientEditable ? 'Enregistrer' : 'Modifier'}
+                  >
+                    {clientEditable ? (
+                      <Save className="size-4" />
+                    ) : (
+                      <Pencil className="size-4" />
+                    )}
+                  </button>
+                )}
+                {/* `key` : remonte le bouton à chaque changement de fiche ou
+                    de client (AC-06), pour qu'il se recharge sans `setState`
+                    synchrone dans son effet. */}
                 {id && (
-                  <RelatedRepairsButton key={id} id={id} token={auth.token} />
+                  <RelatedRepairsButton
+                    key={`${id}-${repair.client.id}`}
+                    id={id}
+                    token={auth.token}
+                  />
                 )}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <div className={fieldsGridClass(false)}>
+                {!readOnly && (
+                  <p className="text-xs text-muted-foreground">
+                    Modifie le client pour ses {repair.client_repair_count}{' '}
+                    passage{repair.client_repair_count > 1 ? 's' : ''}.
+                  </p>
+                )}
+                <div className={fieldsGridClass(clientEditable)}>
                   <RepairField
                     label="Prénom"
-                    name="client_first_name"
-                    value={repair.client.firstName}
-                    editable={false}
-                    onChange={() => {}}
-                    className={fieldClass(false)}
+                    name="firstName"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.firstName
+                        : repair.client.firstName
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Nom"
-                    name="client_last_name"
-                    value={repair.client.lastName}
-                    editable={false}
-                    onChange={() => {}}
-                    className={fieldClass(false)}
+                    name="lastName"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.lastName
+                        : repair.client.lastName
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Adresse"
-                    name="client_address"
-                    value={repair.client.address}
-                    editable={false}
-                    onChange={() => {}}
-                    className={wideFieldClass(false)}
+                    name="address"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.address
+                        : repair.client.address
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={wideFieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Code postal"
-                    name="client_postal_code"
-                    value={repair.client.postalCode ?? ''}
-                    editable={false}
-                    onChange={() => {}}
-                    className={fieldClass(false)}
+                    name="postalCode"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.postalCode
+                        : (repair.client.postalCode ?? '')
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Ville"
-                    name="client_city"
-                    value={repair.client.city ?? ''}
-                    editable={false}
-                    onChange={() => {}}
-                    className={fieldClass(false)}
+                    name="city"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.city
+                        : (repair.client.city ?? '')
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={fieldClass(clientEditable)}
                   />
                   <RepairField
                     label="Téléphone"
-                    name="client_phone"
-                    value={repair.client.phone}
-                    editable={false}
-                    onChange={() => {}}
-                    className={fieldClass(false)}
+                    name="phone"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.phone
+                        : repair.client.phone
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={fieldClass(clientEditable)}
+                    error={renderClientConflict('phone')}
                   />
                   <RepairField
                     label="Email"
-                    name="client_email"
-                    value={repair.client.email}
-                    editable={false}
-                    onChange={() => {}}
-                    className={wideFieldClass(false)}
+                    name="email"
+                    value={
+                      clientEditable && clientDraft
+                        ? clientDraft.email
+                        : repair.client.email
+                    }
+                    editable={clientEditable}
+                    onChange={handleClientDraftChange}
+                    className={wideFieldClass(clientEditable)}
+                    error={renderClientConflict('email')}
                   />
                 </div>
 
@@ -1371,6 +1623,17 @@ export function RepairPageClient() {
         loading={isLoadingCalendarEvent}
         error={calendarEventError}
       />
+
+      {repair && (
+        <ChangeClientDialog
+          open={isChangeClientOpen}
+          onOpenChange={setIsChangeClientOpen}
+          token={auth.token}
+          currentClientId={repair.client.id}
+          onConfirm={handleChangeClientConfirm}
+          loading={isChangingClient}
+        />
+      )}
     </div>
   );
 }

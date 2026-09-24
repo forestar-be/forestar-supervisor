@@ -14,6 +14,11 @@ interface RepairFieldProps {
   ) => void;
   endAdornment?: ReactNode;
   className?: string;
+  /**
+   * R009-S02 — message affiché sous le champ en édition (409 `client_conflict`
+   * d'un champ unique, AC-05). Sans effet en lecture.
+   */
+  error?: ReactNode;
 }
 
 /**
@@ -29,6 +34,7 @@ export function RepairField({
   onChange,
   endAdornment,
   className,
+  error,
 }: RepairFieldProps) {
   if (editable) {
     return (
@@ -54,6 +60,7 @@ export function RepairField({
             className="w-full"
           />
         )}
+        {error && <div className="text-sm text-destructive">{error}</div>}
       </div>
     );
   }

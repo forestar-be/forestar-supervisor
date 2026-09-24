@@ -3,6 +3,7 @@ import type { LoginResponse } from '@forestar-be/core/auth';
 import { API_URL, getSessionClient, SSO_ENABLED } from './session';
 import type {
   ArchiveFilter,
+  ClientSummary,
   ConfigElement,
   DolibarrBankAccount,
   InstallationPreparationText,
@@ -231,6 +232,19 @@ export const getRepairTicketHtml = (
   id: number | string,
 ): Promise<string> =>
   apiRequest(`/supervisor/machine-repairs/${id}/ticket`, 'GET', token);
+
+// ── Clients (R007-S04, R009) ──
+
+/** `/clients` (AC-01) et « Changer de client » (AC-06) : recherche, sans requête = tous. */
+export const searchClients = (
+  token: string,
+  q = '',
+): Promise<ClientSummary[]> =>
+  apiRequest(
+    `/supervisor/clients${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    'GET',
+    token,
+  );
 
 // ── Référentiels ──
 

@@ -36,6 +36,28 @@ export type ClientListRef = Pick<
   'id' | 'firstName' | 'lastName' | 'phone'
 >;
 
+/** Champ de coordonnées d'un client, dans les deux sens du contrat serveur. */
+export type ClientField =
+  | 'firstName'
+  | 'lastName'
+  | 'phone'
+  | 'email'
+  | 'address'
+  | 'postalCode'
+  | 'city';
+
+/** `GET /supervisor/clients` (AC-01) : le client, avec ses passages. */
+export interface ClientSummary extends Client {
+  repairCount: number;
+  lastEntryDate: string | null;
+}
+
+/** `409 client_conflict` (AC-02, AC-05) : le champ en cause et le client existant. */
+export interface ClientConflict {
+  field: 'phone' | 'email';
+  client: Client;
+}
+
 export interface MachineRepair {
   id: number;
   /** Atelier R007 — le client de la fiche (D-19) ; `client_id` est sa clé. */
