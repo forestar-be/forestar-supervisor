@@ -974,6 +974,7 @@ export function RepairPageClient() {
           isLoadingDropbox={isLoadingDropbox}
           onCall={handleCall}
           loadingCall={isLoadingSaveCall}
+          callCount={repair?.client_call_times.length ?? 0}
           onOpenCallHistory={() => setIsCallTimesModalOpen(true)}
           hasCalendarEvent={!!repair?.eventId}
           onCalendarEventCreate={handleCalendarEventCreate}
@@ -982,20 +983,33 @@ export function RepairPageClient() {
           onPrintTickets={handlePrintTickets}
           isPrintingTickets={isPrintingTickets}
           readOnly={readOnly}
+          archivedAt={repair?.archived_at ?? null}
           onUnarchive={handleUnarchive}
           isArchiving={isArchiving}
           onHandoverOpen={() => setIsHandoverOpen(true)}
           onArchiveWithoutExit={handleArchiveWithoutExit}
+          details={
+            repair && (
+              <>
+                <RepairDatesSection
+                  entryDate={repair.entry_date ?? repair.createdAt}
+                  exitDate={repair.exit_date}
+                  disabled={readOnly}
+                  onEntryDateChange={handleEntryDateChange}
+                  onExitDateChange={handleExitDateChange}
+                />
+                {repair.dropbox_pdf_uploaded_at && (
+                  <span className="text-sm text-muted-foreground">
+                    PDF envoyé sur Dropbox le{' '}
+                    {dayjs(repair.dropbox_pdf_uploaded_at)
+                      .tz('Europe/Brussels')
+                      .format('DD/MM/YYYY [à] HH:mm')}
+                  </span>
+                )}
+              </>
+            )
+          }
         />
-      )}
-
-      {repair?.archived_at && (
-        <Alert>
-          <AlertDescription>
-            Fiche archivée le{' '}
-            {dayjs(repair.archived_at).tz('Europe/Brussels').format('DD/MM/YYYY')}
-          </AlertDescription>
-        </Alert>
       )}
 
       {repair?.dropbox_pdf_pending && (
@@ -1013,15 +1027,6 @@ export function RepairPageClient() {
             </Button>
           </AlertDescription>
         </Alert>
-      )}
-
-      {repair?.dropbox_pdf_uploaded_at && (
-        <p className="text-sm text-muted-foreground">
-          Envoyé sur Dropbox le{' '}
-          {dayjs(repair.dropbox_pdf_uploaded_at)
-            .tz('Europe/Brussels')
-            .format('DD/MM/YYYY [à] HH:mm')}
-        </p>
       )}
 
       <HandoverDialog
@@ -1056,27 +1061,6 @@ export function RepairPageClient() {
           </StatusBadge>
         </Link>
       )}
-
-      {repair && id && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Dates</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RepairDatesSection
-              entryDate={repair.entry_date ?? repair.createdAt}
-              exitDate={repair.exit_date}
-              disabled={readOnly}
-              onEntryDateChange={handleEntryDateChange}
-              onExitDateChange={handleExitDateChange}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* `key={id}` : remonte le panneau à chaque changement de fiche, pour
-          qu'il se recharge sans `setState` synchrone dans son effet. */}
-      {id && <RelatedRepairsPanel key={id} id={id} token={auth.token} />}
 
       {repair && (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
@@ -1357,6 +1341,11 @@ export function RepairPageClient() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* `key={id}` : remonte le panneau à chaque changement de fiche,
+                pour qu'il se recharge sans `setState` synchrone dans son
+                effet. */}
+            {id && <RelatedRepairsPanel key={id} id={id} token={auth.token} />}
 
             <Card>
               <CardContent>

@@ -19,6 +19,7 @@ interface RepairDatesSectionProps {
  * (chaque changement s'enregistre aussitôt par `PATCH`, comme le chronomètre
  * ou l'état d'appel) : pas de bascule édition/lecture comme les sections
  * « Détails » ou « Coordonnées », les deux valeurs sont toujours visibles.
+ * Placées sur la deuxième ligne de l'en-tête, étiquette à gauche du champ.
  */
 export function RepairDatesSection({
   entryDate,
@@ -28,31 +29,33 @@ export function RepairDatesSection({
   onExitDateChange,
 }: RepairDatesSectionProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <div className="flex flex-col gap-1">
+    <>
+      <div className="flex items-center gap-2">
         <label
           htmlFor="repair-entry-date"
-          className="text-sm font-medium text-foreground"
+          className="text-sm text-muted-foreground"
         >
-          Date d&apos;entrée
+          Entrée
         </label>
         <DatePicker
           id="repair-entry-date"
+          className="w-40"
           value={new Date(entryDate)}
           onChange={(date) => date && onEntryDateChange(date)}
           disabled={disabled}
           displayFormat="dd/MM/yyyy"
         />
       </div>
-      <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
         <label
           htmlFor="repair-exit-date"
-          className="text-sm font-medium text-foreground"
+          className="text-sm text-muted-foreground"
         >
-          Date de sortie
+          Sortie
         </label>
         <DatePicker
           id="repair-exit-date"
+          className="w-40"
           value={exitDate ? new Date(exitDate) : undefined}
           onChange={onExitDateChange}
           disabled={disabled}
@@ -61,6 +64,6 @@ export function RepairDatesSection({
           displayFormat="dd/MM/yyyy"
         />
       </div>
-    </div>
+    </>
   );
 }
