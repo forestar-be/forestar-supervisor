@@ -9,6 +9,7 @@ import {
   Home,
   PhoneCall,
   Settings,
+  Users,
 } from 'lucide-react';
 import {
   AppShell as SharedAppShell,
@@ -23,6 +24,7 @@ import { ROBOT_URL } from '@/lib/session';
 const navItems: AppShellNavItem[] = [
   { href: '/', label: 'Accueil', icon: Home },
   { href: '/historique', label: 'Historique', icon: History },
+  { href: '/clients', label: 'Clients', icon: Users },
   { href: '/ouvrier', label: 'Ouvrier', icon: HardHat },
   { href: '/appels', label: 'Appels', icon: PhoneCall },
   { href: '/calendrier', label: 'Calendrier', icon: CalendarDays },

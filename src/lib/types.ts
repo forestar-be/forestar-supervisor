@@ -58,6 +58,35 @@ export interface ClientConflict {
   client: Client;
 }
 
+/** Un passage du client, tel que listé par `GET /supervisor/clients/:id` (AC-02). */
+export interface ClientDetailRepair {
+  id: number;
+  entry_date: string;
+  exit_date: string | null;
+  archived_at: string | null;
+  state: string | null;
+  repair_or_maintenance: string;
+  machine_type_name: string | null;
+  brand_name: string | null;
+  robot_type_name: string | null;
+}
+
+/** Une facture du client, telle que listée par `GET /supervisor/clients/:id` (AC-09). */
+export interface ClientDetailInvoice {
+  id: number;
+  invoiceNumber: string;
+  status: ServiceInvoiceStatus;
+  createdAt: string;
+  totalTTC: number;
+  machineRepairId: number | null;
+}
+
+/** `GET /supervisor/clients/:id` (AC-02) : le client, ses passages et ses factures. */
+export interface ClientDetail extends Client {
+  machineRepairs: ClientDetailRepair[];
+  serviceInvoices: ClientDetailInvoice[];
+}
+
 export interface MachineRepair {
   id: number;
   /** Atelier R007 — le client de la fiche (D-19) ; `client_id` est sa clé. */

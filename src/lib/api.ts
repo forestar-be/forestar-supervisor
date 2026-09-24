@@ -3,6 +3,9 @@ import type { LoginResponse } from '@forestar-be/core/auth';
 import { API_URL, getSessionClient, SSO_ENABLED } from './session';
 import type {
   ArchiveFilter,
+  Client,
+  ClientDetail,
+  ClientField,
   ClientSummary,
   ConfigElement,
   DolibarrBankAccount,
@@ -245,6 +248,17 @@ export const searchClients = (
     'GET',
     token,
   );
+
+/** `/clients/[id]` (AC-02) : coordonnées, passages et factures du client. */
+export const getClient = (token: string, id: number): Promise<ClientDetail> =>
+  apiRequest(`/supervisor/clients/${id}`, 'GET', token);
+
+/** Modification des coordonnées (AC-02) : `409 client_conflict` en cas de conflit. */
+export const updateClient = (
+  token: string,
+  id: number,
+  data: Partial<Record<ClientField, string>>,
+): Promise<Client> => apiRequest(`/supervisor/clients/${id}`, 'PATCH', token, data);
 
 // ── Référentiels ──
 

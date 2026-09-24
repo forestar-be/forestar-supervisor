@@ -41,10 +41,14 @@ import {
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
 import { printHtml } from '@/lib/print-html';
 import { useAppSelector } from '@/store/hooks';
+import {
+  clientDraftFrom,
+  diffClientDraft,
+  type ClientDraft,
+} from '@/lib/client-fields';
 import type {
   Client,
   ClientConflict,
-  ClientField,
   MachineRepair,
   MachineRepairFromApi,
   MachineRepairHandoverResult,
@@ -73,31 +77,6 @@ import {
   type CalendarEventData,
 } from './calendar-event-dialog';
 import { ChangeClientDialog } from './change-client-dialog';
-
-/** Coordonnées du client, dans l'ordre affiché par la carte (R009-S02). */
-const CLIENT_DRAFT_FIELDS: ClientField[] = [
-  'firstName',
-  'lastName',
-  'address',
-  'postalCode',
-  'city',
-  'phone',
-  'email',
-];
-
-type ClientDraft = Record<ClientField, string>;
-
-function clientDraftFrom(client: Client): ClientDraft {
-  return {
-    firstName: client.firstName,
-    lastName: client.lastName,
-    phone: client.phone,
-    email: client.email,
-    address: client.address,
-    postalCode: client.postalCode,
-    city: client.city,
-  };
-}
 
 type EditableSection = 'repairDetails' | 'technicalInfo';
 
@@ -317,14 +296,7 @@ export function RepairPageClient() {
 
   const handleSaveClient = async () => {
     if (!repair || !id || !clientDraft) return;
-    const current = clientDraftFrom(repair.client);
-    const changed = CLIENT_DRAFT_FIELDS.reduce<Partial<ClientDraft>>(
-      (acc, field) => {
-        if (clientDraft[field] !== current[field]) acc[field] = clientDraft[field];
-        return acc;
-      },
-      {},
-    );
+    const changed = diffClientDraft(clientDraft, clientDraftFrom(repair.client));
     if (Object.keys(changed).length === 0) {
       cancelEditClient();
       return;
