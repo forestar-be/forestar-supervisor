@@ -59,7 +59,7 @@ import { RepairHeader } from './repair-header';
 import { RepairField } from './repair-field';
 import { RepairSelect } from './repair-select';
 import { RepairDatesSection } from './repair-dates-section';
-import { RelatedRepairsPanel } from './related-repairs-panel';
+import { RelatedRepairsButton } from './related-repairs-dialog';
 import { HandoverDialog } from './handover-dialog';
 import { WorkingTimeEditor } from './working-time-editor';
 import { ReplacedPartsSection } from './replaced-parts-section';
@@ -1259,6 +1259,12 @@ export function RepairPageClient() {
                   Coordonnées du client
                 </CardTitle>
                 {renderSectionToggle('clientInfo')}
+                {/* `key={id}` : remonte le bouton à chaque changement de
+                    fiche, pour qu'il se recharge sans `setState` synchrone
+                    dans son effet. */}
+                {id && (
+                  <RelatedRepairsButton key={id} id={id} token={auth.token} />
+                )}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <div className={fieldsGridClass(clientEditable)}>
@@ -1341,11 +1347,6 @@ export function RepairPageClient() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* `key={id}` : remonte le panneau à chaque changement de fiche,
-                pour qu'il se recharge sans `setState` synchrone dans son
-                effet. */}
-            {id && <RelatedRepairsPanel key={id} id={id} token={auth.token} />}
 
             <Card>
               <CardContent>

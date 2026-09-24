@@ -1,11 +1,11 @@
 /**
- * R003-S05 — panneau « Passages précédents de ce client » (AC-06, AC-07) :
- * rendu vide (aucun passage) et rendu avec plusieurs passages et leurs
- * motifs de lien, en clair.
+ * R003-S05 — bouton « Passages précédents » et sa fenêtre (AC-06, AC-07) :
+ * le nombre de passages sur le bouton, la liste vide, et plusieurs passages
+ * avec leurs motifs de lien, en clair.
  */
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { RelatedRepair } from '@/lib/types';
 
 const getRelatedRepairs = vi.fn();
@@ -19,21 +19,24 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function renderPanel(id: string) {
-  const { RelatedRepairsPanel } = await import('./related-repairs-panel');
-  render(<RelatedRepairsPanel id={id} token="jeton" />);
+async function openDialog(id: string, count: number) {
+  const { RelatedRepairsButton } = await import('./related-repairs-dialog');
+  render(<RelatedRepairsButton id={id} token="jeton" />);
+  const button = await screen.findByRole('button', {
+    name: `Passages précédents (${count})`,
+  });
+  fireEvent.click(button);
+  await screen.findByRole('dialog');
 }
 
-describe('RelatedRepairsPanel', () => {
+describe('RelatedRepairsButton', () => {
   it("affiche une ligne discrète quand la fiche n'a aucun passage lié", async () => {
     getRelatedRepairs.mockResolvedValue([]);
 
-    await renderPanel('41');
+    await openDialog('41', 0);
 
     expect(
-      await screen.findByText(
-        'Aucun autre passage trouvé pour ce client.',
-      ),
+      await screen.findByText('Aucun autre passage trouvé pour ce client.'),
     ).toBeInTheDocument();
     expect(getRelatedRepairs).toHaveBeenCalledWith('jeton', '41');
   });
@@ -71,7 +74,7 @@ describe('RelatedRepairsPanel', () => {
     ];
     getRelatedRepairs.mockResolvedValue(related);
 
-    await renderPanel('39');
+    await openDialog('39', 2);
 
     expect(await screen.findByText('Fiche n°36')).toBeInTheDocument();
     expect(screen.getByText('Fiche n°37')).toBeInTheDocument();
@@ -79,10 +82,5 @@ describe('RelatedRepairsPanel', () => {
     expect(
       screen.getAllByText('Lien : même téléphone, même nom')[0],
     ).toBeInTheDocument();
-    await waitFor(() =>
-      expect(
-        screen.queryByText('Aucun autre passage trouvé pour ce client.'),
-      ).not.toBeInTheDocument(),
-    );
   });
 });
