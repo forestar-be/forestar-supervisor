@@ -12,9 +12,12 @@ import {
 function item(overrides: Partial<HistoryItem>): HistoryItem {
   return {
     id: 1,
-    first_name: 'Hélène',
-    last_name: 'Dupont',
-    phone: '+32 470 11 22 33',
+    client: {
+      id: 1,
+      firstName: 'Hélène',
+      lastName: 'Dupont',
+      phone: '+32 470 11 22 33',
+    },
     machine_type_name: 'Robot tondeuse',
     brand_name: 'Husqvarna',
     robot_type_name: 'Automower 315',

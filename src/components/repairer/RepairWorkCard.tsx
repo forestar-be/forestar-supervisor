@@ -52,14 +52,14 @@ export default function RepairWorkCard({
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <User className="size-3.5 shrink-0" />
             <span className="truncate">
-              {repair.first_name} {repair.last_name}
+              {repair.client.firstName} {repair.client.lastName}
             </span>
           </div>
 
-          {repair.phone && (
+          {repair.client.phone && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Phone className="size-3.5 shrink-0" />
-              <span className="truncate">{repair.phone}</span>
+              <span className="truncate">{repair.client.phone}</span>
             </div>
           )}
 

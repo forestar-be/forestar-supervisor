@@ -70,7 +70,7 @@ import {
   type CalendarEventData,
 } from './calendar-event-dialog';
 
-type EditableSection = 'repairDetails' | 'technicalInfo' | 'clientInfo';
+type EditableSection = 'repairDetails' | 'technicalInfo';
 
 const INVOICE_STATUS_LABEL: Record<string, string> = {
   PAID: 'Payée',
@@ -915,7 +915,6 @@ export function RepairPageClient() {
       ? 'sm:col-span-2'
       : 'col-span-full grid grid-cols-subgrid items-baseline sm:[&>:last-child]:col-span-3';
   const detailsEditable = !!editableSections.repairDetails;
-  const clientEditable = !!editableSections.clientInfo;
   const detailFieldClass = fieldClass(detailsEditable);
 
   const renderCheckboxField = (
@@ -1258,7 +1257,9 @@ export function RepairPageClient() {
                 <CardTitle className="text-lg font-semibold">
                   Coordonnées du client
                 </CardTitle>
-                {renderSectionToggle('clientInfo')}
+                {/* R007-S04 (D-19) — le client n'appartient plus à la fiche :
+                    ces coordonnées se modifient depuis la fiche client
+                    (R009-S02), pas encore câblé ici. */}
                 {/* `key={id}` : remonte le bouton à chaque changement de
                     fiche, pour qu'il se recharge sans `setState` synchrone
                     dans son effet. */}
@@ -1267,62 +1268,62 @@ export function RepairPageClient() {
                 )}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <div className={fieldsGridClass(clientEditable)}>
+                <div className={fieldsGridClass(false)}>
                   <RepairField
                     label="Prénom"
-                    name="first_name"
-                    value={repair.first_name}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={fieldClass(clientEditable)}
+                    name="client_first_name"
+                    value={repair.client.firstName}
+                    editable={false}
+                    onChange={() => {}}
+                    className={fieldClass(false)}
                   />
                   <RepairField
                     label="Nom"
-                    name="last_name"
-                    value={repair.last_name}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={fieldClass(clientEditable)}
+                    name="client_last_name"
+                    value={repair.client.lastName}
+                    editable={false}
+                    onChange={() => {}}
+                    className={fieldClass(false)}
                   />
                   <RepairField
                     label="Adresse"
-                    name="address"
-                    value={repair.address}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={wideFieldClass(clientEditable)}
+                    name="client_address"
+                    value={repair.client.address}
+                    editable={false}
+                    onChange={() => {}}
+                    className={wideFieldClass(false)}
                   />
                   <RepairField
                     label="Code postal"
-                    name="postal_code"
-                    value={repair.postal_code ?? ''}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={fieldClass(clientEditable)}
+                    name="client_postal_code"
+                    value={repair.client.postalCode ?? ''}
+                    editable={false}
+                    onChange={() => {}}
+                    className={fieldClass(false)}
                   />
                   <RepairField
                     label="Ville"
-                    name="city"
-                    value={repair.city ?? ''}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={fieldClass(clientEditable)}
+                    name="client_city"
+                    value={repair.client.city ?? ''}
+                    editable={false}
+                    onChange={() => {}}
+                    className={fieldClass(false)}
                   />
                   <RepairField
                     label="Téléphone"
-                    name="phone"
-                    value={repair.phone}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={fieldClass(clientEditable)}
+                    name="client_phone"
+                    value={repair.client.phone}
+                    editable={false}
+                    onChange={() => {}}
+                    className={fieldClass(false)}
                   />
                   <RepairField
                     label="Email"
-                    name="email"
-                    value={repair.email}
-                    editable={clientEditable}
-                    onChange={handleChange}
-                    className={wideFieldClass(clientEditable)}
+                    name="client_email"
+                    value={repair.client.email}
+                    editable={false}
+                    onChange={() => {}}
+                    className={wideFieldClass(false)}
                   />
                 </div>
 

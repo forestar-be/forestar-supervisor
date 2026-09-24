@@ -103,13 +103,13 @@ function buildColumns(
       id: 'client',
       size: 190,
       accessorFn: (row) =>
-        `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        `${row.client.firstName || ''} ${row.client.lastName || ''}`.trim(),
       header: 'Client',
     },
     {
       id: 'phone',
       size: 140,
-      accessorFn: (row) => row.phone || '-',
+      accessorFn: (row) => row.client.phone || '-',
       header: 'Téléphone',
     },
     {

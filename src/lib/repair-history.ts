@@ -10,9 +10,7 @@ import type { MachineRepairListItemFromApi } from '@/lib/types';
 export type HistoryItem = Pick<
   MachineRepairListItemFromApi,
   | 'id'
-  | 'first_name'
-  | 'last_name'
-  | 'phone'
+  | 'client'
   | 'machine_type_name'
   | 'brand_name'
   | 'robot_type_name'
@@ -123,10 +121,10 @@ export function matchesSearch(item: HistoryItem, query: string): boolean {
   if (words.length === 0) return true;
   const haystack = normalizeSearch(
     [
-      item.first_name,
-      item.last_name,
-      item.phone,
-      ...phoneForms(item.phone),
+      item.client.firstName,
+      item.client.lastName,
+      item.client.phone,
+      ...phoneForms(item.client.phone),
       machineLabel(item),
     ].join(' '),
   );

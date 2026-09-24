@@ -16,12 +16,7 @@ import {
 import dayjs from '@/lib/dayjs';
 import { getRelatedRepairs, isHttpError } from '@/lib/api';
 import { notifyError } from '@/lib/notifications';
-import type { RelatedRepair, RelatedRepairMatch } from '@/lib/types';
-
-const MATCH_LABELS: Record<RelatedRepairMatch, string> = {
-  phone: 'même téléphone',
-  name: 'même nom',
-};
+import type { RelatedRepair } from '@/lib/types';
 
 function formatDate(value: string | null): string {
   return value ? dayjs(value).format('DD/MM/YYYY') : '—';
@@ -39,8 +34,10 @@ function machineLabel(repair: RelatedRepair): string {
  * AC-07) : un bouton en haut à droite des coordonnées du client, avec le
  * nombre de passages, qui ouvre la liste dans une fenêtre (retour du PO du
  * 2026-09-24). Se recharge à chaque changement de fiche (l'effet dépend de
- * `id`, pas d'un état posé par le parent), archivées comprises, avec leur
- * motif de lien en clair.
+ * `id`, pas d'un état posé par le parent), archivées comprises.
+ *
+ * R007 (D-19) — le lien est le client de la fiche (`client_id`) : il n'y a
+ * plus de motif à afficher (le serveur ne renvoie plus `match`).
  */
 export function RelatedRepairsButton({
   id,
@@ -109,8 +106,7 @@ export function RelatedRepairsButton({
           <DialogHeader>
             <DialogTitle>Passages précédents de ce client</DialogTitle>
             <DialogDescription>
-              Les autres fiches du même client, archivées comprises : même
-              téléphone, ou même nom et prénom.
+              Les autres fiches du même client, archivées comprises.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
@@ -147,12 +143,6 @@ export function RelatedRepairsButton({
                     <div className="text-muted-foreground">
                       Entrée : {formatDate(repair.entry_date)} — Sortie :{' '}
                       {formatDate(repair.exit_date)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Lien :{' '}
-                      {repair.match
-                        .map((match) => MATCH_LABELS[match])
-                        .join(', ')}
                     </div>
                   </li>
                 ))}

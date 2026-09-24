@@ -16,9 +16,7 @@ import {
 function repair(overrides: Partial<MachineRepairListItem>): MachineRepairListItem {
   return {
     id: 1,
-    first_name: 'Jean',
-    last_name: 'Dupont',
-    phone: '+32470000000',
+    client: { id: 1, firstName: 'Jean', lastName: 'Dupont', phone: '+32470000000' },
     machine_type_name: 'Robot tondeuse',
     robot_type_name: null,
     repair_or_maintenance: 'Réparation',

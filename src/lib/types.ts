@@ -5,13 +5,42 @@ export type ConfigElement = {
   value: string;
 };
 
-export interface MachineRepair {
+/** Atelier R007 (D-26) — application qui a créé le client. */
+export type ClientOrigin =
+  | 'OPERATOR'
+  | 'SUPERVISOR'
+  | 'SERVICE_INVOICE'
+  | 'BACKFILL';
+
+/**
+ * Atelier R007 (D-19) — le client porte seul les coordonnées. Une fiche ou
+ * une facture de réparation pointe vers lui, jamais l'inverse.
+ */
+export interface Client {
   id: number;
-  first_name: string;
-  last_name: string;
-  address: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  origin: ClientOrigin;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Client tel que renvoyé dans la liste des fiches : coordonnées réduites. */
+export type ClientListRef = Pick<
+  Client,
+  'id' | 'firstName' | 'lastName' | 'phone'
+>;
+
+export interface MachineRepair {
+  id: number;
+  /** Atelier R007 — le client de la fiche (D-19) ; `client_id` est sa clé. */
+  client_id: number;
+  client: Client;
   machine_type_name: string;
   robot_type_name: string | null;
   repair_or_maintenance: string;
@@ -32,8 +61,6 @@ export interface MachineRepair {
   devis: boolean;
   repairer_name: string | null;
   remark: string | null;
-  city: string | null;
-  postal_code: string | null;
   client_call_times: Date[];
   hivernage: boolean;
   eventId: string | null;
@@ -57,6 +84,12 @@ export interface MachineRepair {
    * bandeau « PDF non envoyé — Réessayer ».
    */
   dropbox_pdf_pending: boolean;
+  /**
+   * Atelier R007 — nombre de fiches du même client (`GET /:id` uniquement),
+   * pour « Modifie le client pour ses N passages » et le bouton des passages
+   * précédents.
+   */
+  client_repair_count: number;
   serviceInvoice?: {
     id: number;
     invoiceNumber: string;
@@ -91,17 +124,13 @@ export type MachineRepairHandoverResult = Pick<
 > & { pdf: PdfUploadOutcome };
 
 /**
- * Atelier R003 — motif du lien entre deux fiches (`GET /:id/related`). Pas de
- * code robot : c'est un code PIN, partagé par des clients sans rapport (QF-4).
+ * Une fiche liée par `GET /machine-repairs/:id/related` (passage précédent du
+ * même client, D-19). Depuis R007, le lien est le client lui-même
+ * (`client_id`) : il n'y a plus de motif à afficher.
  */
-export type RelatedRepairMatch = 'phone' | 'name';
-
-/** Une fiche liée par `GET /machine-repairs/:id/related` (passage précédent du client). */
 export interface RelatedRepair {
   id: number;
-  phone: string;
-  first_name: string;
-  last_name: string;
+  client_id: number;
   entry_date: string;
   exit_date: string | null;
   machine_type_name: string | null;
@@ -109,7 +138,6 @@ export interface RelatedRepair {
   repair_or_maintenance: string;
   state: string | null;
   archived_at: string | null;
-  match: RelatedRepairMatch[];
 }
 
 export type MachineRepairFromApi = Omit<
@@ -142,15 +170,14 @@ export type ArchiveFilter = 'active' | 'archived' | 'all';
  */
 export type MachineRepairListItem = Omit<
   MachineRepair,
-  | 'address'
-  | 'email'
+  | 'client_id'
+  | 'client'
+  | 'client_repair_count'
   | 'replaced_part_list'
   | 'imageUrls'
   | 'signatureUrl'
   | 'warranty'
   | 'devis'
-  | 'city'
-  | 'postal_code'
   | 'hivernage'
   | 'eventId'
   | 'calendarId'
@@ -158,7 +185,10 @@ export type MachineRepairListItem = Omit<
   | 'dropbox_pdf_uploaded_at'
   | 'pdf_file_name'
   | 'dropbox_pdf_pending'
->;
+> & {
+  /** La liste ne renvoie que des coordonnées réduites (D-19, contrat R007). */
+  client: ClientListRef;
+};
 
 export type MachineRepairListItemFromApi = Omit<
   MachineRepairListItem,
@@ -381,6 +411,14 @@ export interface ServiceInvoice {
   purchaseOrderId: number | null;
   purchaseOrder?: PurchaseOrder | null;
 
+  /**
+   * Atelier R007 (D-25) — le client Forestar de la facture (`REPAIR`
+   * seulement) ; `null` pour une facture d'installation. Les champs
+   * `client*` ci-dessous restent une copie figée, prise à la création.
+   */
+  clientId: number | null;
+  client?: Client | null;
+
   clientFirstName: string;
   clientLastName: string;
   clientPhone: string;
@@ -480,13 +518,7 @@ export interface DolibarrThirdpartyMatch extends DolibarrThirdparty {
 
 export interface RepairForInvoice {
   id: number;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  email: string;
-  address: string;
-  city: string | null;
-  postal_code: string | null;
+  client: Client;
   fault_description: string;
   repair_or_maintenance: string;
   brand_name: string;

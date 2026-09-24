@@ -246,9 +246,9 @@ export default function RepairsListView() {
       }
       if (searchWords.length > 0) {
         const fullName = normalize(
-          `${repair.first_name || ''} ${repair.last_name || ''}`.trim(),
+          `${repair.client.firstName || ''} ${repair.client.lastName || ''}`.trim(),
         );
-        const phone = repair.phone ? normalize(repair.phone) : '';
+        const phone = repair.client.phone ? normalize(repair.client.phone) : '';
         return searchWords.every(
           (word) => fullName.includes(word) || phone.includes(word),
         );

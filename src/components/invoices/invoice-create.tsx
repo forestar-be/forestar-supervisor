@@ -71,13 +71,13 @@ export default function InvoiceCreate() {
   const getInitialData = (): Partial<InvoiceFormData> | undefined => {
     if (!selectedRepair) return undefined;
     return {
-      clientFirstName: selectedRepair.first_name,
-      clientLastName: selectedRepair.last_name,
-      clientPhone: selectedRepair.phone,
-      clientEmail: selectedRepair.email,
-      clientAddress: selectedRepair.address || '',
-      clientCity: selectedRepair.city || '',
-      clientPostalCode: selectedRepair.postal_code || '',
+      clientFirstName: selectedRepair.client.firstName,
+      clientLastName: selectedRepair.client.lastName,
+      clientPhone: selectedRepair.client.phone,
+      clientEmail: selectedRepair.client.email,
+      clientAddress: selectedRepair.client.address || '',
+      clientCity: selectedRepair.client.city || '',
+      clientPostalCode: selectedRepair.client.postalCode || '',
       machineRepairId: selectedRepair.id,
     };
   };
@@ -156,11 +156,11 @@ export default function InvoiceCreate() {
                         onClick={() => handleSelectRepair(r)}
                       >
                         <p className="font-medium">
-                          #{r.id} — {r.first_name} {r.last_name}
+                          #{r.id} — {r.client.firstName} {r.client.lastName}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {[
-                            r.phone,
+                            r.client.phone,
                             r.repair_or_maintenance,
                             r.brand_name,
                             r.robot_type_name,
@@ -185,7 +185,7 @@ export default function InvoiceCreate() {
             <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
               <p className="text-blue-800 dark:text-blue-300">
                 Import depuis la réparation #{selectedRepair.id} —{' '}
-                {selectedRepair.first_name} {selectedRepair.last_name}
+                {selectedRepair.client.firstName} {selectedRepair.client.lastName}
               </p>
               <Button
                 size="sm"

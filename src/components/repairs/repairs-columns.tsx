@@ -232,13 +232,13 @@ export function buildRepairsColumns({
       id: 'client',
       size: 170,
       accessorFn: (row) =>
-        `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        `${row.client.firstName || ''} ${row.client.lastName || ''}`.trim(),
       header: COLUMN_LABELS.client,
     },
     {
       id: 'phone',
       size: 140,
-      accessorFn: (row) => row.phone || '-',
+      accessorFn: (row) => row.client.phone || '-',
       header: COLUMN_LABELS.phone,
     },
     {
