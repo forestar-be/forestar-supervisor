@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 import {
   checkClient,
   createServiceInvoice,
+  fetchRepairById,
   getClient,
   isHttpError,
   searchClients,
@@ -102,6 +103,28 @@ export default function InvoiceCreate() {
     undefined,
   );
 
+  /**
+   * AC-08 — une fiche qui a déjà sa facture (une par fiche) renvoie sur elle,
+   * au lieu d'un message d'erreur : c'est le cas d'une page ouverte avant que la
+   * facture existe.
+   */
+  const goToExistingInvoice = async (repairId: string | number) => {
+    try {
+      const repair = await fetchRepairById(String(repairId), token);
+      if (repair?.serviceInvoice) {
+        notifyError(
+          `Cette fiche a déjà une facture : ${repair.serviceInvoice.invoiceNumber}.`,
+        );
+        router.replace(`/factures/${repair.serviceInvoice.id}`);
+        return true;
+      }
+    } catch (error) {
+      console.error('Error fetching repair for invoice:', error);
+    }
+    notifyError('Cette fiche est introuvable.');
+    return false;
+  };
+
   // Pré-remplissage depuis `?fiche=` ou `?client=`, une seule fois au montage
   // (le token n'est connu qu'après l'hydratation de l'authentification).
   useEffect(() => {
@@ -114,7 +137,7 @@ export default function InvoiceCreate() {
             setSelectedRepair(repair);
             setTab('import');
           } else {
-            notifyError('Cette fiche est introuvable ou a déjà une facture.');
+            void goToExistingInvoice(ficheParam);
           }
         })
         .catch((error: unknown) => {
@@ -248,6 +271,10 @@ export default function InvoiceCreate() {
       router.push(`/factures/${result.id}`);
     } catch (err) {
       console.error('Error creating invoice:', err);
+      if (isHttpError(err) && err.status === 409 && data.machineRepairId) {
+        const redirected = await goToExistingInvoice(data.machineRepairId);
+        if (redirected) return;
+      }
       const errData = isHttpError(err)
         ? (err.data as Partial<ClientConflict & { code: string }> | undefined)
         : undefined;
