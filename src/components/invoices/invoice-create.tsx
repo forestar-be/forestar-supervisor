@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import {
+  checkClient,
   createServiceInvoice,
   getClient,
   isHttpError,
@@ -12,7 +13,12 @@ import {
   searchRepairsForInvoice,
 } from '@/lib/api';
 import { notifyError, notifySuccess } from '@/lib/notifications';
-import type { Client, ClientConflict, ClientSummary, RepairForInvoice } from '@/lib/types';
+import type {
+  Client,
+  ClientConflict,
+  ClientSummary,
+  RepairForInvoice,
+} from '@/lib/types';
 import InvoiceForm, { type InvoiceFormData } from './invoice-form';
 import {
   Alert,
@@ -31,7 +37,14 @@ type InvoiceCreateTab = 'client' | 'import';
 /** Coordonnées d'un client existant, choisi pour la facture (AC-10). */
 type ClientCoordinates = Pick<
   Client,
-  'id' | 'firstName' | 'lastName' | 'phone' | 'email' | 'address' | 'postalCode' | 'city'
+  | 'id'
+  | 'firstName'
+  | 'lastName'
+  | 'phone'
+  | 'email'
+  | 'address'
+  | 'postalCode'
+  | 'city'
 >;
 
 /**
@@ -73,9 +86,15 @@ export default function InvoiceCreate() {
   const [clientQuery, setClientQuery] = useState('');
   const [clientResults, setClientResults] = useState<ClientSummary[]>([]);
   const [searchingClient, setSearchingClient] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<ClientCoordinates | null>(
-    null,
-  );
+  const [selectedClient, setSelectedClient] =
+    useState<ClientCoordinates | null>(null);
+  const [similarPending, setSimilarPending] = useState<{
+    data: InvoiceFormData;
+    similar: ClientSummary[];
+  } | null>(null);
+  // Le conflit et la suggestion s'affichent au-dessus du formulaire, loin du
+  // bouton « Créer la facture » : on les amène dans le champ de vision.
+  const clientNoticeRef = useRef<HTMLDivElement>(null);
   const [clientConflict, setClientConflict] = useState<ClientConflict | null>(
     null,
   );
@@ -95,9 +114,7 @@ export default function InvoiceCreate() {
             setSelectedRepair(repair);
             setTab('import');
           } else {
-            notifyError(
-              'Cette fiche est introuvable ou a déjà une facture.',
-            );
+            notifyError('Cette fiche est introuvable ou a déjà une facture.');
           }
         })
         .catch((error: unknown) => {
@@ -150,10 +167,20 @@ export default function InvoiceCreate() {
     setSearchQuery('');
   };
 
+  useEffect(() => {
+    if (clientConflict || similarPending) {
+      clientNoticeRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [clientConflict, similarPending]);
+
   const handleClientSearch = useCallback(
     (q: string) => {
       setClientQuery(q);
-      if (clientSearchTimeout.current) clearTimeout(clientSearchTimeout.current);
+      if (clientSearchTimeout.current)
+        clearTimeout(clientSearchTimeout.current);
       if (!q.trim() || !token) {
         setClientResults([]);
         return;
@@ -208,9 +235,10 @@ export default function InvoiceCreate() {
     };
   };
 
-  const handleSubmit = async (data: InvoiceFormData) => {
+  const createInvoice = async (data: InvoiceFormData) => {
     setSaving(true);
     setClientConflict(null);
+    setSimilarPending(null);
     try {
       const result = await createServiceInvoice(token, {
         ...data,
@@ -223,7 +251,11 @@ export default function InvoiceCreate() {
       const errData = isHttpError(err)
         ? (err.data as Partial<ClientConflict & { code: string }> | undefined)
         : undefined;
-      if (errData?.code === 'client_conflict' && errData.field && errData.client) {
+      if (
+        errData?.code === 'client_conflict' &&
+        errData.field &&
+        errData.client
+      ) {
         setClientConflict({ field: errData.field, client: errData.client });
       }
       notifyError(
@@ -232,6 +264,55 @@ export default function InvoiceCreate() {
     } finally {
       setSaving(false);
     }
+  };
+
+  /**
+   * AC-10 — même contrôle que la tablette (R008) pour un nouveau client : un
+   * conflit bloque (le serveur le refait, 409), un nom proche est seulement
+   * suggéré. Une facture liée à une fiche ou à un client choisi n'en a pas
+   * besoin.
+   */
+  const handleSubmit = async (data: InvoiceFormData) => {
+    if (data.clientId || data.machineRepairId) return createInvoice(data);
+    setSaving(true);
+    let check: Awaited<ReturnType<typeof checkClient>> | null = null;
+    try {
+      check = await checkClient(token, {
+        firstName: data.clientFirstName,
+        lastName: data.clientLastName,
+        phone: data.clientPhone,
+        email: data.clientEmail,
+      });
+    } catch {
+      // Contrôle indisponible : le serveur refera celui d'unicité.
+    } finally {
+      setSaving(false);
+    }
+    if (check?.conflicts.length) {
+      setClientConflict(check.conflicts[0]);
+      return;
+    }
+    if (check?.similar.length) {
+      setSimilarPending({ data, similar: check.similar });
+      return;
+    }
+    return createInvoice(data);
+  };
+
+  /** « Utiliser ce client » sur une suggestion : la facture part avec lui. */
+  const pickSimilarClient = (client: ClientSummary) => {
+    if (!similarPending) return;
+    return createInvoice({
+      ...similarPending.data,
+      clientId: client.id,
+      clientFirstName: client.firstName,
+      clientLastName: client.lastName,
+      clientPhone: client.phone,
+      clientEmail: client.email,
+      clientAddress: client.address || '',
+      clientCity: client.city || '',
+      clientPostalCode: client.postalCode || '',
+    });
   };
 
   return (
@@ -307,11 +388,13 @@ export default function InvoiceCreate() {
                   ))}
                 </ul>
               )}
-              {searchQuery.trim() && !searching && searchResults.length === 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Aucune réparation trouvée
-                </p>
-              )}
+              {searchQuery.trim() &&
+                !searching &&
+                searchResults.length === 0 && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Aucune réparation trouvée
+                  </p>
+                )}
             </div>
           )}
 
@@ -319,7 +402,8 @@ export default function InvoiceCreate() {
             <div className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
               <p className="text-blue-800 dark:text-blue-300">
                 Import depuis la réparation #{selectedRepair.id} —{' '}
-                {selectedRepair.client.firstName} {selectedRepair.client.lastName}
+                {selectedRepair.client.firstName}{' '}
+                {selectedRepair.client.lastName}
               </p>
               <Button
                 size="sm"
@@ -408,12 +492,15 @@ export default function InvoiceCreate() {
             </div>
           )}
 
+          <div ref={clientNoticeRef} />
           {clientConflict && (
             <Alert variant="destructive">
               <AlertDescription className="flex flex-wrap items-center gap-2">
                 <span>
                   Un client a déjà{' '}
-                  {clientConflict.field === 'phone' ? 'ce téléphone' : 'cet email'}{' '}
+                  {clientConflict.field === 'phone'
+                    ? 'ce téléphone'
+                    : 'cet email'}{' '}
                   :{' '}
                   {`${clientConflict.client.firstName} ${clientConflict.client.lastName}`.trim() ||
                     `n° ${clientConflict.client.id}`}
@@ -437,6 +524,63 @@ export default function InvoiceCreate() {
                 >
                   Utiliser ce client
                 </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {similarPending && (
+            <Alert>
+              <AlertDescription className="flex flex-col gap-2">
+                <span className="font-medium">
+                  Ce client existe peut-être déjà :
+                </span>
+                <ul className="flex flex-col gap-1">
+                  {similarPending.similar.map((client) => (
+                    <li
+                      key={client.id}
+                      className="flex flex-wrap items-center gap-2"
+                    >
+                      <Link
+                        href={`/clients/${client.id}`}
+                        className="underline"
+                      >
+                        {`${client.firstName} ${client.lastName}`.trim()}
+                      </Link>
+                      <span className="text-muted-foreground">
+                        {[client.phone, client.city]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={saving}
+                        onClick={() => pickSimilarClient(client)}
+                      >
+                        Utiliser ce client
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={saving}
+                    onClick={() => createInvoice(similarPending.data)}
+                  >
+                    Créer un nouveau client
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSimilarPending(null)}
+                  >
+                    Annuler
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}

@@ -5,6 +5,7 @@ import type {
   ArchiveFilter,
   Client,
   ClientDetail,
+  ClientConflict,
   ClientDuplicatePair,
   ClientField,
   ClientSummary,
@@ -99,8 +100,7 @@ async function apiRequest<T = any>(
 export const login = (data: {
   username: string;
   password: string;
-}): Promise<LoginResponse> =>
-  apiRequest('/supervisor/login', 'POST', '', data);
+}): Promise<LoginResponse> => apiRequest('/supervisor/login', 'POST', '', data);
 
 export const isAuthenticatedGg = (
   token: string,
@@ -188,7 +188,8 @@ export const getRelatedRepairs = (
 export const getRepairPdf = (
   token: string,
   id: number | string,
-): Promise<Blob> => apiRequest(`/supervisor/machine-repairs/${id}/pdf`, 'GET', token);
+): Promise<Blob> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/pdf`, 'GET', token);
 
 /** R002-S05 — envoie le PDF généré par le serveur à l'email de la fiche. */
 export const sendRepairEmail = (
@@ -251,6 +252,16 @@ export const searchClients = (
     token,
   );
 
+/**
+ * Contrôle avant la création d'un client (R007-AC-03) : `conflicts` bloque
+ * (même téléphone ou même email), `similar` suggère seulement (nom proche).
+ */
+export const checkClient = (
+  token: string,
+  data: Partial<Record<ClientField, string>>,
+): Promise<{ conflicts: ClientConflict[]; similar: ClientSummary[] }> =>
+  apiRequest('/supervisor/clients/check', 'POST', token, data);
+
 /** `/clients/[id]` (AC-02) : coordonnées, passages et factures du client. */
 export const getClient = (token: string, id: number): Promise<ClientDetail> =>
   apiRequest(`/supervisor/clients/${id}`, 'GET', token);
@@ -260,7 +271,8 @@ export const updateClient = (
   token: string,
   id: number,
   data: Partial<Record<ClientField, string>>,
-): Promise<Client> => apiRequest(`/supervisor/clients/${id}`, 'PATCH', token, data);
+): Promise<Client> =>
+  apiRequest(`/supervisor/clients/${id}`, 'PATCH', token, data);
 
 /** Doublons probables (AC-03) : paires de clients au nom proche. */
 export const getClientDuplicates = (
@@ -569,7 +581,10 @@ export const markServiceInvoiceSent = (
 export const resyncServiceInvoice = (token: string, id: number): Promise<any> =>
   apiRequest(`/supervisor/service-invoices/${id}/resync`, 'POST', token);
 
-export const getServiceInvoicePdf = (token: string, id: number): Promise<Blob> =>
+export const getServiceInvoicePdf = (
+  token: string,
+  id: number,
+): Promise<Blob> =>
   apiRequest(`/supervisor/service-invoices/${id}/pdf`, 'GET', token);
 
 export const getServiceInvoiceDeletionInfo = (

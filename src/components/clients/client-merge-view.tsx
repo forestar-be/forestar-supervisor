@@ -195,8 +195,8 @@ export default function ClientMergeView() {
                     <div
                       key={field}
                       className={cn(
-                        'flex justify-between gap-2',
-                        differs && 'font-medium text-warning-foreground',
+                        'flex justify-between gap-2 rounded px-1',
+                        differs && 'bg-warning/15 font-medium',
                       )}
                     >
                       <span className="text-muted-foreground">
