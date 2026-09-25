@@ -281,16 +281,21 @@ export const getClientDuplicates = (
   apiRequest('/supervisor/clients/duplicates', 'GET', token);
 
 /**
- * Fusion (AC-04) : `loserId` disparaît dans `intoId`, qui garde ses valeurs et
- * complète ses champs vides par celles de l'autre.
+ * Fusion (AC-04, D-29) : `loserId` disparaît dans `intoId`. Sans `values`, le
+ * survivant garde ses valeurs et complète ses champs vides par celles de
+ * l'autre. Avec `values` (choix par champ de l'écran de fusion), le survivant
+ * reçoit exactement ces valeurs ; un conflit avec un tiers répond
+ * `409 client_conflict`, rien n'est changé.
  */
 export const mergeClients = (
   token: string,
   loserId: number,
   intoId: number,
+  values?: Partial<Record<ClientField, string>>,
 ): Promise<MergeClientsResult> =>
   apiRequest(`/supervisor/clients/${loserId}/merge`, 'POST', token, {
     intoId,
+    ...(values ? { values } : {}),
   });
 
 // ── Référentiels ──
