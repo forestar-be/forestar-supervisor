@@ -4,7 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useStopwatch } from 'react-timer-hook';
-import { CheckCircle2, Pencil, Repeat, Save, SearchX } from 'lucide-react';
+import {
+  CheckCircle2,
+  FileText,
+  Pencil,
+  Repeat,
+  Save,
+  SearchX,
+} from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -286,7 +293,10 @@ export function RepairPageClient() {
 
   const handleSaveClient = async () => {
     if (!repair || !id || !clientDraft) return;
-    const changed = diffClientDraft(clientDraft, clientDraftFrom(repair.client));
+    const changed = diffClientDraft(
+      clientDraft,
+      clientDraftFrom(repair.client),
+    );
     if (Object.keys(changed).length === 0) {
       cancelEditClient();
       return;
@@ -455,7 +465,8 @@ export function RepairPageClient() {
       console.error('Error adding image:', error);
       const archivedMessage = archivedConflictMessage(error);
       notifyError(
-        archivedMessage ?? "Une erreur s'est produite lors de l'ajout de l'image",
+        archivedMessage ??
+          "Une erreur s'est produite lors de l'ajout de l'image",
       );
       if (archivedMessage) void reloadRepairAfterConflict();
     }
@@ -659,9 +670,7 @@ export function RepairPageClient() {
       notifySuccess('Fiche désarchivée avec succès');
     } catch (error) {
       console.error('Error unarchiving repair:', error);
-      notifyError(
-        "Une erreur s'est produite lors du désarchivage de la fiche",
-      );
+      notifyError("Une erreur s'est produite lors du désarchivage de la fiche");
     } finally {
       setIsArchiving(false);
     }
@@ -916,7 +925,7 @@ export function RepairPageClient() {
       notifyError(
         isHttpError(error)
           ? error.message
-          : "Impossible de charger les tickets. Réessayez.",
+          : 'Impossible de charger les tickets. Réessayez.',
       );
     } finally {
       setIsPrintingTickets(false);
@@ -1004,7 +1013,8 @@ export function RepairPageClient() {
       return undefined;
     }
     const { client } = clientConflict;
-    const name = `${client.firstName} ${client.lastName}`.trim() || `n° ${client.id}`;
+    const name =
+      `${client.firstName} ${client.lastName}`.trim() || `n° ${client.id}`;
     return (
       <span className="flex flex-wrap items-center gap-x-2">
         <span>
@@ -1090,8 +1100,10 @@ export function RepairPageClient() {
     );
   };
 
+  // L'application est pleine largeur pour ses tableaux ; la fiche, en deux
+  // colonnes de champs, garde l'ancienne borne de 1600 px pour rester lisible.
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
       {loading && repair && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
           <Spinner size="lg" />
@@ -1127,6 +1139,41 @@ export function RepairPageClient() {
           isArchiving={isArchiving}
           onHandoverOpen={() => setIsHandoverOpen(true)}
           onArchiveWithoutExit={handleArchiveWithoutExit}
+          invoiceAction={
+            repair &&
+            (repair.serviceInvoice ? (
+              <Button
+                type="button"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/factures/${repair.serviceInvoice.id}`} />}
+              >
+                <FileText />
+                Facture {repair.serviceInvoice.invoiceNumber}
+                <StatusBadge
+                  tone={getInvoiceStatusTone(
+                    repair.serviceInvoice.status as ServiceInvoiceStatus,
+                  )}
+                >
+                  {getInvoiceStatusLabel(
+                    repair.serviceInvoice.status as ServiceInvoiceStatus,
+                  )}
+                </StatusBadge>
+              </Button>
+            ) : (
+              // R009-S05 (AC-08) — création de facture depuis la fiche,
+              // remplie avec la fiche et son client.
+              <Button
+                type="button"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/factures/nouveau?fiche=${repair.id}`} />}
+              >
+                <FileText />
+                Créer la facture
+              </Button>
+            ))
+          }
           details={
             repair && (
               <>
@@ -1183,40 +1230,6 @@ export function RepairPageClient() {
         onRemove={(index) => void handleRemoveCall(index)}
         readOnly={readOnly}
       />
-
-      {repair &&
-        (repair.serviceInvoice ? (
-          <Link
-            href={`/factures/${repair.serviceInvoice.id}`}
-            className="flex items-center gap-2 rounded-md border border-border bg-card p-3 text-sm hover:bg-accent"
-          >
-            <span className="font-semibold">
-              Facture {repair.serviceInvoice.invoiceNumber}
-            </span>
-            <StatusBadge
-              tone={getInvoiceStatusTone(
-                repair.serviceInvoice.status as ServiceInvoiceStatus,
-              )}
-            >
-              {getInvoiceStatusLabel(
-                repair.serviceInvoice.status as ServiceInvoiceStatus,
-              )}
-            </StatusBadge>
-          </Link>
-        ) : (
-          // R009-S05 (AC-08) — création de facture depuis la fiche, remplie
-          // avec la fiche et son client ; disponible même sur une fiche
-          // archivée (créer la facture ne la modifie pas).
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            render={<Link href={`/factures/nouveau?fiche=${repair.id}`} />}
-            nativeButton={false}
-          >
-            Créer la facture
-          </Button>
-        ))}
 
       {repair && (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
@@ -1414,33 +1427,15 @@ export function RepairPageClient() {
                 <CardTitle className="text-lg font-semibold">
                   Coordonnées du client
                 </CardTitle>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link href={`/clients/${repair.client.id}`} />}
-                >
-                  Voir le client
-                </Button>
-                {!readOnly && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsChangeClientOpen(true)}
-                  >
-                    <Repeat />
-                    Changer de client
-                  </Button>
-                )}
                 {!readOnly && (
                   <button
                     type="button"
                     className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                     disabled={isSavingClient}
                     onClick={() =>
-                      clientEditable ? void handleSaveClient() : startEditClient()
+                      clientEditable
+                        ? void handleSaveClient()
+                        : startEditClient()
                     }
                     aria-label={clientEditable ? 'Enregistrer' : 'Modifier'}
                   >
@@ -1451,22 +1446,35 @@ export function RepairPageClient() {
                     )}
                   </button>
                 )}
-                {/* `key` : remonte le bouton à chaque changement de fiche ou
-                    de client (AC-06), pour qu'il se recharge sans `setState`
-                    synchrone dans son effet. */}
-                {id && (
-                  <RelatedRepairsButton
-                    key={`${id}-${repair.client.id}`}
-                    id={id}
-                    token={auth.token}
-                  />
-                )}
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href={`/clients/${repair.client.id}`} />}
+                  >
+                    Voir le client
+                  </Button>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setIsChangeClientOpen(true)}
+                    >
+                      <Repeat />
+                      Changer de client
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                {!readOnly && (
+                {clientEditable && (
                   <p className="text-xs text-muted-foreground">
-                    Modifie le client pour ses {repair.client_repair_count}{' '}
-                    passage{repair.client_repair_count > 1 ? 's' : ''}.
+                    {repair.client_repair_count > 1
+                      ? `Modifie le client pour ses ${repair.client_repair_count} passages.`
+                      : 'Modifie le client de son seul passage.'}
                   </p>
                 )}
                 <div className={fieldsGridClass(clientEditable)}>
@@ -1577,6 +1585,17 @@ export function RepairPageClient() {
                     Signature client
                   </span>
                 </div>
+
+                {/* `key` : remonte le bouton à chaque changement de fiche ou
+                    de client (AC-06), pour qu'il se recharge sans `setState`
+                    synchrone dans son effet. */}
+                {id && (
+                  <RelatedRepairsButton
+                    key={`${id}-${repair.client.id}`}
+                    id={id}
+                    token={auth.token}
+                  />
+                )}
               </CardContent>
             </Card>
 

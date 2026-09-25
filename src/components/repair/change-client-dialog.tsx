@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  noAutofillProps,
 } from '@forestar-be/ui';
 import { isHttpError, searchClients } from '@/lib/api';
 import { notifyError } from '@/lib/notifications';
@@ -100,6 +101,7 @@ export function ChangeClientDialog({
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             )}
             <Input
+              {...noAutofillProps}
               value={query}
               onChange={(event) => handleSearch(event.target.value)}
               placeholder="Nom, téléphone ou email"
@@ -131,9 +133,7 @@ export function ChangeClientDialog({
             </ul>
           )}
           {query.trim() && !searching && results.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Aucun client trouvé
-            </p>
+            <p className="text-sm text-muted-foreground">Aucun client trouvé</p>
           )}
         </DialogContent>
       </Dialog>

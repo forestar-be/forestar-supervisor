@@ -1,6 +1,6 @@
 'use client';
 
-import { Input, Textarea, cn } from '@forestar-be/ui';
+import { Input, Textarea, cn, noAutofillProps } from '@forestar-be/ui';
 import type { ReactNode } from 'react';
 
 interface RepairFieldProps {
@@ -53,6 +53,7 @@ export function RepairField({
           />
         ) : (
           <Input
+            {...noAutofillProps}
             id={name}
             name={name}
             value={value || ''}
@@ -76,9 +77,7 @@ export function RepairField({
       <span className="whitespace-nowrap text-sm font-medium text-muted-foreground">
         {label} :
       </span>
-      <span className="break-words text-sm text-foreground">
-        {value || ''}
-      </span>
+      <span className="break-words text-sm text-foreground">{value || ''}</span>
       {endAdornment}
     </div>
   );

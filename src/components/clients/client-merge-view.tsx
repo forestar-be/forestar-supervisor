@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 import {
   Button,
   Card,
@@ -18,6 +16,7 @@ import {
   RadioGroup,
   RadioGroupItem,
   Spinner,
+  noAutofillProps,
 } from '@forestar-be/ui';
 import { useAuth } from '@/lib/auth';
 import { getClient, isHttpError, mergeClients } from '@/lib/api';
@@ -29,6 +28,7 @@ import {
 } from '@/lib/client-merge';
 import { notifyError, notifySuccess } from '@/lib/notifications';
 import type { ClientDetail, ClientField } from '@/lib/types';
+import BackButton from '@/components/back-button';
 
 const FIELD_LABELS: Record<ClientField, string> = {
   firstName: 'Prénom',
@@ -223,8 +223,7 @@ export default function ClientMergeView() {
       console.error('Error merging clients:', error);
       const data = isHttpError(error)
         ? (error.data as
-            | { code?: string; field?: 'phone' | 'email' }
-            | undefined)
+            { code?: string; field?: 'phone' | 'email' } | undefined)
         : undefined;
       if (isHttpError(error) && error.status === 409 && data?.field) {
         setConflict({ field: data.field, message: error.message });
@@ -275,15 +274,7 @@ export default function ClientMergeView() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        render={<Link href="/clients" />}
-        nativeButton={false}
-      >
-        <ArrowLeft />
-        Retour aux clients
-      </Button>
+      <BackButton fallback="/clients" />
 
       <PageHeader
         title="Fusionner deux clients"
@@ -344,7 +335,12 @@ export default function ClientMergeView() {
                   conflict?.field === field ? conflict.message : undefined
                 }
                 onChoiceChange={(choice) =>
-                  handleChoiceChange(field, choice, aValues[field], bValues[field])
+                  handleChoiceChange(
+                    field,
+                    choice,
+                    aValues[field],
+                    bValues[field],
+                  )
                 }
                 onCustomChange={(value) => handleCustomChange(field, value)}
               />
@@ -470,6 +466,7 @@ function FieldRow({
           </Button>
         </div>
         <Input
+          {...noAutofillProps}
           value={state.custom}
           onChange={(event) => onCustomChange(event.target.value)}
           className="h-8"
@@ -516,6 +513,7 @@ function FieldRow({
             Autre :
           </label>
           <Input
+            {...noAutofillProps}
             value={customValue}
             readOnly={state.choice !== 'custom'}
             onFocus={() => {

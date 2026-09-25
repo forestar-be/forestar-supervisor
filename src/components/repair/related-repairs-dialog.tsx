@@ -86,7 +86,7 @@ export function RelatedRepairsButton({
         type="button"
         variant="outline"
         size="sm"
-        className="ml-auto"
+        className="w-fit self-start"
         onClick={() => setOpen(true)}
         disabled={loading}
         aria-label={

@@ -8,11 +8,11 @@ import {
   DataTable,
   Input,
   PeriodPicker,
-  StatusBadge,
   ToggleGroup,
   ToggleGroupItem,
   type ColumnDef,
   type DataTableState,
+  noAutofillProps,
 } from '@forestar-be/ui';
 import dayjs from '@/lib/dayjs';
 import { getAllMachineRepairs } from '@/lib/api';
@@ -32,8 +32,6 @@ import {
   type Period,
   type PresenceFilter,
 } from '@/lib/repair-history';
-import { useAppSelector } from '@/store/hooks';
-import { RepairStateBadge } from '@/components/repairs/repair-state-badge';
 
 const SEARCH_DEBOUNCE_MS = 250;
 const TZ = 'Europe/Brussels';
@@ -48,10 +46,11 @@ const DEFAULT_TABLE_STATE: DataTableState = {
   columnFilters: [],
 };
 
-function buildColumns(
-  colorByState: Record<string, string>,
-  now: Date,
-): ColumnDef<HistoryItem>[] {
+/**
+ * Les seules colonnes utiles pour suivre les entrées et sorties des machines
+ * (retour du PO, 25/09) : pas de téléphone ni d'état, qui sont sur la fiche.
+ */
+function buildColumns(now: Date): ColumnDef<HistoryItem>[] {
   return [
     {
       id: 'entry',
@@ -62,16 +61,16 @@ function buildColumns(
     },
     {
       id: 'exit',
-      size: 180,
+      size: 120,
       accessorFn: (row) => row.exit_date ?? '',
       header: 'Sortie',
       cell: ({ row }) => {
         const presence = presenceOf(row.original);
         if (presence === 'returned') return formatDay(row.original.exit_date!);
-        return presence === 'at_workshop' ? (
-          <StatusBadge tone="info">À l&apos;atelier</StatusBadge>
-        ) : (
-          <StatusBadge tone="neutral">Archivée sans sortie</StatusBadge>
+        return (
+          <span className="text-muted-foreground">
+            {presence === 'at_workshop' ? 'À l’atelier' : 'Sans sortie'}
+          </span>
         );
       },
     },
@@ -107,12 +106,6 @@ function buildColumns(
       header: 'Client',
     },
     {
-      id: 'phone',
-      size: 140,
-      accessorFn: (row) => row.client.phone || '-',
-      header: 'Téléphone',
-    },
-    {
       id: 'machine',
       size: 260,
       accessorFn: machineLabel,
@@ -123,16 +116,6 @@ function buildColumns(
       size: 110,
       accessorKey: 'repair_or_maintenance',
       header: 'Prestation',
-    },
-    {
-      id: 'state',
-      size: 170,
-      accessorFn: (row) => row.state || 'Non commencé',
-      header: 'État',
-      cell: ({ getValue }) => {
-        const state = getValue<string>();
-        return <RepairStateBadge state={state} color={colorByState[state]} />;
-      },
     },
   ];
 }
@@ -146,7 +129,6 @@ function buildColumns(
 export default function HistoryView() {
   const auth = useAuth();
   const router = useRouter();
-  const { config } = useAppSelector((state) => state.config);
 
   const [repairs, setRepairs] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -172,28 +154,17 @@ export default function HistoryView() {
     );
 
   // Colonnes masquées selon la largeur ; pas de choix de colonnes ici.
-  const isLaptop = useMediaQuery('(max-width: 1440px)');
   const isTablet = useMediaQuery('(max-width: 768px)');
   const isMobile = useMediaQuery('(max-width: 480px)');
   const effectiveTableState = useMemo<DataTableState>(() => {
     const hidden: Record<string, boolean> = {};
-    if (isLaptop) hidden.phone = false;
     if (isTablet) {
       hidden.id = false;
       hidden.repair_or_maintenance = false;
-      hidden.state = false;
     }
     if (isMobile) hidden.days = false;
     return { ...tableState, columnVisibility: hidden };
-  }, [tableState, isLaptop, isTablet, isMobile]);
-
-  const colorByState = useMemo<Record<string, string>>(() => {
-    try {
-      return JSON.parse(config['États'] || '{}');
-    } catch {
-      return {};
-    }
-  }, [config]);
+  }, [tableState, isTablet, isMobile]);
 
   useEffect(() => {
     const timeout = setTimeout(
@@ -221,10 +192,7 @@ export default function HistoryView() {
     fetchData(auth.token);
   }, [auth.token, fetchData]);
 
-  const columns = useMemo(
-    () => buildColumns(colorByState, now),
-    [colorByState, now],
-  );
+  const columns = useMemo(() => buildColumns(now), [now]);
 
   const rows = useMemo(
     () =>
@@ -299,6 +267,7 @@ export default function HistoryView() {
             <div className="relative w-full sm:w-64">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                {...noAutofillProps}
                 value={searchText}
                 onChange={(event) => setSearchText(event.target.value)}
                 placeholder="Client, téléphone ou machine"

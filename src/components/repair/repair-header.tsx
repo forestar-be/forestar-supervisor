@@ -70,6 +70,12 @@ interface RepairHeaderProps {
   onArchiveWithoutExit: () => Promise<void>;
   /** Début de la deuxième ligne : dates de la fiche et état du PDF sur Dropbox. */
   details?: ReactNode;
+  /**
+   * Bouton de la facture de réparation (« Créer la facture » ou la facture
+   * liée), en tête des actions de la première ligne. Présent aussi sur une
+   * fiche archivée : facturer ne modifie pas la fiche.
+   */
+  invoiceAction?: ReactNode;
 }
 
 /**
@@ -109,6 +115,7 @@ export function RepairHeader({
   onHandoverOpen,
   onArchiveWithoutExit,
   details,
+  invoiceAction,
 }: RepairHeaderProps) {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   // Le menu se ferme au clic : c'est le bouton « Plus » qui montre qu'une de
@@ -133,6 +140,7 @@ export function RepairHeader({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {invoiceAction}
           {readOnly ? (
             <Button
               type="button"

@@ -19,7 +19,8 @@ import {
 } from '@forestar-be/ui';
 import AccountMenu from '@/components/AccountMenu';
 import { useAuth } from '@/lib/auth';
-import { ROBOT_URL } from '@/lib/session';
+import { useTrackInAppHistory } from '@/lib/in-app-history';
+import { OPERATOR_URL, ROBOT_URL } from '@/lib/session';
 
 const navItems: AppShellNavItem[] = [
   { href: '/', label: 'Accueil', icon: Home },
@@ -29,7 +30,7 @@ const navItems: AppShellNavItem[] = [
   { href: '/appels', label: 'Appels', icon: PhoneCall },
   { href: '/calendrier', label: 'Calendrier', icon: CalendarDays },
   { href: '/factures', label: 'Factures', icon: FileText },
-  { href: '/parametres', label: 'Paramètres', icon: Settings },
+  { href: '/parametres', label: 'Paramètres', icon: Settings, iconOnly: true },
 ];
 
 const logo = (
@@ -57,6 +58,7 @@ const isItemActive = (item: { href: string }, pathname: string) =>
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { logOut, ssoEnabled } = useAuth();
+  useTrackInAppHistory();
 
   const header = (
     <>
@@ -69,6 +71,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
       >
         Robots
+        <ExternalLink />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        nativeButton={false}
+        render={
+          <a href={OPERATOR_URL} target="_blank" rel="noopener noreferrer" />
+        }
+      >
+        Opérateur
         <ExternalLink />
       </Button>
       <ThemeToggle />
@@ -85,6 +98,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       accountSlot={ssoEnabled ? <AccountMenu /> : undefined}
       headerSlot={header}
       isItemActive={isItemActive}
+      fullWidth
     >
       {children}
     </SharedAppShell>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Pencil, Save, SearchX } from 'lucide-react';
+import { Pencil, Save, SearchX } from 'lucide-react';
 import {
   Button,
   Card,
@@ -19,7 +19,11 @@ import dayjs from '@/lib/dayjs';
 import { useAuth } from '@/lib/auth';
 import { getClient, isHttpError, updateClient } from '@/lib/api';
 import { notifyError, notifySuccess } from '@/lib/notifications';
-import { formatCurrency, getInvoiceStatusLabel, getInvoiceStatusTone } from '@/lib/invoice';
+import {
+  formatCurrency,
+  getInvoiceStatusLabel,
+  getInvoiceStatusTone,
+} from '@/lib/invoice';
 import {
   clientDraftFrom,
   diffClientDraft,
@@ -27,8 +31,12 @@ import {
 } from '@/lib/client-fields';
 import type { ClientConflict, ClientDetail } from '@/lib/types';
 import { RepairField } from '@/components/repair/repair-field';
+import BackButton from '@/components/back-button';
 
-const REPAIR_STATE_TONE: Record<string, 'success' | 'warning' | 'info' | 'neutral'> = {
+const REPAIR_STATE_TONE: Record<
+  string,
+  'success' | 'warning' | 'info' | 'neutral'
+> = {
   Terminé: 'success',
 };
 
@@ -178,15 +186,7 @@ export default function ClientDetailView() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        render={<Link href="/clients" />}
-        nativeButton={false}
-      >
-        <ArrowLeft />
-        Retour aux clients
-      </Button>
+      <BackButton fallback="/clients" />
 
       <PageHeader
         title={`${client.firstName} ${client.lastName}`.trim() || 'Client'}
@@ -202,7 +202,11 @@ export default function ClientDetailView() {
             onClick={() => (editable ? void handleSave() : startEdit())}
             aria-label={editable ? 'Enregistrer' : 'Modifier'}
           >
-            {editable ? <Save className="size-4" /> : <Pencil className="size-4" />}
+            {editable ? (
+              <Save className="size-4" />
+            ) : (
+              <Pencil className="size-4" />
+            )}
           </button>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -312,7 +316,9 @@ export default function ClientDetailView() {
                       </td>
                       <td className="px-2 py-2">
                         <StatusBadge
-                          tone={REPAIR_STATE_TONE[repair.state ?? ''] ?? 'neutral'}
+                          tone={
+                            REPAIR_STATE_TONE[repair.state ?? ''] ?? 'neutral'
+                          }
                         >
                           {repair.state || 'Non commencé'}
                         </StatusBadge>
@@ -372,7 +378,9 @@ export default function ClientDetailView() {
                         {dayjs(invoice.createdAt).format('DD/MM/YYYY')}
                       </td>
                       <td className="px-2 py-2">
-                        <StatusBadge tone={getInvoiceStatusTone(invoice.status)}>
+                        <StatusBadge
+                          tone={getInvoiceStatusTone(invoice.status)}
+                        >
                           {getInvoiceStatusLabel(invoice.status)}
                         </StatusBadge>
                       </td>

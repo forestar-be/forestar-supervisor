@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@forestar-be/core": "^0.6.0",
-    "@forestar-be/ui": "^0.9.0",
+    "@forestar-be/ui": "^0.10.0",
     "@react-pdf/renderer": "^4.9.0",
     "@reduxjs/toolkit": "^2.12.0",
     "browser-image-compression": "^2.0.2",

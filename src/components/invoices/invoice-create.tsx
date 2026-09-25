@@ -30,8 +30,10 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  noAutofillProps,
 } from '@forestar-be/ui';
-import { ArrowLeft, Loader2, Search } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
+import BackButton from '@/components/back-button';
 
 type InvoiceCreateTab = 'client' | 'import';
 
@@ -344,15 +346,7 @@ export default function InvoiceCreate() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        render={<Link href="/factures" />}
-        nativeButton={false}
-      >
-        <ArrowLeft />
-        Retour aux factures
-      </Button>
+      <BackButton fallback="/factures" />
 
       <PageHeader title="Nouvelle facture de réparation" />
 
@@ -382,6 +376,7 @@ export default function InvoiceCreate() {
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 )}
                 <input
+                  {...noAutofillProps}
                   className="h-9 w-full rounded-xl border border-input bg-transparent pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                   placeholder="Nom, téléphone, email..."
                   value={searchQuery}
@@ -466,6 +461,7 @@ export default function InvoiceCreate() {
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 )}
                 <input
+                  {...noAutofillProps}
                   className="h-9 w-full rounded-xl border border-input bg-transparent pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                   placeholder="Nom, téléphone, email..."
                   value={clientQuery}

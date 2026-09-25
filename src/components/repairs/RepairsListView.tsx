@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FolderOpen, Search as SearchIcon } from 'lucide-react';
+import { FolderOpen, Search as SearchIcon, Settings } from 'lucide-react';
 import {
   Button,
   DataTable,
@@ -11,6 +11,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
   type DataTableState,
+  noAutofillProps,
 } from '@forestar-be/ui';
 import { getAllMachineRepairs, updateRepair } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -328,6 +329,7 @@ export default function RepairsListView() {
             <div className="relative w-full sm:w-56">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                {...noAutofillProps}
                 value={customerFilterText}
                 onChange={(event) => setCustomerFilterText(event.target.value)}
                 placeholder="Rechercher un client"
@@ -349,8 +351,14 @@ export default function RepairsListView() {
               <FolderOpen />
               Dropbox
             </Button>
-            <Button variant="outline" onClick={() => setSettingsOpen(true)}>
-              Paramètres
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Paramètres du tableau"
+              title="Paramètres du tableau"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings />
             </Button>
           </>
         }

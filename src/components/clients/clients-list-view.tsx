@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search as SearchIcon } from 'lucide-react';
-import { DataTable, Input, type DataTableState } from '@forestar-be/ui';
+import {
+  DataTable,
+  Input,
+  type DataTableState,
+  noAutofillProps,
+} from '@forestar-be/ui';
 import { isHttpError, searchClients } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { notifyError } from '@/lib/notifications';
@@ -90,6 +95,7 @@ export default function ClientsListView() {
           <div className="relative w-full sm:w-72">
             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              {...noAutofillProps}
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
               placeholder="Nom, téléphone ou email"
