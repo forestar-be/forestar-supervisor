@@ -42,6 +42,13 @@ export interface InvoiceFormData {
   remarks: string;
   lines: InvoiceFormLine[];
   machineRepairId?: number;
+  /**
+   * R009-S05 (AC-10) — client Forestar existant choisi dans l'onglet
+   * « Client » : le serveur rattache la facture à ce client au lieu d'en
+   * créer un nouveau (`resolveClientForCreation`), sans jamais vérifier de
+   * conflit sur ses coordonnées.
+   */
+  clientId?: number;
 }
 
 const EMPTY_LINE: InvoiceFormLine = {

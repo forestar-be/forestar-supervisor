@@ -39,6 +39,7 @@ import {
   updateRepair,
 } from '@/lib/api';
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
+import { getInvoiceStatusLabel, getInvoiceStatusTone } from '@/lib/invoice';
 import { printHtml } from '@/lib/print-html';
 import { useAppSelector } from '@/store/hooks';
 import {
@@ -52,6 +53,7 @@ import type {
   MachineRepair,
   MachineRepairFromApi,
   MachineRepairHandoverResult,
+  ServiceInvoiceStatus,
 } from '@/lib/types';
 import {
   computeManualWorkingTime,
@@ -79,18 +81,6 @@ import {
 import { ChangeClientDialog } from './change-client-dialog';
 
 type EditableSection = 'repairDetails' | 'technicalInfo';
-
-const INVOICE_STATUS_LABEL: Record<string, string> = {
-  PAID: 'Payée',
-  SENT: 'Envoyée',
-  DRAFT: 'Brouillon',
-};
-
-const INVOICE_STATUS_TONE: Record<string, 'success' | 'warning' | 'info'> = {
-  PAID: 'success',
-  SENT: 'warning',
-  DRAFT: 'info',
-};
 
 /**
  * Message serveur d'un 409 `repair_archived` (fiche archivée entre-temps
@@ -1194,22 +1184,39 @@ export function RepairPageClient() {
         readOnly={readOnly}
       />
 
-      {repair?.serviceInvoice && (
-        <Link
-          href={`/factures/${repair.serviceInvoice.id}`}
-          className="flex items-center gap-2 rounded-md border border-border bg-card p-3 text-sm hover:bg-accent"
-        >
-          <span className="font-semibold">
-            Facture {repair.serviceInvoice.invoiceNumber}
-          </span>
-          <StatusBadge
-            tone={INVOICE_STATUS_TONE[repair.serviceInvoice.status] ?? 'info'}
+      {repair &&
+        (repair.serviceInvoice ? (
+          <Link
+            href={`/factures/${repair.serviceInvoice.id}`}
+            className="flex items-center gap-2 rounded-md border border-border bg-card p-3 text-sm hover:bg-accent"
           >
-            {INVOICE_STATUS_LABEL[repair.serviceInvoice.status] ??
-              repair.serviceInvoice.status}
-          </StatusBadge>
-        </Link>
-      )}
+            <span className="font-semibold">
+              Facture {repair.serviceInvoice.invoiceNumber}
+            </span>
+            <StatusBadge
+              tone={getInvoiceStatusTone(
+                repair.serviceInvoice.status as ServiceInvoiceStatus,
+              )}
+            >
+              {getInvoiceStatusLabel(
+                repair.serviceInvoice.status as ServiceInvoiceStatus,
+              )}
+            </StatusBadge>
+          </Link>
+        ) : (
+          // R009-S05 (AC-08) — création de facture depuis la fiche, remplie
+          // avec la fiche et son client ; disponible même sur une fiche
+          // archivée (créer la facture ne la modifie pas).
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
+            render={<Link href={`/factures/nouveau?fiche=${repair.id}`} />}
+            nativeButton={false}
+          >
+            Créer la facture
+          </Button>
+        ))}
 
       {repair && (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">

@@ -409,6 +409,18 @@ export default function InvoiceDetail() {
         )}
       </div>
 
+      {invoice.clientId && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
+          <span className="text-blue-800 dark:text-blue-300">Client : </span>
+          <Link
+            href={`/clients/${invoice.clientId}`}
+            className="font-bold text-blue-800 underline dark:text-blue-300"
+          >
+            {invoice.clientFirstName} {invoice.clientLastName}
+          </Link>
+        </div>
+      )}
+
       {invoice.machineRepairId && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
           <span className="text-blue-800 dark:text-blue-300">

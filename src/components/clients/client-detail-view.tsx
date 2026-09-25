@@ -19,6 +19,7 @@ import dayjs from '@/lib/dayjs';
 import { useAuth } from '@/lib/auth';
 import { getClient, isHttpError, updateClient } from '@/lib/api';
 import { notifyError, notifySuccess } from '@/lib/notifications';
+import { formatCurrency, getInvoiceStatusLabel, getInvoiceStatusTone } from '@/lib/invoice';
 import {
   clientDraftFrom,
   diffClientDraft,
@@ -319,6 +320,76 @@ export default function ClientDetailView() {
                           <StatusBadge tone="neutral" className="ml-1">
                             Archivée
                           </StatusBadge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between gap-2">
+          <CardTitle className="text-lg font-semibold">Factures</CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            render={<Link href={`/factures/nouveau?client=${client.id}`} />}
+            nativeButton={false}
+          >
+            Nouvelle facture
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {client.serviceInvoices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune facture.</p>
+          ) : (
+            <div className="overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="px-2 py-2 text-left">N°</th>
+                    <th className="px-2 py-2 text-left">Date</th>
+                    <th className="px-2 py-2 text-left">État</th>
+                    <th className="px-2 py-2 text-left">Total TTC</th>
+                    <th className="px-2 py-2 text-left">Fiche</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {client.serviceInvoices.map((invoice) => (
+                    <tr
+                      key={invoice.id}
+                      className="cursor-pointer border-b border-border last:border-0 hover:bg-accent"
+                      onClick={() => router.push(`/factures/${invoice.id}`)}
+                    >
+                      <td className="px-2 py-2 font-medium">
+                        {invoice.invoiceNumber}
+                      </td>
+                      <td className="px-2 py-2">
+                        {dayjs(invoice.createdAt).format('DD/MM/YYYY')}
+                      </td>
+                      <td className="px-2 py-2">
+                        <StatusBadge tone={getInvoiceStatusTone(invoice.status)}>
+                          {getInvoiceStatusLabel(invoice.status)}
+                        </StatusBadge>
+                      </td>
+                      <td className="px-2 py-2">
+                        {formatCurrency(invoice.totalTTC)}
+                      </td>
+                      <td className="px-2 py-2">
+                        {invoice.machineRepairId ? (
+                          <Link
+                            href={`/reparation/${invoice.machineRepairId}`}
+                            className="underline"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            #{invoice.machineRepairId}
+                          </Link>
+                        ) : (
+                          '—'
                         )}
                       </td>
                     </tr>
