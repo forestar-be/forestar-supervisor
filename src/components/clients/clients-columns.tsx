@@ -14,7 +14,10 @@ export function buildClientsColumns(): ColumnDef<ClientSummary>[] {
     {
       id: 'name',
       size: 220,
-      accessorFn: (row) => `${row.firstName || ''} ${row.lastName || ''}`.trim(),
+      // Trié sur le nom de famille, affiché « Prénom Nom ».
+      accessorFn: (row) => `${row.lastName || ''} ${row.firstName || ''}`.trim(),
+      cell: ({ row }) =>
+        `${row.original.firstName || ''} ${row.original.lastName || ''}`.trim(),
       header: 'Nom',
     },
     {
