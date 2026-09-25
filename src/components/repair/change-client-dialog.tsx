@@ -102,6 +102,7 @@ export function ChangeClientDialog({
             )}
             <Input
               {...noAutofillProps}
+              type="search"
               value={query}
               onChange={(event) => handleSearch(event.target.value)}
               placeholder="Nom, téléphone ou email"

@@ -377,6 +377,7 @@ export default function InvoiceCreate() {
                 )}
                 <input
                   {...noAutofillProps}
+                  type="search"
                   className="h-9 w-full rounded-xl border border-input bg-transparent pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                   placeholder="Nom, téléphone, email..."
                   value={searchQuery}
@@ -462,6 +463,7 @@ export default function InvoiceCreate() {
                 )}
                 <input
                   {...noAutofillProps}
+                  type="search"
                   className="h-9 w-full rounded-xl border border-input bg-transparent pl-8 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                   placeholder="Nom, téléphone, email..."
                   value={clientQuery}
