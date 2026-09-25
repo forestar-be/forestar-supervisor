@@ -51,6 +51,13 @@ const FIELD_ORDER: ClientField[] = [
 ];
 
 /** Coordonnées d'un client, réduites aux 7 champs de la fusion. */
+/** Nom, téléphone et n° : deux doublons portent souvent le même nom. */
+function describeClient(client: ClientDetail): string {
+  const name = `${client.firstName} ${client.lastName}`.trim() || 'Sans nom';
+  const contact = client.phone || client.email || 'sans téléphone';
+  return `${name} (${contact}, n° ${client.id})`;
+}
+
 function pickFields(client: ClientDetail): Record<ClientField, string> {
   return Object.fromEntries(
     FIELD_ORDER.map((field) => [field, client[field] || '']),
@@ -381,7 +388,7 @@ export default function ClientMergeView() {
         title="Fusionner ces deux clients"
         message={
           kept && other
-            ? `${kept.firstName} ${kept.lastName} sera gardé, avec les coordonnées choisies ci-dessus ; ${other.firstName} ${other.lastName} disparaîtra. Ses fiches et factures seront reprises par ${kept.firstName} ${kept.lastName}. Cette fusion est irréversible.`
+            ? `${describeClient(kept)} sera gardé, avec les coordonnées choisies ci-dessus ; ${describeClient(other)} disparaîtra. Ses fiches et factures seront reprises par le client gardé. Cette fusion est irréversible.`
             : ''
         }
         type="warning"
