@@ -5,13 +5,107 @@ export type ConfigElement = {
   value: string;
 };
 
-export interface MachineRepair {
+/** Atelier R007 (D-26) — application qui a créé le client. */
+export type ClientOrigin =
+  | 'OPERATOR'
+  | 'SUPERVISOR'
+  | 'SERVICE_INVOICE'
+  | 'BACKFILL';
+
+/**
+ * Atelier R007 (D-19) — le client porte seul les coordonnées. Une fiche ou
+ * une facture de réparation pointe vers lui, jamais l'inverse.
+ */
+export interface Client {
   id: number;
-  first_name: string;
-  last_name: string;
-  address: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
+  address: string;
+  postalCode: string;
+  city: string;
+  origin: ClientOrigin;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Client tel que renvoyé dans la liste des fiches : coordonnées réduites. */
+export type ClientListRef = Pick<
+  Client,
+  'id' | 'firstName' | 'lastName' | 'phone'
+>;
+
+/** Champ de coordonnées d'un client, dans les deux sens du contrat serveur. */
+export type ClientField =
+  | 'firstName'
+  | 'lastName'
+  | 'phone'
+  | 'email'
+  | 'address'
+  | 'postalCode'
+  | 'city';
+
+/** `GET /supervisor/clients` (AC-01) : le client, avec ses passages. */
+export interface ClientSummary extends Client {
+  repairCount: number;
+  lastEntryDate: string | null;
+}
+
+/** `409 client_conflict` (AC-02, AC-05) : le champ en cause et le client existant. */
+export interface ClientConflict {
+  field: 'phone' | 'email';
+  client: Client;
+}
+
+/** Un passage du client, tel que listé par `GET /supervisor/clients/:id` (AC-02). */
+export interface ClientDetailRepair {
+  id: number;
+  entry_date: string;
+  exit_date: string | null;
+  archived_at: string | null;
+  state: string | null;
+  repair_or_maintenance: string;
+  machine_type_name: string | null;
+  brand_name: string | null;
+  robot_type_name: string | null;
+}
+
+/** Une facture du client, telle que listée par `GET /supervisor/clients/:id` (AC-09). */
+export interface ClientDetailInvoice {
+  id: number;
+  invoiceNumber: string;
+  status: ServiceInvoiceStatus;
+  createdAt: string;
+  totalTTC: number;
+  machineRepairId: number | null;
+}
+
+/** `GET /supervisor/clients/:id` (AC-02) : le client, ses passages et ses factures. */
+export interface ClientDetail extends Client {
+  machineRepairs: ClientDetailRepair[];
+  serviceInvoices: ClientDetailInvoice[];
+}
+
+/** `GET /supervisor/clients/duplicates` (AC-03) : une paire de clients au nom proche. */
+export interface ClientDuplicatePair {
+  a: ClientSummary;
+  b: ClientSummary;
+  sameName: boolean;
+}
+
+/** `POST /supervisor/clients/:id/merge` (AC-04) : le client survivant et ce qu'il a repris. */
+export interface MergeClientsResult {
+  client: Client;
+  movedRepairs: number;
+  movedInvoices: number;
+}
+
+export interface MachineRepair {
+  id: number;
+  /** Atelier R007 — le client de la fiche (D-19) ; `client_id` est sa clé. */
+  client_id: number;
+  client: Client;
   machine_type_name: string;
   robot_type_name: string | null;
   repair_or_maintenance: string;
@@ -32,17 +126,83 @@ export interface MachineRepair {
   devis: boolean;
   repairer_name: string | null;
   remark: string | null;
-  city: string | null;
-  postal_code: string | null;
   client_call_times: Date[];
   hivernage: boolean;
   eventId: string | null;
   calendarId: string | null;
+  /** Atelier R001 — `null` : fiche active. Sinon, date d'archivage (ISO). */
+  archived_at: string | null;
+  /** Atelier R003 — date d'entrée (dépôt) et date de sortie (remise au client). */
+  entry_date: string | null;
+  exit_date: string | null;
+  /** Atelier R002 — chemin et date du PDF déjà envoyé sur Dropbox. */
+  dropbox_pdf_path: string | null;
+  dropbox_pdf_uploaded_at: string | null;
+  /**
+   * Atelier R002 — nom D-05 du PDF, calculé par le serveur (`GET /:id`
+   * uniquement : la liste ne le porte pas).
+   */
+  pdf_file_name: string;
+  /**
+   * Atelier R003 — vrai si la fiche est archivée et que son PDF Dropbox
+   * manque ou précède l'archivage (`GET /:id` uniquement) : pilote le
+   * bandeau « PDF non envoyé — Réessayer ».
+   */
+  dropbox_pdf_pending: boolean;
+  /**
+   * Atelier R007 — nombre de fiches du même client (`GET /:id` uniquement),
+   * pour « Modifie le client pour ses N passages » et le bouton des passages
+   * précédents.
+   */
+  client_repair_count: number;
   serviceInvoice?: {
     id: number;
     invoiceNumber: string;
     status: string;
   } | null;
+}
+
+/** Résultat d'un envoi du PDF sur Dropbox (R002-S03), tel que renvoyé par
+ * l'archivage et la remise au client (R003) : `pdf` de leur réponse. */
+export type PdfUploadOutcome =
+  | {
+      uploaded: true;
+      dropbox_pdf_path: string;
+      dropbox_pdf_uploaded_at: string;
+    }
+  | { uploaded: false; code: string; error: string };
+
+/**
+ * Réponse de `POST /machine-repairs/:id/archive` (« Archiver sans sortie »)
+ * et `POST /machine-repairs/:id/handover` (« Machine rendue au client ») :
+ * les colonnes scalaires de la fiche à jour, plus le résultat de l'envoi du
+ * PDF sur Dropbox — jamais bloquant (D-03).
+ */
+export type MachineRepairHandoverResult = Pick<
+  MachineRepair,
+  | 'id'
+  | 'archived_at'
+  | 'entry_date'
+  | 'exit_date'
+  | 'dropbox_pdf_path'
+  | 'dropbox_pdf_uploaded_at'
+> & { pdf: PdfUploadOutcome };
+
+/**
+ * Une fiche liée par `GET /machine-repairs/:id/related` (passage précédent du
+ * même client, D-19). Depuis R007, le lien est le client lui-même
+ * (`client_id`) : il n'y a plus de motif à afficher.
+ */
+export interface RelatedRepair {
+  id: number;
+  client_id: number;
+  entry_date: string;
+  exit_date: string | null;
+  machine_type_name: string | null;
+  brand_name: string | null;
+  repair_or_maintenance: string;
+  state: string | null;
+  archived_at: string | null;
 }
 
 export type MachineRepairFromApi = Omit<
@@ -56,6 +216,16 @@ export type MachineRepairFromApi = Omit<
 };
 
 /**
+ * Réponse de `POST /machine-repairs/:id/archive` et `/unarchive` : les
+ * colonnes scalaires de la fiche (pas de relations, pas d'URL d'images). On
+ * ne type que ce que l'atelier consomme réellement après l'appel.
+ */
+export type MachineRepairArchiveResult = Pick<MachineRepair, 'id' | 'archived_at'>;
+
+/** Filtre d'archivage transmis à `POST /supervisor/machine-repairs`. */
+export type ArchiveFilter = 'active' | 'archived' | 'all';
+
+/**
  * Fields the list endpoint (POST /supervisor/machine-repairs) actually returns.
  *
  * The list payload is deliberately narrower than MachineRepair: images,
@@ -65,19 +235,25 @@ export type MachineRepairFromApi = Omit<
  */
 export type MachineRepairListItem = Omit<
   MachineRepair,
-  | 'address'
-  | 'email'
+  | 'client_id'
+  | 'client'
+  | 'client_repair_count'
   | 'replaced_part_list'
   | 'imageUrls'
   | 'signatureUrl'
   | 'warranty'
   | 'devis'
-  | 'city'
-  | 'postal_code'
   | 'hivernage'
   | 'eventId'
   | 'calendarId'
->;
+  | 'dropbox_pdf_path'
+  | 'dropbox_pdf_uploaded_at'
+  | 'pdf_file_name'
+  | 'dropbox_pdf_pending'
+> & {
+  /** La liste ne renvoie que des coordonnées réduites (D-19, contrat R007). */
+  client: ClientListRef;
+};
 
 export type MachineRepairListItemFromApi = Omit<
   MachineRepairListItem,
@@ -300,6 +476,14 @@ export interface ServiceInvoice {
   purchaseOrderId: number | null;
   purchaseOrder?: PurchaseOrder | null;
 
+  /**
+   * Atelier R007 (D-25) — le client Forestar de la facture (`REPAIR`
+   * seulement) ; `null` pour une facture d'installation. Les champs
+   * `client*` ci-dessous restent une copie figée, prise à la création.
+   */
+  clientId: number | null;
+  client?: Client | null;
+
   clientFirstName: string;
   clientLastName: string;
   clientPhone: string;
@@ -399,13 +583,7 @@ export interface DolibarrThirdpartyMatch extends DolibarrThirdparty {
 
 export interface RepairForInvoice {
   id: number;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  email: string;
-  address: string;
-  city: string | null;
-  postal_code: string | null;
+  client: Client;
   fault_description: string;
   repair_or_maintenance: string;
   brand_name: string;

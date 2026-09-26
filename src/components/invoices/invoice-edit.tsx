@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { getServiceInvoice, isHttpError, updateServiceInvoice } from '@/lib/api';
+import {
+  getServiceInvoice,
+  isHttpError,
+  updateServiceInvoice,
+} from '@/lib/api';
 import { notifyError, notifySuccess } from '@/lib/notifications';
 import { ServiceInvoiceStatus } from '@/lib/types';
 import InvoiceForm, { type InvoiceFormData } from './invoice-form';
-import { Button, PageHeader, Skeleton } from '@forestar-be/ui';
-import { ArrowLeft } from 'lucide-react';
+import { PageHeader, Skeleton } from '@forestar-be/ui';
+import BackButton from '@/components/back-button';
 
 /**
  * Édition d'une facture de réparation en brouillon, portée depuis
@@ -20,9 +23,8 @@ export default function InvoiceEdit() {
   const { id } = useParams<{ id: string }>();
   const { token } = useAuth();
   const router = useRouter();
-  const [initialData, setInitialData] = useState<Partial<InvoiceFormData> | null>(
-    null,
-  );
+  const [initialData, setInitialData] =
+    useState<Partial<InvoiceFormData> | null>(null);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -36,7 +38,9 @@ export default function InvoiceEdit() {
     getServiceInvoice(token, parseInt(id, 10))
       .then((data) => {
         if (data.status !== ServiceInvoiceStatus.DRAFT) {
-          notifyError('Seules les factures en brouillon peuvent être modifiées');
+          notifyError(
+            'Seules les factures en brouillon peuvent être modifiées',
+          );
           router.replace(`/factures/${id}`);
           return;
         }
@@ -95,15 +99,7 @@ export default function InvoiceEdit() {
   if (loadError || !initialData) {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          render={<Link href="/factures" />}
-          nativeButton={false}
-        >
-          <ArrowLeft />
-          Retour aux factures
-        </Button>
+        <BackButton fallback="/factures" />
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {loadError || 'Facture introuvable'}
         </div>
@@ -113,15 +109,7 @@ export default function InvoiceEdit() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        render={<Link href={`/factures/${id}`} />}
-        nativeButton={false}
-      >
-        <ArrowLeft />
-        Retour à la facture
-      </Button>
+      <BackButton fallback={`/factures/${id}`} />
 
       <PageHeader title={`Modifier ${invoiceNumber}`} />
 

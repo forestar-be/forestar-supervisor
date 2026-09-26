@@ -13,6 +13,7 @@ import {
 } from '@forestar-be/ui';
 import dayjs from '@/lib/dayjs';
 import type { MachineRepairListItem } from '@/lib/types';
+import { RepairStateBadge } from './repair-state-badge';
 
 const INVOICE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Brouillon',
@@ -45,10 +46,14 @@ function RepairerCell({
   onChange: (id: number, previous: string | null, next: string | null) => void;
 }) {
   const value = repair.repairer_name ?? 'Non affecté';
+  // Fiche archivée (R001, D-18) : en lecture seule, ce changement serait
+  // refusé par le serveur (409 repair_archived) — autant ne pas le proposer.
+  const disabled = Boolean(repair.archived_at);
   return (
     <div onClick={(event) => event.stopPropagation()} className="min-w-[130px]">
       <Select
         value={value}
+        disabled={disabled}
         onValueChange={(next) =>
           onChange(
             repair.id,
@@ -73,6 +78,69 @@ function RepairerCell({
   );
 }
 
+/**
+ * Colonnes du tableau, dans leur ordre d'affichage, avec l'explication montrée
+ * dans « Paramètres ». Les en-têtes du tableau en viennent aussi : un nom
+ * changé ici change aux deux endroits.
+ */
+export const REPAIRS_COLUMN_CHOICES = [
+  { id: 'id', label: 'N°', description: 'Numéro de la fiche.' },
+  {
+    id: 'state',
+    label: 'État',
+    description: 'Avancement de la réparation, et le badge « Archivée ».',
+  },
+  {
+    id: 'lastCall',
+    label: 'Appel client',
+    description: 'Date du dernier appel au client.',
+  },
+  {
+    id: 'repair_or_maintenance',
+    label: 'Type',
+    description: 'Réparation ou entretien.',
+  },
+  {
+    id: 'machineType',
+    label: 'Type de machine',
+    description: 'Type de machine, et le modèle pour un robot.',
+  },
+  {
+    id: 'repairer_name',
+    label: 'Réparateur',
+    description: 'Réparateur affecté, modifiable depuis le tableau.',
+  },
+  { id: 'client', label: 'Client', description: 'Prénom et nom du client.' },
+  { id: 'phone', label: 'Téléphone', description: 'Téléphone du client.' },
+  {
+    id: 'invoice',
+    label: 'Facture',
+    description: 'Statut de la facture liée à la fiche.',
+  },
+  {
+    id: 'createdAt',
+    label: 'Date de création',
+    description:
+      "Date et heure de saisie de la fiche. D'ordinaire identique à la date d'entrée.",
+  },
+  {
+    id: 'entry_date',
+    label: 'Entrée',
+    description: "Date d'arrivée de la machine à l'atelier.",
+  },
+  {
+    id: 'exit_date',
+    label: 'Sortie',
+    description: 'Date de remise de la machine au client.',
+  },
+] as const;
+
+type RepairsColumnId = (typeof REPAIRS_COLUMN_CHOICES)[number]['id'];
+
+const COLUMN_LABELS = Object.fromEntries(
+  REPAIRS_COLUMN_CHOICES.map((choice) => [choice.id, choice.label]),
+) as Record<RepairsColumnId, string>;
+
 export function buildRepairsColumns({
   colorByState,
   repairerNames,
@@ -90,7 +158,7 @@ export function buildRepairsColumns({
     {
       id: 'id',
       accessorKey: 'id',
-      header: 'N°',
+      header: COLUMN_LABELS.id,
       size: 64,
       cell: ({ getValue }) => (
         <span className="font-medium">#{getValue<number>()}</span>
@@ -100,16 +168,15 @@ export function buildRepairsColumns({
       id: 'state',
       size: 170,
       accessorFn: (row) => row.state || 'Non commencé',
-      header: 'État',
-      cell: ({ getValue }) => {
+      header: COLUMN_LABELS.state,
+      cell: ({ getValue, row }) => {
         const state = getValue<string>();
         return (
-          <span
-            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-black"
-            style={{ backgroundColor: colorByState[state] || '#e0e0e0' }}
-          >
-            {state}
-          </span>
+          <RepairStateBadge
+            state={state}
+            color={colorByState[state]}
+            archived={Boolean(row.original.archived_at)}
+          />
         );
       },
     },
@@ -117,7 +184,7 @@ export function buildRepairsColumns({
       id: 'lastCall',
       size: 150,
       accessorFn: (row) => row.client_call_times.length,
-      header: 'Appel client',
+      header: COLUMN_LABELS.lastCall,
       enableSorting: false,
       cell: ({ row }) => {
         const calls = row.original.client_call_times;
@@ -137,7 +204,7 @@ export function buildRepairsColumns({
       id: 'repair_or_maintenance',
       size: 110,
       accessorKey: 'repair_or_maintenance',
-      header: 'Type',
+      header: COLUMN_LABELS.repair_or_maintenance,
     },
     {
       id: 'machineType',
@@ -146,13 +213,13 @@ export function buildRepairsColumns({
         row.robot_type_name
           ? `${row.robot_type_name} (${row.machine_type_name || ''})`
           : row.machine_type_name || '-',
-      header: 'Type de machine',
+      header: COLUMN_LABELS.machineType,
     },
     {
       id: 'repairer_name',
       size: 160,
       accessorFn: (row) => row.repairer_name || 'Non affecté',
-      header: 'Réparateur',
+      header: COLUMN_LABELS.repairer_name,
       cell: ({ row }) => (
         <RepairerCell
           repair={row.original}
@@ -165,20 +232,20 @@ export function buildRepairsColumns({
       id: 'client',
       size: 170,
       accessorFn: (row) =>
-        `${row.first_name || ''} ${row.last_name || ''}`.trim(),
-      header: 'Client',
+        `${row.client.firstName || ''} ${row.client.lastName || ''}`.trim(),
+      header: COLUMN_LABELS.client,
     },
     {
       id: 'phone',
       size: 140,
-      accessorFn: (row) => row.phone || '-',
-      header: 'Téléphone',
+      accessorFn: (row) => row.client.phone || '-',
+      header: COLUMN_LABELS.phone,
     },
     {
       id: 'invoice',
       size: 110,
       accessorFn: (row) => row.serviceInvoice?.status ?? null,
-      header: 'Facture',
+      header: COLUMN_LABELS.invoice,
       enableSorting: false,
       cell: ({ row }) => {
         const invoice = row.original.serviceInvoice;
@@ -204,9 +271,29 @@ export function buildRepairsColumns({
       id: 'createdAt',
       size: 150,
       accessorKey: 'createdAt',
-      header: 'Date de création',
+      header: COLUMN_LABELS.createdAt,
       cell: ({ getValue }) =>
         dayjs(getValue<string>()).format('DD/MM/YYYY HH:mm'),
+    },
+    {
+      id: 'entry_date',
+      size: 120,
+      accessorKey: 'entry_date',
+      header: COLUMN_LABELS.entry_date,
+      cell: ({ getValue }) => {
+        const value = getValue<string | null>();
+        return value ? dayjs(value).format('DD/MM/YYYY') : '—';
+      },
+    },
+    {
+      id: 'exit_date',
+      size: 120,
+      accessorKey: 'exit_date',
+      header: COLUMN_LABELS.exit_date,
+      cell: ({ getValue }) => {
+        const value = getValue<string | null>();
+        return value ? dayjs(value).format('DD/MM/YYYY') : '—';
+      },
     },
   ];
 }

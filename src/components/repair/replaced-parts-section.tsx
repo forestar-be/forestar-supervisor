@@ -16,6 +16,11 @@ interface ReplacedPartsSectionProps {
     quantity: number,
   ) => void;
   onDelete: (replacedPartName: string) => void;
+  /**
+   * Fiche archivée (R001, D-18) : la quantité et la suppression restent
+   * rendues même hors édition de section — `editable` ne suffit pas.
+   */
+  readOnly?: boolean;
 }
 
 const MAX_QUANTITY = 10;
@@ -36,6 +41,7 @@ export function ReplacedPartsSection({
   onSelectionChange,
   onQuantityChange,
   onDelete,
+  readOnly = false,
 }: ReplacedPartsSectionProps) {
   const options = possibleValues.map((part) => ({
     value: part.name,
@@ -73,6 +79,7 @@ export function ReplacedPartsSection({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Supprimer ${replacedPart.replacedPart.name}`}
+                  disabled={readOnly}
                   onClick={() => onDelete(replacedPart.replacedPart.name)}
                 >
                   <Trash2 className="size-4 text-destructive" />
@@ -86,6 +93,7 @@ export function ReplacedPartsSection({
                 value={replacedPart.quantity}
                 min={1}
                 max={MAX_QUANTITY}
+                disabled={readOnly}
                 label={`Quantité de ${replacedPart.replacedPart.name}`}
                 onChange={(quantity) => onQuantityChange(replacedPart, quantity)}
               />

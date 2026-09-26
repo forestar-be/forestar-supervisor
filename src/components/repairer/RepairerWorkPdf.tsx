@@ -266,14 +266,14 @@ export default function RepairerWorkPdf({
                   <View style={styles.repairRow}>
                     <Text style={styles.repairLabel}>Client:</Text>
                     <Text style={styles.repairValue}>
-                      {repair.first_name} {repair.last_name}
+                      {repair.client.firstName} {repair.client.lastName}
                     </Text>
                   </View>
 
-                  {repair.phone && (
+                  {repair.client.phone && (
                     <View style={styles.repairRow}>
                       <Text style={styles.repairLabel}>Téléphone:</Text>
-                      <Text style={styles.repairValue}>{repair.phone}</Text>
+                      <Text style={styles.repairValue}>{repair.client.phone}</Text>
                     </View>
                   )}
 

@@ -17,6 +17,12 @@ interface WorkingTimeEditorProps {
   onStart: () => void;
   onStop: () => void;
   onReset: () => void;
+  /**
+   * Fiche archivée (R001, D-18) : Démarrer/Arrêter/Réinitialiser restent
+   * rendus même hors édition de section — il faut donc les désactiver ici
+   * explicitement, `editable` ne suffit pas.
+   */
+  readOnly?: boolean;
 }
 
 /**
@@ -36,6 +42,7 @@ export function WorkingTimeEditor({
   onStart,
   onStop,
   onReset,
+  readOnly = false,
 }: WorkingTimeEditorProps) {
   return (
     <div className="mt-2 flex flex-row flex-wrap items-center gap-3">
@@ -95,6 +102,7 @@ export function WorkingTimeEditor({
           <Button
             type="button"
             size="sm"
+            disabled={readOnly}
             onClick={isRunning ? onStop : onStart}
           >
             {isRunning ? (
@@ -105,7 +113,13 @@ export function WorkingTimeEditor({
             {isRunning ? 'Arrêter' : 'Démarrer'}
           </Button>
           {!isRunning && (
-            <Button type="button" size="sm" variant="secondary" onClick={onReset}>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={readOnly}
+              onClick={onReset}
+            >
               <RotateCcw className="size-4" />
               Réinitialiser
             </Button>

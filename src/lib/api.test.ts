@@ -111,6 +111,176 @@ describe('mode historique', () => {
   });
 });
 
+describe('archivage (R001)', () => {
+  it('getAllMachineRepairs ne transmet `archived` que lorsqu\'il est fourni', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({ data: [] }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.getAllMachineRepairs('jeton');
+    const [, initSansFiltre] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(JSON.parse(initSansFiltre.body as string)).toEqual({ filter: {} });
+
+    await api.getAllMachineRepairs('jeton', 'archived');
+    const [, initAvecFiltre] = fetchSpy.mock.calls[1] as unknown as Call;
+    expect(JSON.parse(initAvecFiltre.body as string)).toEqual({
+      filter: {},
+      archived: 'archived',
+    });
+  });
+
+  it('deleteRepair envoie `confirm` égal au numéro de la fiche', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse({ message: 'Succès.' }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.deleteRepair('jeton', '1663');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(
+      `${API}/supervisor/machine-repairs/1663?confirm=1663`,
+    );
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('archiveRepair et unarchiveRepair appellent les bonnes routes en POST', async () => {
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse({ id: 12, archived_at: '2026-09-24T10:00:00.000Z' }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.archiveRepair('jeton', '12');
+    const [archiveUrl, archiveInit] = fetchSpy.mock
+      .calls[0] as unknown as Call;
+    expect(archiveUrl).toBe(`${API}/supervisor/machine-repairs/12/archive`);
+    expect(archiveInit.method).toBe('POST');
+
+    await api.unarchiveRepair('jeton', '12');
+    const [unarchiveUrl, unarchiveInit] = fetchSpy.mock
+      .calls[1] as unknown as Call;
+    expect(unarchiveUrl).toBe(
+      `${API}/supervisor/machine-repairs/12/unarchive`,
+    );
+    expect(unarchiveInit.method).toBe('POST');
+  });
+});
+
+/** Réponse `application/pdf` : `parseBody` de `@forestar-be/core` se rabat sur `response.blob()`. */
+function pdfResponse(): Response {
+  return new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), {
+    status: 200,
+    headers: { 'content-type': 'application/pdf' },
+  });
+}
+
+describe('PDF du serveur et Dropbox (R002-S05)', () => {
+  it('getRepairPdf appelle GET .../pdf et renvoie un Blob', async () => {
+    const fetchSpy = vi.fn(async () => pdfResponse());
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    const blob = await api.getRepairPdf('jeton', '12');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(`${API}/supervisor/machine-repairs/12/pdf`);
+    expect(init.method).toBe('GET');
+    // `Blob` de jsdom et celui du `fetch` global de Node ne sont pas la même
+    // classe : on vérifie la forme plutôt que `toBeInstanceOf(Blob)`.
+    expect(blob.type).toBe('application/pdf');
+    expect(blob.size).toBe(4);
+  });
+
+  it('sendRepairEmail appelle POST .../email sans corps', async () => {
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse({ message: 'Email envoyé avec succès.' }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    const result = await api.sendRepairEmail('jeton', '12');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(`${API}/supervisor/machine-repairs/12/email`);
+    expect(init.method).toBe('POST');
+    expect(result).toEqual({ message: 'Email envoyé avec succès.' });
+  });
+
+  it('sendRepairToDropbox appelle POST .../dropbox et renvoie le chemin et la date', async () => {
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse({
+        dropbox_pdf_path: '/dev-local/Fiches atelier/2026/x.pdf',
+        dropbox_pdf_uploaded_at: '2026-09-24T10:00:00.000Z',
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    const result = await api.sendRepairToDropbox('jeton', '12');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(`${API}/supervisor/machine-repairs/12/dropbox`);
+    expect(init.method).toBe('POST');
+    expect(result.dropbox_pdf_path).toBe(
+      '/dev-local/Fiches atelier/2026/x.pdf',
+    );
+  });
+
+  it("n'expose plus les anciennes routes Drive et email (retirées R002-S05)", async () => {
+    const { api } = await loadApi('legacy');
+    expect(
+      (api as unknown as Record<string, unknown>).sendDriveApi,
+    ).toBeUndefined();
+    expect(
+      (api as unknown as Record<string, unknown>).sendEmailApi,
+    ).toBeUndefined();
+  });
+});
+
+describe('remise et passages (R003-S05)', () => {
+  it('handOverRepair envoie `exitDate` en POST .../handover', async () => {
+    const fetchSpy = vi.fn(async () =>
+      jsonResponse({
+        id: 39,
+        archived_at: '2026-09-24T10:00:00.000Z',
+        entry_date: '2026-09-21T07:30:00.000Z',
+        exit_date: '2026-09-24T10:00:00.000Z',
+        dropbox_pdf_path: '/dev-local/Fiches atelier/2026/x.pdf',
+        dropbox_pdf_uploaded_at: '2026-09-24T10:00:00.000Z',
+        pdf: {
+          uploaded: true,
+          dropbox_pdf_path: '/dev-local/Fiches atelier/2026/x.pdf',
+          dropbox_pdf_uploaded_at: '2026-09-24T10:00:00.000Z',
+        },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    const result = await api.handOverRepair('jeton', '39', '2026-09-24');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(`${API}/supervisor/machine-repairs/39/handover`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({
+      exitDate: '2026-09-24',
+    });
+    expect(result.pdf.uploaded).toBe(true);
+  });
+
+  it('getRelatedRepairs appelle GET .../related', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse([]));
+    vi.stubGlobal('fetch', fetchSpy);
+    const { api } = await loadApi('legacy');
+
+    await api.getRelatedRepairs('jeton', '39');
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
+    expect(url).toBe(`${API}/supervisor/machine-repairs/39/related`);
+    expect(init.method).toBe('GET');
+  });
+});
+
 describe('ré-autorisation Google', () => {
   it('un 403 re_auth_gg_required renvoie vers /connection-google', async () => {
     vi.stubGlobal(

@@ -105,12 +105,12 @@ function CalendarEventForm({
   onConfirm,
 }: CalendarEventFormProps) {
   const [title, setTitle] = useState(
-    `${repair.repair_or_maintenance} #${repair.id} - ${repair.first_name} ${repair.last_name}`,
+    `${repair.repair_or_maintenance} #${repair.id} - ${repair.client.firstName} ${repair.client.lastName}`,
   );
   const [description, setDescription] = useState(
     `${repair.repair_or_maintenance} - ${repair.machine_type_name || 'Machine'}\n` +
-      `Client: ${repair.first_name} ${repair.last_name}\n` +
-      `Téléphone: ${repair.phone}\n` +
+      `Client: ${repair.client.firstName} ${repair.client.lastName}\n` +
+      `Téléphone: ${repair.client.phone}\n` +
       `Description: ${repair.fault_description || 'Non spécifiée'}`,
   );
   const [startDate, setStartDate] = useState<Date>(defaultStart);

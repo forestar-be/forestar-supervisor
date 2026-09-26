@@ -28,6 +28,7 @@ import {
   MultiCombobox,
   PageHeader,
   StatusBadge,
+  noAutofillProps,
 } from '@forestar-be/ui';
 import type { ColumnDef } from '@forestar-be/ui';
 import {
@@ -287,6 +288,8 @@ export default function InvoiceList() {
             <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                {...noAutofillProps}
+                type="search"
                 placeholder="Rechercher client, N° facture..."
                 aria-label="Rechercher une facture"
                 value={searchText}

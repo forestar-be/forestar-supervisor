@@ -20,7 +20,11 @@ import {
   getInvoiceStatusTone,
   getPaymentMethodLabel,
 } from '@/lib/invoice';
-import { ServiceInvoice, ServiceInvoiceStatus, ServiceInvoiceType } from '@/lib/types';
+import {
+  ServiceInvoice,
+  ServiceInvoiceStatus,
+  ServiceInvoiceType,
+} from '@/lib/types';
 import SendInvoiceModal from './send-invoice-modal';
 import DeleteInvoiceModal from './delete-invoice-modal';
 import {
@@ -30,9 +34,9 @@ import {
   Skeleton,
   StatusBadge,
 } from '@forestar-be/ui';
+import BackButton from '@/components/back-button';
 import {
   AlertCircle,
-  ArrowLeft,
   CheckCircle2,
   Download,
   Mail,
@@ -69,7 +73,9 @@ export default function InvoiceDetail() {
       setError(null);
     } catch (err) {
       setError(
-        isHttpError(err) ? err.message : 'Erreur lors du chargement de la facture',
+        isHttpError(err)
+          ? err.message
+          : 'Erreur lors du chargement de la facture',
       );
     } finally {
       setLoading(false);
@@ -88,7 +94,9 @@ export default function InvoiceDetail() {
       })
       .catch((err) => {
         setError(
-          isHttpError(err) ? err.message : 'Erreur lors du chargement de la facture',
+          isHttpError(err)
+            ? err.message
+            : 'Erreur lors du chargement de la facture',
         );
       })
       .finally(() => setLoading(false));
@@ -106,9 +114,7 @@ export default function InvoiceDetail() {
       if (result.dolibarrWarning) notifyWarning(result.dolibarrWarning);
       else notifySuccess('Facture marquée comme payée');
     } catch (err) {
-      notifyError(
-        isHttpError(err) ? err.message : "Une erreur s'est produite",
-      );
+      notifyError(isHttpError(err) ? err.message : "Une erreur s'est produite");
     } finally {
       setActionLoading(null);
     }
@@ -126,9 +132,7 @@ export default function InvoiceDetail() {
       if (result.dolibarrWarning) notifyWarning(result.dolibarrWarning);
       else notifySuccess('Facture remise en statut envoyée');
     } catch (err) {
-      notifyError(
-        isHttpError(err) ? err.message : "Une erreur s'est produite",
-      );
+      notifyError(isHttpError(err) ? err.message : "Une erreur s'est produite");
     } finally {
       setActionLoading(null);
     }
@@ -143,7 +147,9 @@ export default function InvoiceDetail() {
       notifySuccess('Synchronisation Dolibarr effectuée');
     } catch (err) {
       notifyError(
-        isHttpError(err) ? err.message : 'Erreur lors de la synchronisation Dolibarr',
+        isHttpError(err)
+          ? err.message
+          : 'Erreur lors de la synchronisation Dolibarr',
       );
     } finally {
       setActionLoading(null);
@@ -162,9 +168,7 @@ export default function InvoiceDetail() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      notifyError(
-        isHttpError(err) ? err.message : 'Erreur téléchargement PDF',
-      );
+      notifyError(isHttpError(err) ? err.message : 'Erreur téléchargement PDF');
     } finally {
       setActionLoading(null);
     }
@@ -182,15 +186,7 @@ export default function InvoiceDetail() {
   if (error || !invoice) {
     return (
       <div className="mx-auto w-full max-w-5xl space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          render={<Link href="/factures" />}
-          nativeButton={false}
-        >
-          <ArrowLeft />
-          Retour aux factures
-        </Button>
+        <BackButton fallback="/factures" />
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error || 'Facture introuvable'}
         </div>
@@ -202,15 +198,7 @@ export default function InvoiceDetail() {
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        render={<Link href="/factures" />}
-        nativeButton={false}
-      >
-        <ArrowLeft />
-        Retour aux factures
-      </Button>
+      <BackButton fallback="/factures" />
 
       {/* Zero amount warning */}
       <ConfirmDialog
@@ -368,7 +356,9 @@ export default function InvoiceDetail() {
             disabled={actionLoading === 'resync'}
             onClick={handleResync}
           >
-            <RefreshCw className={actionLoading === 'resync' ? 'animate-spin' : ''} />
+            <RefreshCw
+              className={actionLoading === 'resync' ? 'animate-spin' : ''}
+            />
             Resync Dolibarr
           </Button>
         </div>
@@ -402,12 +392,28 @@ export default function InvoiceDetail() {
         )}
         {(invoice.clientAddress || invoice.clientCity) && (
           <p className="mt-1 text-sm text-muted-foreground">
-            {[invoice.clientAddress, invoice.clientPostalCode, invoice.clientCity]
+            {[
+              invoice.clientAddress,
+              invoice.clientPostalCode,
+              invoice.clientCity,
+            ]
               .filter(Boolean)
               .join(', ')}
           </p>
         )}
       </div>
+
+      {invoice.clientId && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
+          <span className="text-blue-800 dark:text-blue-300">Client : </span>
+          <Link
+            href={`/clients/${invoice.clientId}`}
+            className="font-bold text-blue-800 underline dark:text-blue-300"
+          >
+            {invoice.clientFirstName} {invoice.clientLastName}
+          </Link>
+        </div>
+      )}
 
       {invoice.machineRepairId && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
@@ -439,7 +445,10 @@ export default function InvoiceDetail() {
           </thead>
           <tbody>
             {invoice.lines.map((line) => (
-              <tr key={line.id} className="border-b border-border last:border-0">
+              <tr
+                key={line.id}
+                className="border-b border-border last:border-0"
+              >
                 <td className="px-5 py-2.5">{line.description}</td>
                 <td className="px-3 py-2.5 text-center">
                   {line.quantity} {line.unit}

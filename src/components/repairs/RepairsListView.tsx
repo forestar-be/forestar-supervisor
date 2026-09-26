@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FolderOpen, RotateCcw, Search as SearchIcon } from 'lucide-react';
+import { FolderOpen, Search as SearchIcon, Settings } from 'lucide-react';
 import {
   Button,
-  ConfirmDialog,
   DataTable,
   Input,
   MultiCombobox,
+  ToggleGroup,
+  ToggleGroupItem,
   type DataTableState,
+  noAutofillProps,
 } from '@forestar-be/ui';
 import { getAllMachineRepairs, updateRepair } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -18,18 +20,29 @@ import { usePersistedState } from '@/lib/use-persisted-state';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { useAppSelector } from '@/store/hooks';
 import type {
+  ArchiveFilter,
   MachineRepairListItem,
   MachineRepairListItemFromApi,
 } from '@/lib/types';
 import { buildRepairsColumns } from './repairs-columns';
+import { RepairsSettingsDialog } from './repairs-settings-dialog';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
 const normalize = (value: string) =>
   value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
+/**
+ * Dossier des PDF des fiches sur Dropbox, dans le dossier de l'app « Forestar
+ * Atelier ». La clé de config le remplace : en local, elle vise le dossier
+ * `dev-local` où le serveur de développement écrit.
+ */
+const DROPBOX_URL_CONFIG_KEY = 'URL Dropbox fiches atelier';
+const DEFAULT_DROPBOX_URL =
+  'https://www.dropbox.com/home/Applications/Forestar%20Atelier/Fiches%20atelier';
+
 const DEFAULT_TABLE_STATE: DataTableState = {
-  sorting: [{ id: 'createdAt', desc: true }],
+  sorting: [{ id: 'entry_date', desc: true }],
   pagination: { pageIndex: 0, pageSize: 20 },
   columnVisibility: {},
   columnSizing: {},
@@ -50,7 +63,16 @@ export default function RepairsListView() {
   const [appliedCustomerFilter, setAppliedCustomerFilter] = useState('');
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedRepairers, setSelectedRepairers] = useState<string[]>([]);
-  const [resetOpen, setResetOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Filtre d'archivage : transmis au serveur (voir `fetchData`), pas filtré
+  // en local comme les états et réparateurs. Persisté pour rester entre deux
+  // visites (AC-07). « Toutes » n'est plus proposé : une valeur `all` gardée
+  // d'avant revient à « Actives ».
+  const [persistedArchiveFilter, setArchiveFilter] =
+    usePersistedState<ArchiveFilter>('atelier.repairs.archive', 'active');
+  const archiveFilter: ArchiveFilter =
+    persistedArchiveFilter === 'archived' ? 'archived' : 'active';
 
   const [tableState, setTableState, hydrated] =
     usePersistedState<DataTableState>(
@@ -58,14 +80,14 @@ export default function RepairsListView() {
       DEFAULT_TABLE_STATE,
     );
 
-  // Colonnes masquées par défaut selon la largeur, comme l'ancienne grille
+  // Colonnes masquées par défaut : « Date de création », qui double d'ordinaire
+  // la date d'entrée, puis d'autres selon la largeur, comme l'ancienne grille
   // (seuils décalés de la largeur de la barre latérale). Un choix explicite
-  // fait dans le menu « Colonnes » l'emporte, car il est persisté.
+  // fait dans « Paramètres » l'emporte, car il est persisté.
   const isLaptop = useMediaQuery('(max-width: 1440px)');
   const isTablet = useMediaQuery('(max-width: 768px)');
-  const isMobile = useMediaQuery('(max-width: 480px)');
-  const responsiveHidden = useMemo(() => {
-    const hidden: Record<string, boolean> = {};
+  const defaultHidden = useMemo(() => {
+    const hidden: Record<string, boolean> = { createdAt: false };
     if (isLaptop) {
       hidden.machineType = false;
       hidden.lastCall = false;
@@ -75,15 +97,14 @@ export default function RepairsListView() {
       hidden.repairer_name = false;
       hidden.invoice = false;
     }
-    if (isMobile) hidden.createdAt = false;
     return hidden;
-  }, [isLaptop, isTablet, isMobile]);
+  }, [isLaptop, isTablet]);
   const effectiveTableState = useMemo<DataTableState>(
     () => ({
       ...tableState,
-      columnVisibility: { ...responsiveHidden, ...tableState.columnVisibility },
+      columnVisibility: { ...defaultHidden, ...tableState.columnVisibility },
     }),
-    [tableState, responsiveHidden],
+    [tableState, defaultHidden],
   );
   // Ne persister que les écarts au défaut de la largeur courante : sinon un
   // tri fait sur mobile figerait les colonnes masquées sur le bureau.
@@ -91,12 +112,12 @@ export default function RepairsListView() {
     (next: DataTableState) => {
       const columnVisibility = Object.fromEntries(
         Object.entries(next.columnVisibility).filter(
-          ([id, visible]) => (responsiveHidden[id] ?? true) !== visible,
+          ([id, visible]) => (defaultHidden[id] ?? true) !== visible,
         ),
       );
       setTableState({ ...next, columnVisibility });
     },
-    [responsiveHidden, setTableState],
+    [defaultHidden, setTableState],
   );
 
   const colorByState = useMemo<Record<string, string>>(() => {
@@ -129,8 +150,8 @@ export default function RepairsListView() {
   // la mise à jour du tableau se fait dans les callbacks `.then`/`.finally`,
   // qui s'exécutent après la réponse réseau et non de façon synchrone dans
   // le corps de l'effet (cf. règle de lint `react-hooks/set-state-in-effect`).
-  const fetchData = useCallback((token: string) => {
-    getAllMachineRepairs(token)
+  const fetchData = useCallback((token: string, archived: ArchiveFilter) => {
+    getAllMachineRepairs(token, archived)
       .then((data: MachineRepairListItemFromApi[]) => {
         const withDates: MachineRepairListItem[] = data.map((repair) => ({
           ...repair,
@@ -153,17 +174,23 @@ export default function RepairsListView() {
   }, []);
 
   useEffect(() => {
-    fetchData(auth.token);
-  }, [auth.token, fetchData]);
+    fetchData(auth.token, archiveFilter);
+  }, [auth.token, archiveFilter, fetchData]);
 
-  const handleOpenGoogleDrive = useCallback(() => {
-    const url = config['URL drive réparations/entretiens'];
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      notifyError('Lien vers Google Drive non configuré');
-    }
-  }, [config]);
+  const dropboxUrl = config[DROPBOX_URL_CONFIG_KEY] || DEFAULT_DROPBOX_URL;
+
+  const handleColumnVisibilityChange = useCallback(
+    (id: string, visible: boolean) => {
+      persistTableState({
+        ...effectiveTableState,
+        columnVisibility: {
+          ...effectiveTableState.columnVisibility,
+          [id]: visible,
+        },
+      });
+    },
+    [effectiveTableState, persistTableState],
+  );
 
   const handleRepairerChange = useCallback(
     (id: number, previous: string | null, next: string | null) => {
@@ -220,9 +247,9 @@ export default function RepairsListView() {
       }
       if (searchWords.length > 0) {
         const fullName = normalize(
-          `${repair.first_name || ''} ${repair.last_name || ''}`.trim(),
+          `${repair.client.firstName || ''} ${repair.client.lastName || ''}`.trim(),
         );
-        const phone = repair.phone ? normalize(repair.phone) : '';
+        const phone = repair.client.phone ? normalize(repair.client.phone) : '';
         return searchWords.every(
           (word) => fullName.includes(word) || phone.includes(word),
         );
@@ -231,13 +258,14 @@ export default function RepairsListView() {
     });
   }, [machineRepairs, selectedStates, selectedRepairers, searchWords]);
 
-  const handleResetConfirm = useCallback(() => {
+  const handleReset = useCallback(() => {
     setSelectedStates([]);
     setSelectedRepairers([]);
     setCustomerFilterText('');
     setAppliedCustomerFilter('');
     setTableState(DEFAULT_TABLE_STATE);
-    setResetOpen(false);
+    setSettingsOpen(false);
+    notifySuccess('Tableau réinitialisé');
   }, [setTableState]);
 
   return (
@@ -254,10 +282,19 @@ export default function RepairsListView() {
         getRowClassName={() => 'cursor-pointer'}
         state={effectiveTableState}
         onStateChange={persistTableState}
-        enableColumnVisibility
         emptyMessage="Aucune réparation ne correspond à ces filtres"
         toolbar={
           <>
+            <ToggleGroup
+              value={[archiveFilter]}
+              onValueChange={(next) => {
+                if (next[0]) setArchiveFilter(next[0] as ArchiveFilter);
+              }}
+              aria-label="Filtre d'archivage"
+            >
+              <ToggleGroupItem value="active">Actives</ToggleGroupItem>
+              <ToggleGroupItem value="archived">Archivées</ToggleGroupItem>
+            </ToggleGroup>
             <MultiCombobox
               options={availableStates.map((state) => ({
                 value: state,
@@ -292,6 +329,8 @@ export default function RepairsListView() {
             <div className="relative w-full sm:w-56">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                {...noAutofillProps}
+                type="search"
                 value={customerFilterText}
                 onChange={(event) => setCustomerFilterText(event.target.value)}
                 placeholder="Rechercher un client"
@@ -299,26 +338,39 @@ export default function RepairsListView() {
                 className="pl-8"
               />
             </div>
-            <Button variant="outline" onClick={() => setResetOpen(true)}>
-              <RotateCcw />
-              Réinitialiser
-            </Button>
-            <Button variant="outline" onClick={handleOpenGoogleDrive}>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <a
+                  href={dropboxUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                />
+              }
+            >
               <FolderOpen />
-              Google Drive
+              Dropbox
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Paramètres du tableau"
+              title="Paramètres du tableau"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings />
             </Button>
           </>
         }
       />
 
-      <ConfirmDialog
-        open={resetOpen}
-        title="Réinitialiser le tableau"
-        message="Réinitialiser tous les paramètres du tableau (colonnes, tri, filtres) ?"
-        onConfirm={handleResetConfirm}
-        onClose={() => setResetOpen(false)}
-        type="warning"
-        confirmText="Réinitialiser"
+      <RepairsSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        columnVisibility={effectiveTableState.columnVisibility}
+        onColumnVisibilityChange={handleColumnVisibilityChange}
+        onReset={handleReset}
       />
     </div>
   );

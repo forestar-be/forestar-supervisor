@@ -2,11 +2,22 @@ import { createApiClient, isHttpError } from '@forestar-be/core';
 import type { LoginResponse } from '@forestar-be/core/auth';
 import { API_URL, getSessionClient, SSO_ENABLED } from './session';
 import type {
+  ArchiveFilter,
+  Client,
+  ClientDetail,
+  ClientConflict,
+  ClientDuplicatePair,
+  ClientField,
+  ClientSummary,
   ConfigElement,
   DolibarrBankAccount,
   InstallationPreparationText,
   MachineRepair,
+  MachineRepairArchiveResult,
+  MachineRepairHandoverResult,
   MachineRepairListItemFromApi,
+  MergeClientsResult,
+  RelatedRepair,
   RepairForInvoice,
   ServiceInvoice,
   ServiceInvoiceItemConfig,
@@ -89,8 +100,7 @@ async function apiRequest<T = any>(
 export const login = (data: {
   username: string;
   password: string;
-}): Promise<LoginResponse> =>
-  apiRequest('/supervisor/login', 'POST', '', data);
+}): Promise<LoginResponse> => apiRequest('/supervisor/login', 'POST', '', data);
 
 export const isAuthenticatedGg = (
   token: string,
@@ -105,14 +115,19 @@ export const getAuthUrlGg = (
 
 // ── Réparations ──
 
+/**
+ * Liste des fiches. `archived` pilote le filtre d'archivage côté serveur
+ * (`active` par défaut si omis) : « active », « archived » ou « all ».
+ */
 export const getAllMachineRepairs = async (
   token: string,
+  archived?: ArchiveFilter,
 ): Promise<MachineRepairListItemFromApi[]> => {
   const response = await apiRequest<{ data: MachineRepairListItemFromApi[] }>(
     '/supervisor/machine-repairs',
     'POST',
     token,
-    { filter: {} },
+    { filter: {}, ...(archived ? { archived } : {}) },
   );
   return response.data;
 };
@@ -123,36 +138,75 @@ export const fetchRepairById = (id: string, token: string) =>
 export const updateRepair = (token: string, id: string, data: unknown) =>
   apiRequest(`/supervisor/machine-repairs/${id}`, 'PATCH', token, data);
 
+/** Suppression définitive : `confirm` doit valoir le numéro de la fiche. */
 export const deleteRepair = (token: string, id: string) =>
-  apiRequest(`/supervisor/machine-repairs/${id}`, 'DELETE', token);
-
-export const sendEmailApi = (
-  token: string,
-  id: number | string,
-  data: FormData,
-) =>
   apiRequest(
-    `/supervisor/machine-repairs/email/${id}`,
-    'PUT',
+    `/supervisor/machine-repairs/${id}?confirm=${encodeURIComponent(id)}`,
+    'DELETE',
     token,
-    data,
-    {},
-    false,
   );
 
-export const sendDriveApi = (
+/** « Archiver sans sortie » (R003) : archive puis envoie le PDF (D-02, D-03). */
+export const archiveRepair = (
+  token: string,
+  id: string,
+): Promise<MachineRepairHandoverResult> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/archive`, 'POST', token);
+
+export const unarchiveRepair = (
+  token: string,
+  id: string,
+): Promise<MachineRepairArchiveResult> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/unarchive`, 'POST', token);
+
+/**
+ * « Machine rendue au client » (R003) : pose la date de sortie (le jour
+ * choisi, `AAAA-MM-JJ`) et archive la fiche en une seule écriture serveur,
+ * sans toucher à son état, puis envoie le PDF (D-02, D-03).
+ */
+export const handOverRepair = (
   token: string,
   id: number | string,
-  data: FormData,
-) =>
-  apiRequest(
-    `/supervisor/machine-repairs/drive/${id}`,
-    'PUT',
-    token,
-    data,
-    {},
-    false,
-  );
+  exitDate: string,
+): Promise<MachineRepairHandoverResult> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/handover`, 'POST', token, {
+    exitDate,
+  });
+
+/** R003 — passages précédents du même client (téléphone, nom, code robot). */
+export const getRelatedRepairs = (
+  token: string,
+  id: number | string,
+): Promise<RelatedRepair[]> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/related`, 'GET', token);
+
+/**
+ * R002-S05 — PDF complet de la fiche, généré par le serveur. `@forestar-be/core`
+ * ne sait exposer ni JSON ni texte pour `application/pdf` : `parseBody` se
+ * rabat sur `response.blob()`, d'où le type de retour.
+ */
+export const getRepairPdf = (
+  token: string,
+  id: number | string,
+): Promise<Blob> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/pdf`, 'GET', token);
+
+/** R002-S05 — envoie le PDF généré par le serveur à l'email de la fiche. */
+export const sendRepairEmail = (
+  token: string,
+  id: number | string,
+): Promise<{ message: string }> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/email`, 'POST', token);
+
+/**
+ * R002-S05 — « Envoyer sur Dropbox » (ex-« Sauvegarder Google Drive ») :
+ * envoie le PDF généré par le serveur sur Dropbox, écrase l'envoi précédent.
+ */
+export const sendRepairToDropbox = (
+  token: string,
+  id: number | string,
+): Promise<{ dropbox_pdf_path: string; dropbox_pdf_uploaded_at: string }> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/dropbox`, 'POST', token);
 
 export const addImage = (token: string, id: string, file: File) => {
   const formData = new FormData();
@@ -173,6 +227,76 @@ export const deleteImage = (token: string, id: string, imageIndex: number) =>
     'DELETE',
     token,
   );
+
+/**
+ * R004-S04 — HTML des deux tickets 80 mm (D-11 : un seul gabarit, côté
+ * serveur). `client.request` renvoie déjà du texte pour `text/html`
+ * (`parseBody`) : pas de `.json()` à appeler ici.
+ */
+export const getRepairTicketHtml = (
+  token: string,
+  id: number | string,
+): Promise<string> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/ticket`, 'GET', token);
+
+// ── Clients (R007-S04, R009) ──
+
+/** `/clients` (AC-01) et « Changer de client » (AC-06) : recherche, sans requête = tous. */
+export const searchClients = (
+  token: string,
+  q = '',
+): Promise<ClientSummary[]> =>
+  apiRequest(
+    `/supervisor/clients${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    'GET',
+    token,
+  );
+
+/**
+ * Contrôle avant la création d'un client (R007-AC-03) : `conflicts` bloque
+ * (même téléphone ou même email), `similar` suggère seulement (nom proche).
+ */
+export const checkClient = (
+  token: string,
+  data: Partial<Record<ClientField, string>>,
+): Promise<{ conflicts: ClientConflict[]; similar: ClientSummary[] }> =>
+  apiRequest('/supervisor/clients/check', 'POST', token, data);
+
+/** `/clients/[id]` (AC-02) : coordonnées, passages et factures du client. */
+export const getClient = (token: string, id: number): Promise<ClientDetail> =>
+  apiRequest(`/supervisor/clients/${id}`, 'GET', token);
+
+/** Modification des coordonnées (AC-02) : `409 client_conflict` en cas de conflit. */
+export const updateClient = (
+  token: string,
+  id: number,
+  data: Partial<Record<ClientField, string>>,
+): Promise<Client> =>
+  apiRequest(`/supervisor/clients/${id}`, 'PATCH', token, data);
+
+/** Doublons probables (AC-03) : paires de clients au nom proche. */
+export const getClientDuplicates = (
+  token: string,
+): Promise<ClientDuplicatePair[]> =>
+  apiRequest('/supervisor/clients/duplicates', 'GET', token);
+
+/**
+ * Fusion (AC-04, D-29) : `loserId` disparaît dans `intoId`. Sans `values`, le
+ * survivant garde ses valeurs et complète ses champs vides par celles de
+ * l'autre. Avec `values` (choix par champ de l'écran de fusion), le survivant
+ * reçoit exactement ces valeurs ; un conflit avec un tiers répond
+ * `409 client_conflict`, rien n'est changé.
+ */
+export const mergeClients = (
+  token: string,
+  loserId: number,
+  intoId: number,
+  values?: Partial<Record<ClientField, string>>,
+): Promise<MergeClientsResult> =>
+  apiRequest(`/supervisor/clients/${loserId}/merge`, 'POST', token, {
+    intoId,
+    ...(values ? { values } : {}),
+  });
 
 // ── Référentiels ──
 
@@ -462,7 +586,10 @@ export const markServiceInvoiceSent = (
 export const resyncServiceInvoice = (token: string, id: number): Promise<any> =>
   apiRequest(`/supervisor/service-invoices/${id}/resync`, 'POST', token);
 
-export const getServiceInvoicePdf = (token: string, id: number): Promise<Blob> =>
+export const getServiceInvoicePdf = (
+  token: string,
+  id: number,
+): Promise<Blob> =>
   apiRequest(`/supervisor/service-invoices/${id}/pdf`, 'GET', token);
 
 export const getServiceInvoiceDeletionInfo = (

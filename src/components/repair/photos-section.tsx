@@ -14,6 +14,8 @@ interface PhotosSectionProps {
   imageUrls: string[];
   onAdd: (file: File) => Promise<void>;
   onDelete: (imageUrl: string) => Promise<void>;
+  /** Fiche archivée (R001, D-18) : ni ajout ni retrait de photo. */
+  readOnly?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export function PhotosSection({
   imageUrls,
   onAdd,
   onDelete,
+  readOnly = false,
 }: PhotosSectionProps) {
   const [loadingImage, setLoadingImage] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -69,7 +72,7 @@ export function PhotosSection({
         <Button
           type="button"
           size="sm"
-          disabled={loadingImage || imageUrls.length >= MAX_PHOTOS}
+          disabled={readOnly || loadingImage || imageUrls.length >= MAX_PHOTOS}
           onClick={() => inputRef.current?.click()}
         >
           {loadingImage ? (
@@ -93,10 +96,14 @@ export function PhotosSection({
       </div>
       <ImageLightbox
         images={imageUrls.map((url) => ({ src: url, alt: 'Photo réparation' }))}
-        onDelete={(index) => {
-          const url = imageUrls[index];
-          if (url) void onDelete(url);
-        }}
+        onDelete={
+          readOnly
+            ? undefined
+            : (index) => {
+                const url = imageUrls[index];
+                if (url) void onDelete(url);
+              }
+        }
         emptyMessage="Pas de photo disponible"
         className="grid-cols-2"
       />

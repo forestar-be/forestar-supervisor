@@ -1,6 +1,6 @@
 'use client';
 
-import { Input, Textarea, cn } from '@forestar-be/ui';
+import { Input, Textarea, cn, noAutofillProps } from '@forestar-be/ui';
 import type { ReactNode } from 'react';
 
 interface RepairFieldProps {
@@ -14,6 +14,11 @@ interface RepairFieldProps {
   ) => void;
   endAdornment?: ReactNode;
   className?: string;
+  /**
+   * R009-S02 — message affiché sous le champ en édition (409 `client_conflict`
+   * d'un champ unique, AC-05). Sans effet en lecture.
+   */
+  error?: ReactNode;
 }
 
 /**
@@ -29,6 +34,7 @@ export function RepairField({
   onChange,
   endAdornment,
   className,
+  error,
 }: RepairFieldProps) {
   if (editable) {
     return (
@@ -47,6 +53,7 @@ export function RepairField({
           />
         ) : (
           <Input
+            {...noAutofillProps}
             id={name}
             name={name}
             value={value || ''}
@@ -54,6 +61,7 @@ export function RepairField({
             className="w-full"
           />
         )}
+        {error && <div className="text-sm text-destructive">{error}</div>}
       </div>
     );
   }
@@ -69,9 +77,7 @@ export function RepairField({
       <span className="whitespace-nowrap text-sm font-medium text-muted-foreground">
         {label} :
       </span>
-      <span className="break-words text-sm text-foreground">
-        {value || ''}
-      </span>
+      <span className="break-words text-sm text-foreground">{value || ''}</span>
       {endAdornment}
     </div>
   );
