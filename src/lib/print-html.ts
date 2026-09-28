@@ -6,7 +6,10 @@
  * chargement puis déclenche `contentWindow.print()`, à la manière du POS
  * Dolibarr (`tpv.js:8709-8870`) — jamais automatique, toujours sur clic.
  * L'iframe est retirée après `afterprint`, ou au bout d'un délai de
- * sécurité si l'événement n'arrive jamais (certains navigateurs embarqués).
+ * sécurité si l'événement n'arrive jamais (certains navigateurs embarqués),
+ * ou si `load` lui-même n'arrive jamais (pilote d'imprimante lent, ou qui ne
+ * répond pas) : le filet est posé dès l'appel, pas seulement une fois
+ * `load` reçu, sinon rien ne libère jamais le bouton dans ce cas.
  */
 export function printHtml(html: string): Promise<void> {
   return new Promise((resolve) => {
@@ -20,12 +23,16 @@ export function printHtml(html: string): Promise<void> {
     iframe.setAttribute('aria-hidden', 'true');
 
     let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const cleanup = () => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeoutId);
       iframe.remove();
       resolve();
     };
+
+    timeoutId = setTimeout(cleanup, 5000);
 
     iframe.addEventListener('load', () => {
       const win = iframe.contentWindow;
@@ -33,12 +40,14 @@ export function printHtml(html: string): Promise<void> {
         cleanup();
         return;
       }
-      win.addEventListener('afterprint', cleanup);
-      win.focus();
-      win.print();
-      // Filet de sécurité : certains navigateurs n'émettent jamais
-      // `afterprint`.
-      setTimeout(cleanup, 5000);
+      try {
+        win.addEventListener('afterprint', cleanup);
+        win.focus();
+        win.print();
+      } catch (error) {
+        console.error('Error triggering print:', error);
+        cleanup();
+      }
     });
 
     iframe.srcdoc = html;

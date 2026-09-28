@@ -53,4 +53,39 @@ describe('printHtml', () => {
       vi.useRealTimers();
     }
   });
+
+  it('résout aussi si `load` n’arrive jamais (filet de sécurité global)', async () => {
+    vi.useFakeTimers();
+    try {
+      const promise = printHtml('<html><body>Ticket</body></html>');
+      const iframe = getIframe();
+
+      // Ni `load` ni `afterprint` ne sont déclenchés : seul le filet posé
+      // dès l'appel peut résoudre la Promise.
+      await vi.advanceTimersByTimeAsync(5000);
+      await promise;
+
+      expect(document.body.contains(iframe)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('résout sans attendre si `print()` lève une exception', async () => {
+    const html = '<html><body>Ticket</body></html>';
+    const promise = printHtml(html);
+    const iframe = getIframe();
+
+    Object.defineProperty(iframe.contentWindow, 'print', {
+      value: () => {
+        throw new Error('print refusé par le navigateur');
+      },
+      configurable: true,
+    });
+
+    iframe.dispatchEvent(new Event('load'));
+    await promise;
+
+    expect(document.body.contains(iframe)).toBe(false);
+  });
 });
