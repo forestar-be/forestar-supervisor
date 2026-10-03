@@ -2,7 +2,6 @@
 
 import {
   CalendarDays,
-  ExternalLink,
   FileText,
   HardHat,
   History,
@@ -13,14 +12,13 @@ import {
 } from 'lucide-react';
 import {
   AppShell as SharedAppShell,
-  Button,
   ThemeToggle,
   type AppShellNavItem,
 } from '@forestar-be/ui';
+import AppMenu from '@/components/AppMenu';
 import AccountMenu from '@/components/AccountMenu';
 import { useAuth } from '@/lib/auth';
 import { useTrackInAppHistory } from '@/lib/in-app-history';
-import { OPERATOR_URL, ROBOT_URL } from '@/lib/session';
 
 const navItems: AppShellNavItem[] = [
   { href: '/', label: 'Accueil', icon: Home },
@@ -62,29 +60,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const header = (
     <>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={
-          <a href={ROBOT_URL} target="_blank" rel="noopener noreferrer" />
-        }
-      >
-        Robots
-        <ExternalLink />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        nativeButton={false}
-        render={
-          <a href={OPERATOR_URL} target="_blank" rel="noopener noreferrer" />
-        }
-      >
-        Opérateur
-        <ExternalLink />
-      </Button>
       <ThemeToggle />
+      <AppMenu />
     </>
   );
 
