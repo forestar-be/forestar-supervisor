@@ -24,13 +24,6 @@ export const SSO_ISSUER =
 export const SSO_CONSOLE_URL =
   process.env.NEXT_PUBLIC_SSO_CONSOLE_URL ?? `${SSO_ISSUER}/ui/console`;
 
-export const ROBOT_URL =
-  process.env.NEXT_PUBLIC_ROBOT_URL ?? 'https://robot.forestar.be';
-
-/** Application de la tablette de l'atelier, ouverte depuis l'en-tête. */
-export const OPERATOR_URL =
-  process.env.NEXT_PUBLIC_OPERATOR_URL ?? 'https://operateur.forestar.be';
-
 /**
  * Valeur de `useAuth().token` en mode SSO.
  *

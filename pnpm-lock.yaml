@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@forestar-be/core':
-        specifier: ^0.6.0
-        version: 0.6.0(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^0.7.1
+        version: 0.7.1(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@forestar-be/ui':
         specifier: ^0.10.0
         version: 0.10.0(@date-fns/tz@1.5.0)(@types/prop-types@15.7.14)(@types/react@19.3.0)(date-fns@4.4.0)(lucide-react@1.47.0(react@19.3.0))(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(prop-types@15.8.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -355,19 +355,12 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@forestar-be/core@0.6.0':
-    resolution: {integrity: sha512-T5rPwjkd1E7euPJHypgL7R0y3+f6eeaNS5hyqRrUz0D1SLDJMGZqYwOxvurJRXkU/u0PHv9ENt7SHEd0kX4F6Q==, tarball: https://npm.pkg.github.com/download/@forestar-be/core/0.6.0/9818aa6f43ce3a7d3bee988ca66be6c95e3ac40a}
+  '@forestar-be/core@0.7.1':
+    resolution: {integrity: sha512-x5yEhh/9BplEo7FavVzBSohCI1lIYkXjvWpkooIYI9JDzbsXg3M+fkk8nXQMmtDTa1dzAccCvvCIGJf+PWbbHw==, tarball: https://npm.pkg.github.com/download/@forestar-be/core/0.7.1/f6d88e226d916ef89f31eeb4c7093b3dfc85062d}
     peerDependencies:
       next: '>=15'
       react: '>=18'
       react-dom: '>=18'
-    peerDependenciesMeta:
-      next:
-        optional: true
-      react:
-        optional: true
-      react-dom:
-        optional: true
 
   '@forestar-be/ui@0.10.0':
     resolution: {integrity: sha512-2wGj8HUgiEMTGyUqMt5e/eWCiaZ2e43Tnv/ejy0l9lIeaIyKpe60fAGU3OJTuML7xRCZlBgIepJ+RXNyUg8Oig==, tarball: https://npm.pkg.github.com/download/@forestar-be/ui/0.10.0/66af2a7b3616df3711d0ac893c32afdc9b7eb849}
@@ -3388,8 +3381,8 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@forestar-be/core@0.6.0(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
-    optionalDependencies:
+  '@forestar-be/core@0.7.1(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
       next: 16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
