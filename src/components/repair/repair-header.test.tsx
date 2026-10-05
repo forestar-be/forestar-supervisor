@@ -35,7 +35,6 @@ function renderHeader(
       onCalendarEventView={() => {}}
       loadingCalendarEvent={false}
       onPrintTickets={noop}
-      isPrintingTickets={false}
       readOnly={false}
       archivedAt={null}
       onUnarchive={noop}
@@ -110,5 +109,35 @@ describe('RepairHeader', () => {
     expect(
       screen.getByRole('menuitem', { name: 'Supprimer la fiche' }),
     ).toBeInTheDocument();
+  });
+
+  it('« Imprimer les tickets » ne porte aucun chargement : « Plus » ne tourne jamais pour lui', () => {
+    // La modale d'impression du navigateur fige la page : un chargement
+    // rattaché à `print()` restait affiché sans fin.
+    const onPrintTickets = vi.fn(() => new Promise<void>(() => {}));
+    renderHeader({ onPrintTickets });
+
+    openMoreMenu();
+    const item = screen.getByRole('menuitem', { name: 'Imprimer les tickets' });
+    expect(item).not.toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(item);
+
+    expect(onPrintTickets).toHaveBeenCalledOnce();
+    expect(
+      screen
+        .getByRole('button', { name: 'Plus' })
+        .querySelector('[role="status"]'),
+    ).toBeNull();
+  });
+
+  it('« Plus » tourne tant qu’une action qui attend le serveur est en cours', () => {
+    renderHeader({ isLoadingEmail: true });
+
+    // Le spinner s'ajoute au nom accessible du bouton (« Chargement Plus »).
+    expect(
+      screen
+        .getByRole('button', { name: /Plus/ })
+        .querySelector('[role="status"]'),
+    ).not.toBeNull();
   });
 });

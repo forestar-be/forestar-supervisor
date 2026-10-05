@@ -7,9 +7,13 @@
  * Dolibarr (`tpv.js:8709-8870`) — jamais automatique, toujours sur clic.
  * L'iframe est retirée après `afterprint`, ou au bout d'un délai de
  * sécurité si l'événement n'arrive jamais (certains navigateurs embarqués),
- * ou si `load` lui-même n'arrive jamais (pilote d'imprimante lent, ou qui ne
- * répond pas) : le filet est posé dès l'appel, pas seulement une fois
- * `load` reçu, sinon rien ne libère jamais le bouton dans ce cas.
+ * ou si `load` lui-même n'arrive jamais : le filet est posé dès l'appel, pas
+ * seulement une fois `load` reçu, pour que l'iframe ne reste jamais dans la
+ * page.
+ *
+ * L'appelant ne doit pas rattacher d'indicateur de chargement à cette
+ * promesse : Chrome fige la page (minuteurs compris) pendant que la modale
+ * d'impression est ouverte, la promesse ne se résout donc qu'à sa fermeture.
  */
 export function printHtml(html: string): Promise<void> {
   return new Promise((resolve) => {
@@ -23,7 +27,6 @@ export function printHtml(html: string): Promise<void> {
     iframe.setAttribute('aria-hidden', 'true');
 
     let settled = false;
-    let timeoutId: ReturnType<typeof setTimeout>;
     const cleanup = () => {
       if (settled) return;
       settled = true;
@@ -32,7 +35,7 @@ export function printHtml(html: string): Promise<void> {
       resolve();
     };
 
-    timeoutId = setTimeout(cleanup, 5000);
+    const timeoutId = setTimeout(cleanup, 5000);
 
     iframe.addEventListener('load', () => {
       const win = iframe.contentWindow;

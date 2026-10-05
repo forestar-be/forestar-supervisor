@@ -133,8 +133,6 @@ export function RepairPageClient() {
   const [isLoadingPrint, setIsLoadingPrint] = useState(false);
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  // R004-S04 — réimpression des tickets 80 mm depuis la fiche.
-  const [isPrintingTickets, setIsPrintingTickets] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   // R003-S05 — « Machine rendue au client » : boîte de dialogue avec la date
   // de sortie, séparée de `isArchiving` (« Archiver sans sortie ») pour ne
@@ -914,12 +912,18 @@ export function RepairPageClient() {
 
   // R004-S04 — réimprime les tickets 80 mm (D-11). Disponible sur une fiche
   // active comme archivée (D-18) : pas de garde d'état ici.
+  //
+  // Aucun indicateur de chargement : la modale d'impression du navigateur est
+  // le retour visuel, et Chrome fige la page tant qu'elle est ouverte. Un
+  // chargement attaché à `print()` restait donc affiché pendant toute la
+  // modale (jusqu'au « Plus » qui tourne sans fin) et aucun minuteur ne
+  // pouvait le libérer. On ne garde que la récupération du HTML, sans attendre
+  // l'impression.
   const handlePrintTickets = async () => {
     if (!id) return;
-    setIsPrintingTickets(true);
     try {
       const html = await getRepairTicketHtml(auth.token, id);
-      await printHtml(html);
+      void printHtml(html);
     } catch (error) {
       console.error('Error printing tickets:', error);
       notifyError(
@@ -927,8 +931,6 @@ export function RepairPageClient() {
           ? error.message
           : 'Impossible de charger les tickets. Réessayez.',
       );
-    } finally {
-      setIsPrintingTickets(false);
     }
   };
 
@@ -1132,7 +1134,6 @@ export function RepairPageClient() {
           onCalendarEventView={handleCalendarEventView}
           loadingCalendarEvent={isLoadingCalendarEvent}
           onPrintTickets={handlePrintTickets}
-          isPrintingTickets={isPrintingTickets}
           readOnly={readOnly}
           archivedAt={repair?.archived_at ?? null}
           onUnarchive={handleUnarchive}
