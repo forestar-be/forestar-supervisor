@@ -56,7 +56,6 @@ interface RepairHeaderProps {
   onCalendarEventView: () => void;
   loadingCalendarEvent: boolean;
   onPrintTickets: () => Promise<void>;
-  isPrintingTickets: boolean;
   /** Fiche archivée (R001, D-18) : lecture seule. Désarchiver et Supprimer restent actifs. */
   readOnly: boolean;
   /** ISO de l'archivage, pour le badge à côté du titre ; `null` si active. */
@@ -107,7 +106,6 @@ export function RepairHeader({
   onCalendarEventView,
   loadingCalendarEvent,
   onPrintTickets,
-  isPrintingTickets,
   readOnly,
   archivedAt,
   onUnarchive,
@@ -123,7 +121,6 @@ export function RepairHeader({
   const menuBusy =
     isLoadingEmail ||
     isLoadingDropbox ||
-    isPrintingTickets ||
     loadingCalendarEvent ||
     (!readOnly && isArchiving);
 
@@ -221,10 +218,7 @@ export function RepairHeader({
                   <HardDriveUpload />
                   Renvoyer le PDF sur Dropbox
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => void onPrintTickets()}
-                  disabled={isPrintingTickets}
-                >
+                <DropdownMenuItem onClick={() => void onPrintTickets()}>
                   <Tag />
                   Imprimer les tickets
                 </DropdownMenuItem>
