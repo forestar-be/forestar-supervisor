@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@forestar-be/core':
-        specifier: ^0.7.1
-        version: 0.7.1(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^0.7.2
+        version: 0.7.2(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@forestar-be/ui':
         specifier: ^0.10.0
         version: 0.10.0(@date-fns/tz@1.5.0)(@types/prop-types@15.7.14)(@types/react@19.3.0)(date-fns@4.4.0)(lucide-react@1.47.0(react@19.3.0))(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(prop-types@15.8.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -355,8 +355,8 @@ packages:
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
 
-  '@forestar-be/core@0.7.1':
-    resolution: {integrity: sha512-x5yEhh/9BplEo7FavVzBSohCI1lIYkXjvWpkooIYI9JDzbsXg3M+fkk8nXQMmtDTa1dzAccCvvCIGJf+PWbbHw==, tarball: https://npm.pkg.github.com/download/@forestar-be/core/0.7.1/f6d88e226d916ef89f31eeb4c7093b3dfc85062d}
+  '@forestar-be/core@0.7.2':
+    resolution: {integrity: sha512-IwsUblMH6IWaTYObATIOyYqTdqYglYBOrro0N/s3EalHXrRwsAQclMfkkTVIfoBt2DYOxhw4YQbYNzpMzLGWVQ==, tarball: https://npm.pkg.github.com/download/@forestar-be/core/0.7.2/87f4cf33327a4fc18cf9e2ae24068af5295d5875}
     peerDependencies:
       next: '>=15'
       react: '>=18'
@@ -3381,7 +3381,7 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@forestar-be/core@0.7.1(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@forestar-be/core@0.7.2(next@16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       next: 16.3.4(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
