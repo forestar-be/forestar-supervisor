@@ -48,7 +48,7 @@ import {
 } from '@/lib/api';
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
 import { getInvoiceStatusLabel, getInvoiceStatusTone } from '@/lib/invoice';
-import { printHtml } from '@/lib/print-html';
+import { printHtml, printPdfBlob } from '@/lib/print-html';
 import {
   COUNTER_PRINT_SUCCESS_MESSAGE,
   describeCounterPrintError,
@@ -76,6 +76,7 @@ import {
   getWorkingTimePrice,
   type ManualTimeField,
 } from '@/lib/single-repair';
+import { CounterPrintFailedDialog } from './counter-print-failed-dialog';
 import { RepairHeader } from './repair-header';
 import { RepairField } from './repair-field';
 import { RepairSelect } from './repair-select';
@@ -137,6 +138,7 @@ export function RepairPageClient() {
   const [isLoadingDownload, setIsLoadingDownload] = useState(false);
   const [isLoadingPrint, setIsLoadingPrint] = useState(false);
   const [isPrintingTickets, setIsPrintingTickets] = useState(false);
+  const [counterPrintError, setCounterPrintError] = useState<string | null>(null);
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -769,60 +771,31 @@ export function RepairPageClient() {
   };
 
   /**
-   * R002-S05 — Imprimer ouvre le PDF du serveur dans un nouvel onglet.
-   *
-   * `window.open('', '_blank')` est appelé de façon synchrone dans le
-   * gestionnaire de clic, **avant** tout `await` — c'est ce geste-là, dans le
-   * droit fil du clic, que les navigateurs autorisent. Le PDF est ensuite
-   * récupéré en `Blob` (il faut l'en-tête `Authorization`, qu'une simple
-   * navigation ne porte pas en mode `legacy`).
-   *
-   * **Mesuré, pas supposé** : poser l'URL du blob sur `printWindow.location`
-   * une fois reçue échoue silencieusement — Chromium bloque la navigation
-   * d'un onglet devenu inactif si elle n'est plus synchrone avec le clic
-   * (`printWindow.location.href = url` ne fait rien, ni `.replace()`, ni un
-   * `focus()` préalable ; reproduit hors app avec un simple
-   * `window.open('', '_blank')` + `location.href` différé). Écrire le
-   * document de l'onglet déjà ouvert (`document.write`, sans navigation) n'a
-   * pas ce problème : la méthode retenue est donc un `<embed>` plein cadre
-   * posé par `document.write` plutôt qu'une navigation de `location`.
+   * « Imprimer » ouvre directement la boîte d'impression de la fiche A4
+   * (retour du PO, 7 oct. 2026 : plus d'onglet PDF). Le PDF est récupéré en
+   * `Blob` (en-tête `Authorization`), puis imprimé depuis une iframe cachée.
+   * L'indicateur s'arrête dès le PDF reçu : Chrome fige la page pendant la
+   * boîte d'impression, il ne doit pas en dépendre.
    */
   const handlePrintPdf = async () => {
     if (!id) return;
     if (!ensureTimerStopped("d'imprimer le PDF")) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      notifyError(
-        "Le navigateur a bloqué l'ouverture de l'onglet d'impression. Autorisez les fenêtres pop-up pour ce site.",
-      );
-      return;
-    }
     setIsLoadingPrint(true);
+    let blob: Blob;
     try {
-      const blob = await getRepairPdf(auth.token, id);
-      const url = URL.createObjectURL(blob);
-      const title = repair?.pdf_file_name ?? `Fiche ${id}`;
-      const escapedTitle = title
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      printWindow.document.write(
-        `<!doctype html><html><head><title>${escapedTitle}</title>` +
-          '<style>html,body{margin:0;height:100%}embed{position:absolute;inset:0;width:100%;height:100%;border:0}</style>' +
-          `</head><body><embed src="${url}" type="application/pdf" /></body></html>`,
-      );
-      printWindow.document.close();
+      blob = await getRepairPdf(auth.token, id);
     } catch (error) {
       console.error('Error printing PDF:', error);
-      printWindow.close();
       notifyError(
         isHttpError(error)
           ? error.message
-          : "Une erreur s'est produite lors de l'ouverture du PDF pour impression",
+          : "Une erreur s'est produite lors de la préparation du PDF pour impression",
       );
+      return;
     } finally {
       setIsLoadingPrint(false);
     }
+    void printPdfBlob(blob);
   };
 
   const handleSendEmail = async () => {
@@ -928,14 +901,19 @@ export function RepairPageClient() {
       notifySuccess(COUNTER_PRINT_SUCCESS_MESSAGE);
     } catch (error) {
       console.error('Error printing tickets at the counter:', error);
-      notifyError(describeCounterPrintError(error));
+      // Double clic : rien à proposer, l'impression précédente est en cours.
+      if (isHttpError(error) && error.status === 409) {
+        notifyError(describeCounterPrintError(error));
+      } else {
+        setCounterPrintError(describeCounterPrintError(error));
+      }
     } finally {
       setIsPrintingTickets(false);
     }
   };
 
-  // R004-S04 — « Imprimer sur ce poste » : l'ancien chemin, déjà prouvé, qui
-  // sert de secours si le relais du comptoir tombe (D-08).
+  // R004-S04 — « Imprimer sur ce poste » : l'ancien chemin, proposé seulement
+  // par la modale de secours quand le comptoir échoue (retour du PO, 7 oct.).
   //
   // Aucun indicateur de chargement : la modale d'impression du navigateur est
   // le retour visuel, et Chrome fige la page tant qu'elle est ouverte. Un
@@ -1159,7 +1137,6 @@ export function RepairPageClient() {
           loadingCalendarEvent={isLoadingCalendarEvent}
           onPrintTickets={handlePrintTickets}
           isLoadingPrintTickets={isPrintingTickets}
-          onPrintTicketsHere={handlePrintTicketsHere}
           readOnly={readOnly}
           archivedAt={repair?.archived_at ?? null}
           onUnarchive={handleUnarchive}
@@ -1248,6 +1225,19 @@ export function RepairPageClient() {
         state={repair?.state ?? null}
         loading={isHandingOver}
         onConfirm={handleHandoverConfirm}
+      />
+
+      <CounterPrintFailedDialog
+        message={counterPrintError}
+        onClose={() => setCounterPrintError(null)}
+        onRetry={() => {
+          setCounterPrintError(null);
+          void handlePrintTickets();
+        }}
+        onPrintHere={() => {
+          setCounterPrintError(null);
+          void handlePrintTicketsHere();
+        }}
       />
 
       <CallHistoryDialog

@@ -36,7 +36,6 @@ function renderHeader(
       loadingCalendarEvent={false}
       onPrintTickets={noop}
       isLoadingPrintTickets={false}
-      onPrintTicketsHere={noop}
       readOnly={false}
       archivedAt={null}
       onUnarchive={noop}
@@ -146,24 +145,11 @@ describe('RepairHeader', () => {
     expect(onPrintTickets).toHaveBeenCalledOnce();
   });
 
-  it('« Imprimer sur ce poste » ne porte aucun chargement : « Plus » ne tourne jamais pour lui', () => {
-    // La modale d'impression du navigateur fige la page : un chargement
-    // rattaché à `print()` restait affiché sans fin.
-    const onPrintTicketsHere = vi.fn(() => new Promise<void>(() => {}));
-    renderHeader({ onPrintTicketsHere });
-
+  it("n'offre plus « Imprimer sur ce poste » dans le menu : c'est le secours de la modale", () => {
+    renderHeader();
     openMoreMenu();
-    const item = screen.getByRole('menuitem', {
-      name: 'Imprimer sur ce poste',
-    });
-    expect(item).not.toHaveAttribute('aria-disabled', 'true');
-    fireEvent.click(item);
-
-    expect(onPrintTicketsHere).toHaveBeenCalledOnce();
     expect(
-      screen
-        .getByRole('button', { name: 'Plus' })
-        .querySelector('[role="status"]'),
+      screen.queryByRole('menuitem', { name: 'Imprimer sur ce poste' }),
     ).toBeNull();
   });
 
