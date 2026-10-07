@@ -55,7 +55,11 @@ interface RepairHeaderProps {
   onCalendarEventCreate: () => void;
   onCalendarEventView: () => void;
   loadingCalendarEvent: boolean;
+  /** « Imprimer les tickets » : l'API les imprime au comptoir (impression-comptoir R002). */
   onPrintTickets: () => Promise<void>;
+  isLoadingPrintTickets: boolean;
+  /** « Imprimer sur ce poste » : l'ancien chemin, par la boîte d'impression du navigateur. */
+  onPrintTicketsHere: () => Promise<void>;
   /** Fiche archivée (R001, D-18) : lecture seule. Désarchiver et Supprimer restent actifs. */
   readOnly: boolean;
   /** ISO de l'archivage, pour le badge à côté du titre ; `null` si active. */
@@ -106,6 +110,8 @@ export function RepairHeader({
   onCalendarEventView,
   loadingCalendarEvent,
   onPrintTickets,
+  isLoadingPrintTickets,
+  onPrintTicketsHere,
   readOnly,
   archivedAt,
   onUnarchive,
@@ -121,6 +127,7 @@ export function RepairHeader({
   const menuBusy =
     isLoadingEmail ||
     isLoadingDropbox ||
+    isLoadingPrintTickets ||
     loadingCalendarEvent ||
     (!readOnly && isArchiving);
 
@@ -218,9 +225,17 @@ export function RepairHeader({
                   <HardDriveUpload />
                   Renvoyer le PDF sur Dropbox
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void onPrintTickets()}>
+                <DropdownMenuItem
+                  onClick={() => void onPrintTickets()}
+                  disabled={isLoadingPrintTickets}
+                >
                   <Tag />
                   Imprimer les tickets
+                </DropdownMenuItem>
+                {/* Pas d'indicateur ici : Chrome fige la page pendant print(). */}
+                <DropdownMenuItem onClick={() => void onPrintTicketsHere()}>
+                  <Printer />
+                  Imprimer sur ce poste
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />

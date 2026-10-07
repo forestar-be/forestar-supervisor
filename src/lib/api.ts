@@ -239,6 +239,18 @@ export const getRepairTicketHtml = (
 ): Promise<string> =>
   apiRequest(`/supervisor/machine-repairs/${id}/ticket`, 'GET', token);
 
+/**
+ * R002 (impression-comptoir) — demande à l'API d'imprimer les tickets d'une
+ * fiche sur la Toshiba du comptoir. Seul `id` part : le serveur fabrique le
+ * HTML lui-même (le même que `getRepairTicketHtml`). Les refus portent
+ * `{ code, detail }` dans `HttpError.data` (voir `counter-print.ts`).
+ */
+export const printRepairTicketsAtCounter = (
+  token: string,
+  id: number | string,
+): Promise<{ printed: true; jobId: string; durationMs: number }> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/ticket/print`, 'POST', token);
+
 // ── Clients (R007-S04, R009) ──
 
 /** `/clients` (AC-01) et « Changer de client » (AC-06) : recherche, sans requête = tous. */

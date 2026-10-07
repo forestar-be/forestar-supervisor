@@ -35,6 +35,8 @@ function renderHeader(
       onCalendarEventView={() => {}}
       loadingCalendarEvent={false}
       onPrintTickets={noop}
+      isLoadingPrintTickets={false}
+      onPrintTicketsHere={noop}
       readOnly={false}
       archivedAt={null}
       onUnarchive={noop}
@@ -111,18 +113,53 @@ describe('RepairHeader', () => {
     ).toBeInTheDocument();
   });
 
-  it('« Imprimer les tickets » ne porte aucun chargement : « Plus » ne tourne jamais pour lui', () => {
-    // La modale d'impression du navigateur fige la page : un chargement
-    // rattaché à `print()` restait affiché sans fin.
-    const onPrintTickets = vi.fn(() => new Promise<void>(() => {}));
+  it('« Imprimer les tickets » (comptoir) : « Plus » tourne et l’entrée est désactivée pendant l’appel', () => {
+    const onPrintTickets = vi.fn(noop);
+    renderHeader({ isLoadingPrintTickets: true, onPrintTickets });
+
+    expect(
+      screen
+        .getByRole('button', { name: /Plus/ })
+        .querySelector('[role="status"]'),
+    ).not.toBeNull();
+    // « Plus » porte le spinner : son nom accessible devient « Chargement Plus ».
+    fireEvent.click(screen.getByRole('button', { name: /Plus/ }));
+    const item = screen.getByRole('menuitem', { name: 'Imprimer les tickets' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(item);
+    expect(onPrintTickets).not.toHaveBeenCalled();
+  });
+
+  it('« Imprimer les tickets » appelle le comptoir une fois, sans chargement au repos', () => {
+    const onPrintTickets = vi.fn(noop);
     renderHeader({ onPrintTickets });
 
+    expect(
+      screen
+        .getByRole('button', { name: 'Plus' })
+        .querySelector('[role="status"]'),
+    ).toBeNull();
     openMoreMenu();
-    const item = screen.getByRole('menuitem', { name: 'Imprimer les tickets' });
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: 'Imprimer les tickets' }),
+    );
+    expect(onPrintTickets).toHaveBeenCalledOnce();
+  });
+
+  it('« Imprimer sur ce poste » ne porte aucun chargement : « Plus » ne tourne jamais pour lui', () => {
+    // La modale d'impression du navigateur fige la page : un chargement
+    // rattaché à `print()` restait affiché sans fin.
+    const onPrintTicketsHere = vi.fn(() => new Promise<void>(() => {}));
+    renderHeader({ onPrintTicketsHere });
+
+    openMoreMenu();
+    const item = screen.getByRole('menuitem', {
+      name: 'Imprimer sur ce poste',
+    });
     expect(item).not.toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(item);
 
-    expect(onPrintTickets).toHaveBeenCalledOnce();
+    expect(onPrintTicketsHere).toHaveBeenCalledOnce();
     expect(
       screen
         .getByRole('button', { name: 'Plus' })
