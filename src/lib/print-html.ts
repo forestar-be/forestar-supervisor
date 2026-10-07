@@ -57,3 +57,43 @@ export function printHtml(html: string): Promise<void> {
     document.body.appendChild(iframe);
   });
 }
+
+/**
+ * Imprime un PDF (fiche A4) sans ouvrir d'onglet : le blob est chargé dans une
+ * iframe cachée, dont le lecteur PDF de Chrome ouvre la boîte d'impression.
+ * Même règle que `printHtml` : aucun indicateur ne doit attendre cette promesse.
+ * L'iframe reste en place pendant l'impression (la retirer trop tôt annule le
+ * travail), puis est retirée au bout d'une minute.
+ */
+export function printPdfBlob(blob: Blob): Promise<void> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+
+    const cleanup = () => {
+      iframe.remove();
+      URL.revokeObjectURL(url);
+    };
+
+    iframe.addEventListener('load', () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (error) {
+        console.error('Error triggering PDF print:', error);
+      }
+      setTimeout(cleanup, 60_000);
+      resolve();
+    });
+
+    iframe.src = url;
+    document.body.appendChild(iframe);
+  });
+}
