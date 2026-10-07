@@ -38,6 +38,7 @@ import {
   fetchRepairById,
   getRepairPdf,
   getRepairTicketHtml,
+  printRepairTicketsAtCounter,
   handOverRepair,
   isHttpError,
   sendRepairEmail,
@@ -48,6 +49,10 @@ import {
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
 import { getInvoiceStatusLabel, getInvoiceStatusTone } from '@/lib/invoice';
 import { printHtml } from '@/lib/print-html';
+import {
+  COUNTER_PRINT_SUCCESS_MESSAGE,
+  describeCounterPrintError,
+} from '@/lib/counter-print';
 import { useAppSelector } from '@/store/hooks';
 import {
   clientDraftFrom,
@@ -131,6 +136,7 @@ export function RepairPageClient() {
   const [isLoadingDropbox, setIsLoadingDropbox] = useState(false);
   const [isLoadingDownload, setIsLoadingDownload] = useState(false);
   const [isLoadingPrint, setIsLoadingPrint] = useState(false);
+  const [isPrintingTickets, setIsPrintingTickets] = useState(false);
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -910,8 +916,26 @@ export function RepairPageClient() {
       date ? dayjs(date).format('YYYY-MM-DD') : null,
     );
 
-  // R004-S04 — réimprime les tickets 80 mm (D-11). Disponible sur une fiche
-  // active comme archivée (D-18) : pas de garde d'état ici.
+  // R002 (impression-comptoir) — « Imprimer les tickets » demande à l'API de
+  // les imprimer sur la Toshiba du comptoir. Disponible sur une fiche active
+  // comme archivée (D-18) : pas de garde d'état ici. Un appel au comptoir peut
+  // porter un indicateur : il n'y a pas de `print()` pour figer la page.
+  const handlePrintTickets = async () => {
+    if (!id || isPrintingTickets) return;
+    setIsPrintingTickets(true);
+    try {
+      await printRepairTicketsAtCounter(auth.token, id);
+      notifySuccess(COUNTER_PRINT_SUCCESS_MESSAGE);
+    } catch (error) {
+      console.error('Error printing tickets at the counter:', error);
+      notifyError(describeCounterPrintError(error));
+    } finally {
+      setIsPrintingTickets(false);
+    }
+  };
+
+  // R004-S04 — « Imprimer sur ce poste » : l'ancien chemin, déjà prouvé, qui
+  // sert de secours si le relais du comptoir tombe (D-08).
   //
   // Aucun indicateur de chargement : la modale d'impression du navigateur est
   // le retour visuel, et Chrome fige la page tant qu'elle est ouverte. Un
@@ -919,7 +943,7 @@ export function RepairPageClient() {
   // modale (jusqu'au « Plus » qui tourne sans fin) et aucun minuteur ne
   // pouvait le libérer. On ne garde que la récupération du HTML, sans attendre
   // l'impression.
-  const handlePrintTickets = async () => {
+  const handlePrintTicketsHere = async () => {
     if (!id) return;
     try {
       const html = await getRepairTicketHtml(auth.token, id);
@@ -1134,6 +1158,8 @@ export function RepairPageClient() {
           onCalendarEventView={handleCalendarEventView}
           loadingCalendarEvent={isLoadingCalendarEvent}
           onPrintTickets={handlePrintTickets}
+          isLoadingPrintTickets={isPrintingTickets}
+          onPrintTicketsHere={handlePrintTicketsHere}
           readOnly={readOnly}
           archivedAt={repair?.archived_at ?? null}
           onUnarchive={handleUnarchive}
