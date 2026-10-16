@@ -357,9 +357,13 @@ export function StoragePage() {
                     {destination ? ` → ${destination.code}` : ''}
                   </p>
                   <p>{storageRepairLabel(selected.repair)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selected.repair.robot_type_name} · {selected.repair.state}
-                  </p>
+                  {(selected.repair.robot_type_name || selected.repair.state) && (
+                    <p className="text-sm text-muted-foreground">
+                      {[selected.repair.robot_type_name, selected.repair.state]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  )}
                   <div className="mt-3 flex flex-col gap-2">
                     {data.settings.enabled && (
                       <>
