@@ -87,7 +87,7 @@ it('ne propose aucun dépôt pour un autre type de machine', async () => {
 });
 it('garde l’historique après libération et ne propose pas un nouveau dépôt', async () => {
   api.getRepairStorage.mockResolvedValue({
-    depositedAt: '2026-10-15',
+    depositedAt: null,
     location: null,
     history: [
       {
@@ -100,10 +100,12 @@ it('garde l’historique après libération et ne propose pas un nouveau dépôt
       },
     ],
   });
-  render(<RepairStoragePanel {...props} exited />);
+  render(<RepairStoragePanel {...props} exited machineType="Tronçonneuse" />);
   expect(
     await screen.findByText(/Historique des emplacements/),
   ).toBeInTheDocument();
+  expect(screen.getByText('Robot rendu au client')).toBeInTheDocument();
+  expect(screen.getByText(/Libération de la place/)).toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Attribuer une place libre' }),
   ).not.toBeInTheDocument();

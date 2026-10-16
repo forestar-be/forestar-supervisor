@@ -110,6 +110,7 @@ export function RepairStoragePanel({
     ) : null;
   if (
     !detail.depositedAt &&
+    detail.history.length === 0 &&
     (!eligible || !overview?.settings.enabled || exited)
   )
     return null;
@@ -138,7 +139,7 @@ export function RepairStoragePanel({
           >
             Voir et déplacer dans le rack
           </Button>
-        ) : !exited && overview?.settings.enabled ? (
+        ) : !exited && eligible && overview?.settings.enabled ? (
           <Button disabled={busy} onClick={() => void submit()}>
             {busy
               ? 'Enregistrement…'
@@ -171,7 +172,15 @@ export function RepairStoragePanel({
             {detail.history.map((event) => (
               <li key={event.id}>
                 {new Date(event.createdAt).toLocaleString('fr-BE')} ·{' '}
-                {event.action} · {event.fromCode ?? 'sans place'} →{' '}
+                {(
+                  {
+                    deposit: 'Dépôt à l’atelier',
+                    assign: 'Attribution d’une place',
+                    move: 'Déplacement',
+                    release: 'Libération de la place',
+                  } as Record<string, string>
+                )[event.action] ?? 'Modification du rangement'}{' '}
+                · {event.fromCode ?? 'sans place'} →{' '}
                 {event.toCode ?? 'sans place'} · {event.actor ?? 'Système'}
               </li>
             ))}
