@@ -2,6 +2,7 @@
 
 import {
   CalendarDays,
+  Warehouse,
   FileText,
   HardHat,
   History,
@@ -24,6 +25,7 @@ const navItems: AppShellNavItem[] = [
   { href: '/', label: 'Accueil', icon: Home },
   { href: '/historique', label: 'Historique', icon: History },
   { href: '/clients', label: 'Clients', icon: Users },
+  { href: '/rangement', label: 'Rangement', icon: Warehouse },
   { href: '/ouvrier', label: 'Ouvrier', icon: HardHat },
   { href: '/appels', label: 'Appels', icon: PhoneCall },
   { href: '/calendrier', label: 'Calendrier', icon: CalendarDays },

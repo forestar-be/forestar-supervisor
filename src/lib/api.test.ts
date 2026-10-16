@@ -112,7 +112,7 @@ describe('mode historique', () => {
 });
 
 describe('archivage (R001)', () => {
-  it('getAllMachineRepairs ne transmet `archived` que lorsqu\'il est fourni', async () => {
+  it("getAllMachineRepairs ne transmet `archived` que lorsqu'il est fourni", async () => {
     const fetchSpy = vi.fn(async () => jsonResponse({ data: [] }));
     vi.stubGlobal('fetch', fetchSpy);
     const { api } = await loadApi('legacy');
@@ -137,9 +137,7 @@ describe('archivage (R001)', () => {
     await api.deleteRepair('jeton', '1663');
 
     const [url, init] = fetchSpy.mock.calls[0] as unknown as Call;
-    expect(url).toBe(
-      `${API}/supervisor/machine-repairs/1663?confirm=1663`,
-    );
+    expect(url).toBe(`${API}/supervisor/machine-repairs/1663?confirm=1663`);
     expect(init.method).toBe('DELETE');
   });
 
@@ -151,17 +149,14 @@ describe('archivage (R001)', () => {
     const { api } = await loadApi('legacy');
 
     await api.archiveRepair('jeton', '12');
-    const [archiveUrl, archiveInit] = fetchSpy.mock
-      .calls[0] as unknown as Call;
+    const [archiveUrl, archiveInit] = fetchSpy.mock.calls[0] as unknown as Call;
     expect(archiveUrl).toBe(`${API}/supervisor/machine-repairs/12/archive`);
     expect(archiveInit.method).toBe('POST');
 
     await api.unarchiveRepair('jeton', '12');
     const [unarchiveUrl, unarchiveInit] = fetchSpy.mock
       .calls[1] as unknown as Call;
-    expect(unarchiveUrl).toBe(
-      `${API}/supervisor/machine-repairs/12/unarchive`,
-    );
+    expect(unarchiveUrl).toBe(`${API}/supervisor/machine-repairs/12/unarchive`);
     expect(unarchiveInit.method).toBe('POST');
   });
 });
@@ -299,5 +294,38 @@ describe('ré-autorisation Google', () => {
       're_auth_gg_required',
     );
     expect(location.href).toBe('/connection-google?redirect=%2Fcalendrier');
+  });
+});
+
+describe('rangement des robots', () => {
+  it('transmet la commande idempotente et les préconditions via le transport SSO', async () => {
+    const fetchSpy = vi.fn(async (url: string) =>
+      url.endsWith('/auth/session')
+        ? jsonResponse(SESSION_BODY)
+        : jsonResponse({ location: { code: 'R2/1/B' }, history: [] }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const { session, api } = await loadApi('oidc');
+    await session.getSessionClient().refresh();
+    const command = {
+      commandId: '2ad09932-b385-4683-992d-05fe6b1c5cd5',
+      action: 'move' as const,
+      slotId: 211,
+      expectedSlotId: 110,
+    };
+    await api.commandRepairStorage(session.SSO_SESSION_TOKEN, 12, command);
+    const [url, init] = fetchSpy.mock.calls.find(([u]) =>
+      String(u).endsWith('/12/storage'),
+    ) as unknown as Call;
+    expect(url).toBe(`${API}/supervisor/machine-repairs/12/storage`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(command);
+    expect(init.credentials).toBe('include');
+    expect((init.headers as Record<string, string>)['X-CSRF-Token']).toBe(
+      'csrf-1',
+    );
+    expect(
+      (init.headers as Record<string, string>).Authorization,
+    ).toBeUndefined();
   });
 });

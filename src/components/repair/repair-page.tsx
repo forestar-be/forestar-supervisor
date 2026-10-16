@@ -78,6 +78,7 @@ import {
 } from '@/lib/single-repair';
 import { CounterPrintFailedDialog } from './counter-print-failed-dialog';
 import { RepairHeader } from './repair-header';
+import { RepairStoragePanel } from '@/components/storage/repair-storage-panel';
 import { RepairField } from './repair-field';
 import { RepairSelect } from './repair-select';
 import { RepairDatesSection } from './repair-dates-section';
@@ -138,7 +139,9 @@ export function RepairPageClient() {
   const [isLoadingDownload, setIsLoadingDownload] = useState(false);
   const [isLoadingPrint, setIsLoadingPrint] = useState(false);
   const [isPrintingTickets, setIsPrintingTickets] = useState(false);
-  const [counterPrintError, setCounterPrintError] = useState<string | null>(null);
+  const [counterPrintError, setCounterPrintError] = useState<string | null>(
+    null,
+  );
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -1112,6 +1115,17 @@ export function RepairPageClient() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
           <Spinner size="lg" />
         </div>
+      )}
+
+      {repair && (
+        <RepairStoragePanel
+          id={repair.id}
+          token={auth.token}
+          machineType={repair.machine_type_name}
+          exited={!!repair.exit_date}
+          onPrint={() => void handlePrintTickets()}
+          printing={isPrintingTickets}
+        />
       )}
 
       {id && (

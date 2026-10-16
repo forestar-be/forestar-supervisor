@@ -687,3 +687,41 @@ export const searchRepairsForInvoice = (
     'GET',
     token,
   );
+
+// ── Rangement physique des robots clients ──
+export const getStorage = (
+  token: string,
+): Promise<import('./storage').StorageOverview> =>
+  apiRequest('/supervisor/storage', 'GET', token);
+export const updateStorageSettings = (
+  token: string,
+  data: Partial<import('./storage').StorageOverview['settings']> & {
+    machineTypes?: import('./storage').StorageOverview['machineTypes'];
+  },
+): Promise<unknown> =>
+  apiRequest('/supervisor/storage/settings', 'PATCH', token, data);
+export const addStorageRack = (token: string): Promise<unknown> =>
+  apiRequest('/supervisor/storage/racks', 'POST', token, {});
+export const deactivateStorageRack = (
+  token: string,
+  id: number,
+): Promise<unknown> =>
+  apiRequest(`/supervisor/storage/racks/${id}`, 'PATCH', token, {
+    active: false,
+  });
+export const getRepairStorage = (
+  token: string,
+  id: number | string,
+): Promise<import('./storage').RepairStorage> =>
+  apiRequest(`/supervisor/machine-repairs/${id}/storage`, 'GET', token);
+export const commandRepairStorage = (
+  token: string,
+  id: number | string,
+  command: import('./storage').StorageCommand,
+): Promise<import('./storage').RepairStorage> =>
+  apiRequest(
+    `/supervisor/machine-repairs/${id}/storage`,
+    'POST',
+    token,
+    command,
+  );
