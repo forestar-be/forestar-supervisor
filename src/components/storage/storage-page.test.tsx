@@ -66,6 +66,24 @@ async function open() {
   render(<StoragePage />);
   await screen.findByLabelText('Rack de face');
 }
+it('review: Actualiser remplace aussi le détail du robot déplacé par un collègue', async () => {
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+  );
+  const changed = fixture();
+  const robot = changed.racks[0].slots[0].repair;
+  changed.racks[0].slots[0].repair = null;
+  changed.racks[1].slots[1].repair = robot;
+  api.getStorage.mockResolvedValue(changed);
+  fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+  await waitFor(() => expect(api.getStorage).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'R2/1/B',
+    ),
+  );
+});
 // jsdom has no layout, so the desktop tabs are hidden from accessibility but clickable for navigation assertions.
 function changeRack() {
   fireEvent.click(
@@ -174,4 +192,48 @@ describe('Rangement visuel', () => {
       screen.getByRole('button', { name: 'R2/1/A, #20 · Jean Dupont' }),
     ).toHaveAttribute('aria-pressed', 'true');
   });
+});
+
+it('Actualiser retire le détail d’un robot sorti et annule son déplacement préparé', async () => {
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
+  fireEvent.click(screen.getByRole('button', { name: 'R1/1/B, libre' }));
+  const changed = fixture();
+  changed.racks[0].slots[0].repair = null;
+  api.getStorage.mockResolvedValue(changed);
+  fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Robot sélectionné')).not.toHaveTextContent(
+      '#10',
+    ),
+  );
+  expect(
+    screen.queryByRole('button', { name: /Confirmer R1/ }),
+  ).not.toBeInTheDocument();
+  expect(api.commandRepairStorage).not.toHaveBeenCalled();
+});
+
+it('Actualiser annule la destination préparée même si l’origine reste identique', async () => {
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
+  fireEvent.click(screen.getByRole('button', { name: 'R1/1/B, libre' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('button', { name: /Confirmer R1/ }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+    'R1/1/A',
+  );
+  expect(
+    screen.getByRole('button', { name: 'Déplacer le robot' }),
+  ).toBeEnabled();
+  expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });

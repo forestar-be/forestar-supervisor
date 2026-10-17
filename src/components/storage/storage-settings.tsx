@@ -126,7 +126,11 @@ function SettingsForm({
         disabled={busy}
         onClick={() =>
           void mutate(() =>
-            updateStorageSettings(token, { ...settings, machineTypes: types }),
+            updateStorageSettings(token, {
+              enabled: settings.enabled,
+              allowOverflow: settings.allowOverflow,
+              machineTypes: types,
+            }),
           )
         }
       >

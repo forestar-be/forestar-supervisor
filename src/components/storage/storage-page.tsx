@@ -37,7 +37,12 @@ export function StoragePage() {
   const { token } = useAuth();
   const [data, setData] = useState<StorageOverview | null>(null);
   const [rackId, setRackId] = useState<number | null>(null);
-  const [selected, setSelected] = useState<Selection | null>(null);
+  const [selected, setSelectedState] = useState<Selection | null>(null);
+  const selectedRef = useRef<Selection | null>(null);
+  const setSelected = useCallback((selection: Selection | null) => {
+    selectedRef.current = selection;
+    setSelectedState(selection);
+  }, []);
   const [query, setQuery] = useState('');
   const [moving, setMoving] = useState(false);
   const [destination, setDestination] = useState<StorageSlot | null>(null);
@@ -51,32 +56,50 @@ export function StoragePage() {
   const pending = useRef<StorageCommand | null>(null);
   const running = useRef(false);
   const linked = useRef(false);
-  const load = useCallback(async () => {
-    const next = await getStorage(token);
-    setData(next);
-    setRackId((current) =>
-      next.racks.some((r) => r.id === current && r.active)
-        ? current
-        : (next.racks.find((r) => r.active)?.id ?? null),
-    );
-    if (!linked.current) {
-      linked.current = true;
-      const id = new URLSearchParams(window.location.search).get('fiche');
-      const found = searchStorage(next, id ? `#${id}` : '').find(
-        (item) => String(item.repair.id) === id,
+  const load = useCallback(
+    async (cancelMove = false) => {
+      const next = await getStorage(token);
+      setData(next);
+      setRackId((current) =>
+        next.racks.some((r) => r.id === current && r.active)
+          ? current
+          : (next.racks.find((r) => r.active)?.id ?? null),
       );
-      if (found) {
-        setSelected(found);
-        if (found.rack) setRackId(found.rack.id);
-        else setExceptions(true);
+      const previous = selectedRef.current;
+      if (previous) {
+        const found = searchStorage(next, `#${previous.repair.id}`).find(
+          (item) => item.repair.id === previous.repair.id,
+        );
+        const sourceChanged = previous.slot?.id !== found?.slot?.id;
+        setSelected(found ?? null);
+        if (cancelMove || sourceChanged || !found) {
+          pending.current = null;
+          setMoving(false);
+          setDestination(null);
+        }
+        if (found?.rack && sourceChanged) setRackId(found.rack.id);
+        if (cancelMove || sourceChanged || !found) setMessage('');
       }
-    }
-    return next;
-  }, [token]);
+      if (!linked.current) {
+        linked.current = true;
+        const id = new URLSearchParams(window.location.search).get('fiche');
+        const found = searchStorage(next, id ? `#${id}` : '').find(
+          (item) => String(item.repair.id) === id,
+        );
+        if (found) {
+          setSelected(found);
+          if (found.rack) setRackId(found.rack.id);
+          else setExceptions(true);
+        }
+      }
+      return next;
+    },
+    [token, setSelected],
+  );
   useEffect(() => {
     let active = true;
     Promise.resolve()
-      .then(load)
+      .then(() => load())
       .catch(() => {
         if (active) setError('Impossible de charger le rangement.');
       });
@@ -181,7 +204,7 @@ export function StoragePage() {
           variant="outline"
           disabled={busy}
           onClick={() =>
-            void load().catch(() => setError('Actualisation impossible.'))
+            void load(true).catch(() => setError('Actualisation impossible.'))
           }
         >
           Actualiser
@@ -357,7 +380,8 @@ export function StoragePage() {
                     {destination ? ` → ${destination.code}` : ''}
                   </p>
                   <p>{storageRepairLabel(selected.repair)}</p>
-                  {(selected.repair.robot_type_name || selected.repair.state) && (
+                  {(selected.repair.robot_type_name ||
+                    selected.repair.state) && (
                     <p className="text-sm text-muted-foreground">
                       {[selected.repair.robot_type_name, selected.repair.state]
                         .filter(Boolean)
