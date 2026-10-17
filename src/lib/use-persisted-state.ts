@@ -11,6 +11,18 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react';
  * la valeur stockée est désormais celle rendue.
  */
 const listeners = new Map<string, Set<() => void>>();
+// Garder la valeur écrite en mémoire : un aller-retour JSON recréerait aussi
+// les branches inchangées (tri, filtres…), déclenchant le retour à la première
+// page de TanStack Table à chaque changement de pagination.
+const snapshots = new Map<string, { raw: string; value: unknown }>();
+
+function decode<T>(key: string, raw: string): T {
+  const cached = snapshots.get(key);
+  if (cached?.raw === raw) return cached.value as T;
+  const value = JSON.parse(raw) as T;
+  snapshots.set(key, { raw, value });
+  return value;
+}
 
 function notify(key: string) {
   listeners.get(key)?.forEach((listener) => listener());
@@ -56,13 +68,13 @@ export function usePersistedState<T>(
   const value = useMemo<T>(() => {
     if (raw === undefined || raw === null) return initialValue;
     try {
-      return JSON.parse(raw) as T;
+      return decode<T>(key, raw);
     } catch {
       return initialValue;
     }
     // `initialValue` n'est lu qu'à défaut de valeur stockée.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw]);
+  }, [key, raw]);
 
   const update = useCallback(
     (next: T | ((previous: T) => T)) => {
@@ -70,7 +82,7 @@ export function usePersistedState<T>(
       let previous = initialValue;
       if (previousRaw !== null) {
         try {
-          previous = JSON.parse(previousRaw) as T;
+          previous = decode<T>(key, previousRaw);
         } catch {
           // valeur illisible : on repart de la valeur initiale
         }
@@ -80,7 +92,9 @@ export function usePersistedState<T>(
           ? (next as (previous: T) => T)(previous)
           : next;
       try {
-        window.localStorage.setItem(key, JSON.stringify(resolved));
+        const serialized = JSON.stringify(resolved);
+        window.localStorage.setItem(key, serialized);
+        snapshots.set(key, { raw: serialized, value: resolved });
       } catch {
         // Stockage plein ou interdit : la préférence ne survivra pas.
       }
