@@ -1,12 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Button, Checkbox, ConfirmDialog } from '@forestar-be/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Checkbox, ConfirmDialog, Spinner } from '@forestar-be/ui';
 import {
+  getStorage,
   addStorageRack,
   deactivateStorageRack,
   updateStorageSettings,
 } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import type { StorageOverview } from '@/lib/storage';
 
 export function StorageSettings({
@@ -19,10 +21,11 @@ export function StorageSettings({
   onSaved: () => Promise<unknown>;
 }) {
   return (
-    <details className="rounded-lg border p-4">
-      <summary className="cursor-pointer font-medium">
-        Paramètres du rangement
-      </summary>
+    <section
+      aria-label="Paramètres du rangement"
+      className="rounded-lg border bg-card p-4"
+    >
+      <h2 className="font-medium">Paramètres du rangement</h2>
       <SettingsForm
         key={JSON.stringify([
           data.settings,
@@ -33,7 +36,7 @@ export function StorageSettings({
         token={token}
         onSaved={onSaved}
       />
-    </details>
+    </section>
   );
 }
 function SettingsForm({
@@ -70,8 +73,8 @@ function SettingsForm({
   return (
     <div className="mt-4 flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        L’activation en production et la reprise des robots présents se font
-        lors d’une mise en service distincte.
+        Définissez les types de machines concernés et les racks disponibles à
+        l’atelier.
       </p>
       {error && (
         <p role="alert" className="text-destructive">
@@ -187,5 +190,34 @@ function SettingsForm({
         }}
       />
     </div>
+  );
+}
+
+export function StorageSettingsPage() {
+  const { token } = useAuth();
+  const [data, setData] = useState<StorageOverview | null>(null);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    setData(await getStorage(token));
+  }, [token]);
+  useEffect(() => {
+    let active = true;
+    getStorage(token)
+      .then((value) => {
+        if (active) setData(value);
+      })
+      .catch(() => {
+        if (active)
+          setError('Impossible de charger les paramètres du rangement.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [token]);
+  if (error) return <p role="alert">{error}</p>;
+  return data ? (
+    <StorageSettings data={data} token={token} onSaved={load} />
+  ) : (
+    <Spinner />
   );
 }

@@ -6,11 +6,13 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import type { StorageOverview, StorageRack } from '@/lib/storage';
 const api = vi.hoisted(() => ({
   getStorage: vi.fn(),
   commandRepairStorage: vi.fn(),
+  getRepairStorage: vi.fn(),
 }));
 vi.mock('@/lib/api', () => ({
   ...api,
@@ -56,6 +58,11 @@ beforeEach(() => {
   );
   window.history.replaceState(null, '', '/rangement');
   api.getStorage.mockResolvedValue(fixture());
+  api.getRepairStorage.mockResolvedValue({
+    depositedAt: '2026-10-16T09:00:00Z',
+    location: null,
+    history: [],
+  });
 });
 afterEach(() => {
   cleanup();
@@ -66,7 +73,7 @@ async function open() {
   render(<StoragePage />);
   await screen.findByLabelText('Rack de face');
 }
-it('review: Actualiser remplace aussi le détail du robot déplacé par un collègue', async () => {
+it('review: Le retour sur la fenêtre remplace aussi le détail du robot déplacé par un collègue', async () => {
   await open();
   fireEvent.click(
     screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
@@ -76,7 +83,7 @@ it('review: Actualiser remplace aussi le détail du robot déplacé par un coll�
   changed.racks[0].slots[0].repair = null;
   changed.racks[1].slots[1].repair = robot;
   api.getStorage.mockResolvedValue(changed);
-  fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+  fireEvent(window, new Event('focus'));
   await waitFor(() => expect(api.getStorage).toHaveBeenCalledTimes(2));
   await waitFor(() =>
     expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
@@ -93,15 +100,28 @@ function changeRack() {
 describe('Rangement visuel', () => {
   it('affiche toutes les fiches du même client et garde les exceptions avant le rack', async () => {
     await open();
-    fireEvent.change(screen.getByRole('searchbox'), {
-      target: { value: 'Dupont' },
-    });
+    fireEvent.keyDown(
+      screen.getByRole('combobox', { name: 'Retrouver un robot' }),
+      { key: 'ArrowDown' },
+    );
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Retrouver un robot' }),
+      {
+        target: { value: 'Dupont' },
+      },
+    );
     expect(
-      screen.getByRole('button', { name: '#10 · Jean Dupont · R1/1/A' }),
+      await screen.findByRole('option', { name: '#10 · Jean Dupont · R1/1/A' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: '#20 · Jean Dupont · R2/1/A' }),
+      await screen.findByRole('option', { name: '#20 · Jean Dupont · R2/1/A' }),
     ).toBeInTheDocument();
+    fireEvent.click(
+      await screen.findByRole('option', { name: '#20 · Jean Dupont · R2/1/A' }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Voir et affecter' }));
     expect(
       screen.getByRole('button', { name: '#30 · Marie Martin' }),
@@ -194,7 +214,7 @@ describe('Rangement visuel', () => {
   });
 });
 
-it('Actualiser retire le détail d’un robot sorti et annule son déplacement préparé', async () => {
+it('Le retour sur la fenêtre retire le détail d’un robot sorti et annule son déplacement préparé', async () => {
   await open();
   fireEvent.click(
     screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
@@ -204,7 +224,7 @@ it('Actualiser retire le détail d’un robot sorti et annule son déplacement p
   const changed = fixture();
   changed.racks[0].slots[0].repair = null;
   api.getStorage.mockResolvedValue(changed);
-  fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+  fireEvent(window, new Event('focus'));
   await waitFor(() =>
     expect(screen.getByLabelText('Robot sélectionné')).not.toHaveTextContent(
       '#10',
@@ -216,14 +236,14 @@ it('Actualiser retire le détail d’un robot sorti et annule son déplacement p
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });
 
-it('Actualiser annule la destination préparée même si l’origine reste identique', async () => {
+it('Le retour sur la fenêtre annule la destination préparée même si l’origine reste identique', async () => {
   await open();
   fireEvent.click(
     screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
   fireEvent.click(screen.getByRole('button', { name: 'R1/1/B, libre' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Actualiser' }));
+  fireEvent(window, new Event('focus'));
   await waitFor(() =>
     expect(
       screen.queryByRole('button', { name: /Confirmer R1/ }),
@@ -235,5 +255,50 @@ it('Actualiser annule la destination préparée même si l’origine reste ident
   expect(
     screen.getByRole('button', { name: 'Déplacer le robot' }),
   ).toBeEnabled();
+  expect(api.commandRepairStorage).not.toHaveBeenCalled();
+});
+
+it('masque les exceptions vides et rend les places libres inertes au repos', async () => {
+  const data = fixture();
+  data.unlocated = [];
+  api.getStorage.mockResolvedValue(data);
+  await open();
+  expect(
+    screen.queryByLabelText('Robots sans emplacement'),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Actualiser' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'R1/1/B, libre' })).toBeDisabled();
+  expect(screen.getByLabelText('Colonnes du rack')).toHaveTextContent('ABC');
+  expect(
+    within(screen.getByLabelText('Rack de face')).queryByText('R1/1/A'),
+  ).not.toBeInTheDocument();
+});
+it('désélectionne au clic extérieur et annule le déplacement sans mutation', async () => {
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+  );
+  await screen.findByText(/Déposé le/);
+  fireEvent.click(
+    screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+  );
+  expect(screen.getByText(/Déposé le/)).toBeInTheDocument();
+  fireEvent.pointerDown(
+    screen.getByRole('heading', { name: 'Rangement des robots' }),
+  );
+  expect(screen.getByLabelText('Robot sélectionné')).not.toHaveTextContent(
+    '#10',
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
+  fireEvent.pointerDown(document.body);
+  expect(screen.getByLabelText('Robot sélectionné')).not.toHaveTextContent(
+    '#10',
+  );
+  expect(screen.getByRole('button', { name: 'R1/1/B, libre' })).toBeDisabled();
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });

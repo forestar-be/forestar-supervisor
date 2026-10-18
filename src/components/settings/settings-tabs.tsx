@@ -14,6 +14,7 @@ import {
   fetchMachineType,
   fetchRepairers,
 } from '@/lib/api';
+import { StorageSettingsPage } from '@/components/storage/storage-settings';
 import EditRepairedPart from './edit-repaired-part';
 import EditEntity from './edit-entity';
 import EditRobotType from './edit-robot-type';
@@ -57,6 +58,7 @@ export default function SettingsTabs() {
     { value: 'robotTypes', label: 'Types de robot' },
     { value: 'installationTexts', label: "Textes d'installation" },
     { value: 'invoiceSettings', label: 'Facturation' },
+    { value: 'storage', label: 'Rangement' },
     { value: 'config', label: 'Autre' },
     ...(isAdmin ? [{ value: 'users', label: 'Utilisateurs' }] : []),
   ];
@@ -88,7 +90,7 @@ export default function SettingsTabs() {
             </Select>
           </div>
 
-          <TabsList className="hidden md:flex">
+          <TabsList className="hidden h-auto flex-wrap md:flex">
             {tabs.map((t) => (
               <TabsTrigger key={t.value} value={t.value}>
                 {t.label}
@@ -173,6 +175,13 @@ export default function SettingsTabs() {
           className="mt-4 min-h-0 flex-1 overflow-auto"
         >
           <InvoiceSettings />
+        </TabsContent>
+
+        <TabsContent
+          value="storage"
+          className="mt-4 min-h-0 flex-1 overflow-auto"
+        >
+          <StorageSettingsPage />
         </TabsContent>
 
         <TabsContent

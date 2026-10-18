@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   deactivateStorageRack: vi.fn(),
 }));
 vi.mock('@/lib/api', () => api);
+vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'test' }) }));
 import { StorageSettings } from './storage-settings';
 afterEach(() => {
   cleanup();

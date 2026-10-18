@@ -1117,17 +1117,6 @@ export function RepairPageClient() {
         </div>
       )}
 
-      {repair && (
-        <RepairStoragePanel
-          id={repair.id}
-          token={auth.token}
-          machineType={repair.machine_type_name}
-          exited={!!repair.exit_date}
-          onPrint={() => void handlePrintTickets()}
-          printing={isPrintingTickets}
-        />
-      )}
-
       {id && (
         <RepairHeader
           id={id}
@@ -1353,16 +1342,25 @@ export function RepairPageClient() {
                 {renderSectionToggle('technicalInfo')}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <RepairSelect
-                  label="État"
-                  name="state"
-                  value={repair.state || 'Non commencé'}
-                  options={Object.keys(colorByState)}
-                  editable={!!editableSections.technicalInfo}
-                  onChange={(v) => handleSelectField('state', v)}
-                  colorByValue={colorByState}
-                  className="max-w-sm"
-                />
+                <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-2">
+                  <RepairSelect
+                    label="État"
+                    name="state"
+                    value={repair.state || 'Non commencé'}
+                    options={Object.keys(colorByState)}
+                    editable={!!editableSections.technicalInfo}
+                    onChange={(v) => handleSelectField('state', v)}
+                    colorByValue={colorByState}
+                  />
+                  <RepairStoragePanel
+                    id={repair.id}
+                    token={auth.token}
+                    machineType={repair.machine_type_name}
+                    exited={!!repair.exit_date}
+                    onPrint={() => void handlePrintTickets()}
+                    printing={isPrintingTickets}
+                  />
+                </div>
                 <RepairField
                   label="Dernier appel au client"
                   name="last_client_call_time"

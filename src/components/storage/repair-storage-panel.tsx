@@ -2,11 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { History, Info } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
   Button,
   ConfirmDialog,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@forestar-be/ui';
 import {
   commandRepairStorage,
@@ -35,6 +40,7 @@ export function RepairStoragePanel({
   onPrint: () => void;
   printing: boolean;
 }) {
+  const [open, setOpen] = useState<'details' | 'history' | null>(null);
   const [detail, setDetail] = useState<RepairStorage | null>(null);
   const [overview, setOverview] = useState<StorageOverview | null>(null);
   const [error, setError] = useState('');
@@ -115,78 +121,145 @@ export function RepairStoragePanel({
   )
     return null;
   return (
-    <section className="rounded-lg border p-4" aria-label="Rangement du robot">
-      <h2 className="font-medium">Rangement du robot</h2>
-      {error && (
-        <p role="alert" className="my-2 text-destructive">
-          {error}
-        </p>
-      )}
-      <p className="my-2 text-lg font-semibold">
+    <div
+      className="flex min-w-0 flex-wrap items-center gap-2 text-sm"
+      aria-label="Rangement du robot"
+    >
+      <span className="font-medium text-muted-foreground">Rangement :</span>
+      <span>
         {detail.location?.code ??
           (exited
             ? 'Robot rendu au client'
             : detail.depositedAt
-              ? 'Robot déposé sans emplacement'
-              : 'Robot non déposé')}
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {detail.location ? (
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/rangement?fiche=${id}`} />}
-          >
-            Voir et déplacer dans le rack
-          </Button>
-        ) : !exited && eligible && overview?.settings.enabled ? (
-          <Button disabled={busy} onClick={() => void submit()}>
-            {busy
-              ? 'Enregistrement…'
-              : detail.depositedAt
-                ? 'Attribuer une place libre'
-                : 'Enregistrer le dépôt à l’atelier'}
-          </Button>
-        ) : null}
-        {detail.depositedAt && !detail.location && !exited && (
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/rangement?fiche=${id}`} />}
-          >
-            Choisir une place
-          </Button>
-        )}
-        {changed && (
-          <Button variant="outline" disabled={printing} onClick={onPrint}>
-            Réimprimer les tickets
-          </Button>
-        )}
+              ? 'Sans emplacement'
+              : 'Non déposé')}
+      </span>
+      <div className="flex items-center gap-1">
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Détails du rangement"
+          title="Détails du rangement"
+          onClick={() => setOpen('details')}
+        >
+          <Info className="size-4" />
+        </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Historique du rangement"
+          title="Historique du rangement"
+          onClick={() => setOpen('history')}
+        >
+          <History className="size-4" />
+        </Button>
       </div>
-      {detail.history.length > 0 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-sm">
-            Historique des emplacements ({detail.history.length})
-          </summary>
-          <ol className="mt-2 space-y-2 text-sm">
-            {detail.history.map((event) => (
-              <li key={event.id}>
-                {new Date(event.createdAt).toLocaleString('fr-BE')} ·{' '}
-                {(
-                  {
-                    deposit: 'Dépôt à l’atelier',
-                    assign: 'Attribution d’une place',
-                    move: 'Déplacement',
-                    release: 'Libération de la place',
-                  } as Record<string, string>
-                )[event.action] ?? 'Modification du rangement'}{' '}
-                · {event.fromCode ?? 'sans place'} →{' '}
-                {event.toCode ?? 'sans place'} · {event.actor ?? 'Système'}
-              </li>
+      <Dialog
+        open={open !== null}
+        onOpenChange={(value) => {
+          if (!value) setOpen(null);
+        }}
+      >
+        <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {open === 'history'
+                ? 'Historique du rangement'
+                : 'Détails du rangement'}
+            </DialogTitle>
+          </DialogHeader>
+          {open === 'details' && (
+            <div>
+              {error && (
+                <p role="alert" className="my-2 text-destructive">
+                  {error}
+                </p>
+              )}
+              <p className="my-2 text-lg font-semibold">
+                {detail.location?.code ??
+                  (exited
+                    ? 'Robot rendu au client'
+                    : detail.depositedAt
+                      ? 'Robot déposé sans emplacement'
+                      : 'Robot non déposé')}
+              </p>
+              {detail.depositedAt && (
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Déposé le{' '}
+                  {new Date(detail.depositedAt).toLocaleString('fr-BE')}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {detail.location ? (
+                  <Button
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href={`/rangement?fiche=${id}`} />}
+                  >
+                    Voir et déplacer dans le rack
+                  </Button>
+                ) : !exited && eligible && overview?.settings.enabled ? (
+                  <Button disabled={busy} onClick={() => void submit()}>
+                    {busy
+                      ? 'Enregistrement…'
+                      : detail.depositedAt
+                        ? 'Attribuer une place libre'
+                        : 'Enregistrer le dépôt à l’atelier'}
+                  </Button>
+                ) : null}
+                {detail.depositedAt && !detail.location && !exited && (
+                  <Button
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href={`/rangement?fiche=${id}`} />}
+                  >
+                    Choisir une place
+                  </Button>
+                )}
+                {changed && (
+                  <Button
+                    variant="outline"
+                    disabled={printing}
+                    onClick={onPrint}
+                  >
+                    Réimprimer les tickets
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {open === 'history' &&
+            (detail.history.length > 0 ? (
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Historique des emplacements ({detail.history.length})
+                </p>
+                <ol className="mt-2 space-y-2 text-sm">
+                  {detail.history.map((event) => (
+                    <li key={event.id}>
+                      {new Date(event.createdAt).toLocaleString('fr-BE')} ·{' '}
+                      {(
+                        {
+                          deposit: 'Dépôt à l’atelier',
+                          assign: 'Attribution d’une place',
+                          move: 'Déplacement',
+                          release: 'Libération de la place',
+                        } as Record<string, string>
+                      )[event.action] ?? 'Modification du rangement'}{' '}
+                      · {event.fromCode ?? 'sans place'} →{' '}
+                      {event.toCode ?? 'sans place'} ·{' '}
+                      {event.actor ?? 'Système'}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Aucun mouvement enregistré.
+              </p>
             ))}
-          </ol>
-        </details>
-      )}
+        </DialogContent>
+      </Dialog>
       <ConfirmDialog
         open={overflow}
         title="Tous les racks sont complets"
@@ -201,6 +274,6 @@ export function RepairStoragePanel({
         }}
         onConfirm={() => void submit(true)}
       />
-    </section>
+    </div>
   );
 }

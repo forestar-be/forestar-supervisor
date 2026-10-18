@@ -55,6 +55,9 @@ it('demande une confirmation de saturation puis propose la réimpression sans im
     });
   render(<RepairStoragePanel {...props} />);
   fireEvent.click(
+    await screen.findByRole('button', { name: 'Détails du rangement' }),
+  );
+  fireEvent.click(
     await screen.findByRole('button', {
       name: 'Enregistrer le dépôt à l’atelier',
     }),
@@ -101,6 +104,9 @@ it('garde l’historique après libération et ne propose pas un nouveau dépôt
     ],
   });
   render(<RepairStoragePanel {...props} exited machineType="Tronçonneuse" />);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Historique du rangement' }),
+  );
   expect(
     await screen.findByText(/Historique des emplacements/),
   ).toBeInTheDocument();
@@ -109,4 +115,19 @@ it('garde l’historique après libération et ne propose pas un nouveau dépôt
   expect(
     screen.queryByRole('button', { name: 'Attribuer une place libre' }),
   ).not.toBeInTheDocument();
+});
+
+it('résume le rangement en ligne et ouvre ses détails à la demande', async () => {
+  api.getRepairStorage.mockResolvedValue({
+    depositedAt: '2026-10-16T09:00:00Z',
+    location: { code: 'R1/1/A' },
+    history: [],
+  });
+  render(<RepairStoragePanel {...props} />);
+  expect(await screen.findByText('R1/1/A')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Détails du rangement' }));
+  expect(
+    (await screen.findByText('Voir et déplacer dans le rack')).closest('a'),
+  ).toHaveAttribute('href', '/rangement?fiche=12');
 });
