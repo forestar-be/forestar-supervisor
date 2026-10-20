@@ -52,9 +52,29 @@ export interface StorageCommand {
 }
 export const storageRepairLabel = (repair: StorageRepair) =>
   `#${repair.id} · ${repair.client.firstName} ${repair.client.lastName}`;
+/** Le type catalogue contient parfois déjà la marque (casse, accents et ponctuation variables). */
+export function storageRobotLabel(repair: StorageRepair) {
+  const brand = repair.brand_name?.trim() ?? '';
+  const model = repair.robot_type_name?.trim() ?? '';
+  if (!brand) return model;
+  if (!model) return brand;
+  const normalizedBrand = normalizeStorageText(brand);
+  const normalizedModel = normalizeStorageText(model);
+  return ` ${normalizedModel} `.includes(` ${normalizedBrand} `)
+    ? model
+    : `${brand} ${model}`;
+}
+function normalizeStorageText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLocaleLowerCase('fr')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
 export function searchStorage(data: StorageOverview, query: string) {
-  const q = query.trim().toLocaleLowerCase('fr');
-  if (!q) return [];
+  const terms = normalizeStorageText(query).split(/\s+/).filter(Boolean);
+  if (!terms.length) return [];
   return [
     ...data.racks.flatMap((rack) =>
       rack.slots.flatMap((slot) =>
@@ -62,7 +82,10 @@ export function searchStorage(data: StorageOverview, query: string) {
       ),
     ),
     ...data.unlocated.map((repair) => ({ repair, slot: null, rack: null })),
-  ].filter(({ repair }) =>
-    storageRepairLabel(repair).toLocaleLowerCase('fr').includes(q),
-  );
+  ].filter(({ repair, slot }) => {
+    const text = normalizeStorageText(
+      `${storageRepairLabel(repair)} ${storageRobotLabel(repair)} ${slot?.code ?? ''}`,
+    );
+    return terms.every((term) => text.includes(term));
+  });
 }

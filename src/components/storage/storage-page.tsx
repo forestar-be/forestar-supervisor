@@ -7,7 +7,6 @@ import {
   Alert,
   AlertDescription,
   Button,
-  Combobox,
   Tabs,
   TabsList,
   TabsContent,
@@ -23,12 +22,14 @@ import { useAuth } from '@/lib/auth';
 import {
   commandRepairStorage,
   getRepairStorage,
+  fetchRepairById,
   getStorage,
   isHttpError,
 } from '@/lib/api';
 import {
   searchStorage,
   storageRepairLabel,
+  storageRobotLabel,
   type RepairStorage,
   type StorageCommand,
   type StorageOverview,
@@ -36,6 +37,20 @@ import {
   type StorageRepair,
   type StorageSlot,
 } from '@/lib/storage';
+
+import { StorageSearch } from './storage-search';
+import type { MachineRepair } from '@/lib/types';
+
+type RobotDetails = Pick<
+  MachineRepair,
+  | 'repair_or_maintenance'
+  | 'repairer_name'
+  | 'fault_description'
+  | 'hivernage'
+  | 'warranty'
+  | 'devis'
+  | 'entry_date'
+>;
 
 interface Selection {
   repair: StorageRepair;
@@ -52,6 +67,8 @@ export function StoragePage() {
     selectedRef.current = selection;
     setSelectedState(selection);
   }, []);
+  const [robotDetails, setRobotDetails] = useState<RobotDetails | null>(null);
+  const [robotError, setRobotError] = useState('');
   const [detail, setDetail] = useState<RepairStorage | null>(null);
   const [moving, setMoving] = useState(false);
   const [destination, setDestination] = useState<StorageSlot | null>(null);
@@ -132,7 +149,6 @@ export function StoragePage() {
   }, [data?.racks.length]);
   const racks = data?.racks.filter((r) => r.active) ?? [];
   const rack = racks.find((r) => r.id === rackId);
-  const results = data ? searchStorage(data, '#') : [];
   const selectedId = selected?.repair.id;
   const selectedSlotId = selected?.slot?.id;
   useEffect(() => {
@@ -144,6 +160,19 @@ export function StoragePage() {
       })
       .catch(() => {
         if (active) setDetail(null);
+      });
+    fetchRepairById(String(selectedId), token)
+      .then((value) => {
+        if (active) {
+          setRobotDetails(value as RobotDetails);
+          setRobotError('');
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRobotDetails(null);
+          setRobotError('Les détails de la fiche sont indisponibles.');
+        }
       });
     return () => {
       active = false;
@@ -188,8 +217,11 @@ export function StoragePage() {
     if (
       selectedRef.current?.repair.id !== item.repair.id ||
       selectedRef.current?.slot?.id !== item.slot?.id
-    )
+    ) {
       setDetail(null);
+      setRobotDetails(null);
+      setRobotError('');
+    }
     setSelected(item);
     setMessage('');
     if (item.rack) setRackId(item.rack.id);
@@ -262,34 +294,11 @@ export function StoragePage() {
             Places réservées jusqu’à la remise physique au client.
           </p>
         </div>
-        <div className="w-full sm:w-80" data-storage-interactive>
-          <label htmlFor="storage-search" className="sr-only">
-            Retrouver un robot
-          </label>
-          <Combobox
-            id="storage-search"
-            aria-label="Retrouver un robot"
-            className="w-full"
-            placeholder="N° de fiche ou client"
-            emptyMessage="Aucun robot déposé trouvé."
-            options={results.map((item) => ({
-              value: String(item.repair.id),
-              label: `${storageRepairLabel(item.repair)} · ${item.slot?.code ?? 'Sans emplacement'}`,
-            }))}
-            value={selected ? String(selected.repair.id) : undefined}
-            disabled={moving || busy}
-            onChange={(value) => {
-              const item = results.find(
-                (result) => String(result.repair.id) === value,
-              );
-              if (item) choose(item);
-              else {
-                setSelected(null);
-                setDetail(null);
-              }
-            }}
-          />
-        </div>
+        <StorageSearch
+          data={data}
+          disabled={moving || busy}
+          onChoose={choose}
+        />
       </div>
       {error && (
         <Alert variant="destructive">
@@ -439,15 +448,79 @@ export function StoragePage() {
                       {destination ? ` → ${destination.code}` : ''}
                     </p>
                     <p>{storageRepairLabel(selected.repair)}</p>
-                    {(selected.repair.robot_type_name ||
-                      selected.repair.state) && (
-                      <p className="text-sm text-muted-foreground">
-                        {[
-                          selected.repair.robot_type_name,
-                          selected.repair.state,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
+                    {storageRobotLabel(selected.repair) && (
+                      <p className="mt-2 text-lg font-semibold">
+                        {storageRobotLabel(selected.repair)}
+                      </p>
+                    )}
+                    {selected.repair.state && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {selected.repair.state}
+                      </p>
+                    )}
+                    {robotDetails && (
+                      <div className="mt-4 space-y-2 border-t pt-3 text-sm">
+                        <dl className="space-y-2">
+                          {robotDetails.repair_or_maintenance && (
+                            <div>
+                              <dt className="text-muted-foreground">
+                                Prestation
+                              </dt>
+                              <dd>{robotDetails.repair_or_maintenance}</dd>
+                            </div>
+                          )}
+                          <div>
+                            <dt className="text-muted-foreground">
+                              Réparateur
+                            </dt>
+                            <dd>
+                              {robotDetails.repairer_name || 'Non attribué'}
+                            </dd>
+                          </div>
+                          {robotDetails.entry_date && (
+                            <div>
+                              <dt className="text-muted-foreground">
+                                Entrée à l’atelier
+                              </dt>
+                              <dd>
+                                {new Date(
+                                  robotDetails.entry_date,
+                                ).toLocaleDateString('fr-BE')}
+                              </dd>
+                            </div>
+                          )}
+                        </dl>
+                        {(robotDetails.hivernage ||
+                          robotDetails.warranty ||
+                          robotDetails.devis) && (
+                          <p className="font-medium">
+                            {[
+                              robotDetails.hivernage && 'Hivernage',
+                              robotDetails.warranty && 'Garantie',
+                              robotDetails.devis && 'Devis demandé',
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
+                        )}
+                        {robotDetails.fault_description && (
+                          <div>
+                            <p className="text-muted-foreground">
+                              Demande du client
+                            </p>
+                            <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                              {robotDetails.fault_description}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {robotError && (
+                      <p
+                        className="mt-3 text-sm text-muted-foreground"
+                        role="status"
+                      >
+                        {robotError}
                       </p>
                     )}
                     {detail?.depositedAt && (
@@ -553,7 +626,7 @@ export function StoragePage() {
                           className="grid grid-cols-[14px_repeat(3,minmax(0,1fr))] gap-1 border-b-8 border-muted py-3 sm:gap-3"
                         >
                           <span
-                            className="self-center text-xs text-muted-foreground"
+                            className="self-center text-center text-sm font-semibold"
                             aria-label={`Étage ${level}`}
                           >
                             {level}
@@ -586,7 +659,7 @@ export function StoragePage() {
                                   } else if (slot.repair)
                                     choose({ repair: slot.repair, slot, rack });
                                 }}
-                                className={`flex min-h-24 min-w-0 flex-col items-center justify-center rounded-lg border p-1 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:text-sm ${slot.repair || moving ? 'enabled:cursor-pointer' : ''} ${moving && slot.repair ? 'opacity-50' : ''} ${selected?.slot?.id === slot.id || destination?.id === slot.id ? 'border-primary bg-primary text-primary-foreground' : slot.repair ? 'border-primary/30 bg-primary/10' : 'border-dashed bg-background'} ${moving && !slot.repair ? 'border-primary' : ''}`}
+                                className={`flex min-h-24 min-w-0 flex-col items-center justify-center rounded-lg border px-1 py-3 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:text-sm ${slot.repair || moving ? 'enabled:cursor-pointer' : ''} ${moving && slot.repair ? 'opacity-50' : ''} ${selected?.slot?.id === slot.id || destination?.id === slot.id ? 'border-primary bg-primary text-primary-foreground' : slot.repair ? 'border-primary/30 bg-primary/10' : 'border-dashed bg-background'} ${moving && !slot.repair ? 'border-primary' : ''}`}
                               >
                                 {slot.repair ? (
                                   <>
@@ -595,9 +668,8 @@ export function StoragePage() {
                                       aria-hidden
                                     />
                                     <strong className="max-w-full break-words">
-                                      {slot.repair.brand_name}{' '}
-                                      {slot.repair.robot_type_name ||
-                                        `Fiche #${slot.repair.id}`}
+                                      {storageRobotLabel(slot.repair) ||
+                                        'Robot'}
                                     </strong>
                                     <span className="mt-1 max-w-full break-words">
                                       {slot.repair.client.firstName}{' '}

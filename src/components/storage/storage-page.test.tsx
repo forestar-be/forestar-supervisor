@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   getStorage: vi.fn(),
   commandRepairStorage: vi.fn(),
   getRepairStorage: vi.fn(),
+  fetchRepairById: vi.fn(),
 }));
 vi.mock('@/lib/api', () => ({
   ...api,
@@ -58,6 +59,15 @@ beforeEach(() => {
   );
   window.history.replaceState(null, '', '/rangement');
   api.getStorage.mockResolvedValue(fixture());
+  api.fetchRepairById.mockResolvedValue({
+    repair_or_maintenance: 'Entretien',
+    repairer_name: 'Alex',
+    fault_description: 'Contrôler la charge',
+    entry_date: '2026-10-19',
+    hivernage: true,
+    warranty: false,
+    devis: true,
+  });
   api.getRepairStorage.mockResolvedValue({
     depositedAt: '2026-10-16T09:00:00Z',
     location: null,
@@ -301,4 +311,39 @@ it('désélectionne au clic extérieur et annule le déplacement sans mutation',
   );
   expect(screen.getByRole('button', { name: 'R1/1/B, libre' })).toBeDisabled();
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
+});
+
+it('ne propose aucun robot sans saisie et ferme les résultats après sélection', async () => {
+  await open();
+  const search = screen.getByRole('combobox', { name: 'Retrouver un robot' });
+  fireEvent.focus(search);
+  fireEvent.keyDown(search, { key: 'ArrowDown' });
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  fireEvent.change(search, { target: { value: 'Jean' } });
+  expect(screen.getAllByRole('option')).toHaveLength(2);
+  fireEvent.keyDown(search, { key: 'ArrowDown' });
+  fireEvent.keyDown(search, { key: 'Enter' });
+  expect(search).toHaveValue('');
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent('#10');
+  expect(await screen.findByText('Contrôler la charge')).toBeInTheDocument();
+  expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent('Alex');
+  expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+    'Hivernage · Devis demandé',
+  );
+});
+it('affiche la marque seule si le modèle manque, sans répéter la fiche', async () => {
+  const data = fixture();
+  data.racks[0].slots[0].repair!.brand_name = 'Husqvarna';
+  api.getStorage.mockResolvedValue(data);
+  await open();
+  const card = screen.getByRole('button', {
+    name: 'R1/1/A, #10 · Jean Dupont',
+  });
+  expect(card).toHaveTextContent('Husqvarna');
+  expect(card).not.toHaveTextContent('Fiche #10');
+  fireEvent.click(card);
+  expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+    'Husqvarna',
+  );
 });
