@@ -29,7 +29,7 @@ describe('Libellé du robot dans le rangement', () => {
 
 it('cherche les mots saisis dans les noms, fiches, marques et modèles, sans résultats à vide', () => {
   const data: StorageOverview = {
-    settings: { enabled: true, allowOverflow: true },
+    settings: { enabled: true, allowOverflow: true, maxRacks: null },
     machineTypes: [],
     racks: [],
     unlocated: [

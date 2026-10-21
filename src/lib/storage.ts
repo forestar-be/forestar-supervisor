@@ -19,7 +19,12 @@ export interface StorageRack {
   slots: StorageSlot[];
 }
 export interface StorageOverview {
-  settings: { enabled: boolean; allowOverflow: boolean };
+  settings: {
+    enabled: boolean;
+    allowOverflow: boolean;
+    /** Plafond de racks pour l'ajout automatique ; null = sans limite. */
+    maxRacks: number | null;
+  };
   machineTypes: { name: string; isRobot: boolean }[];
   racks: StorageRack[];
   unlocated: StorageRepair[];

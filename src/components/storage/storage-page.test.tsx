@@ -43,7 +43,7 @@ function rack(id: number): StorageRack {
 }
 function fixture(): StorageOverview {
   return {
-    settings: { enabled: true, allowOverflow: true },
+    settings: { enabled: true, allowOverflow: true, maxRacks: null },
     machineTypes: [],
     racks: [rack(1), rack(2)],
     unlocated: [{ id: 30, client: { firstName: 'Marie', lastName: 'Martin' } }],

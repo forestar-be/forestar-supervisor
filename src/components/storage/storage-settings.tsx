@@ -1,7 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Checkbox, ConfirmDialog, Spinner } from '@forestar-be/ui';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Input,
+  Spinner,
+} from '@forestar-be/ui';
 import {
   getStorage,
   addStorageRack,
@@ -50,6 +56,14 @@ function SettingsForm({
 }) {
   const [settings, setSettings] = useState(data.settings);
   const [types, setTypes] = useState(data.machineTypes);
+  const maxRacksId = useId();
+  const [maxRacks, setMaxRacks] = useState(
+    data.settings.maxRacks === null ? '' : String(data.settings.maxRacks),
+  );
+  const maxRacksValue = maxRacks.trim() === '' ? null : Number(maxRacks);
+  const maxRacksInvalid =
+    maxRacksValue !== null &&
+    (!Number.isInteger(maxRacksValue) || maxRacksValue <= 0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [deactivate, setDeactivate] = useState<number | null>(null);
@@ -99,8 +113,35 @@ function SettingsForm({
             setSettings({ ...settings, allowOverflow: checked === true })
           }
         />
-        Autoriser un dépôt sans emplacement si complet
+        Autoriser un dépôt sans emplacement quand le maximum de racks est
+        atteint
       </label>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={maxRacksId}>Nombre maximum de racks</label>
+        <Input
+          id={maxRacksId}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          className="w-32"
+          placeholder="Sans limite"
+          value={maxRacks}
+          disabled={busy}
+          aria-invalid={maxRacksInvalid}
+          onChange={(e) => setMaxRacks(e.target.value)}
+        />
+        <span className="text-sm text-muted-foreground">
+          Quand toutes les places sont prises, un rack est ajouté
+          automatiquement tant que ce nombre n’est pas atteint. Vide : sans
+          limite.
+        </span>
+        {maxRacksInvalid && (
+          <span className="text-sm text-destructive">
+            Entrez un nombre entier positif, ou laissez vide.
+          </span>
+        )}
+      </div>
       <fieldset className="space-y-2">
         <legend className="mb-2 font-medium">
           Types de machines qui sont des robots
@@ -126,12 +167,13 @@ function SettingsForm({
       </fieldset>
       <Button
         className="self-start"
-        disabled={busy}
+        disabled={busy || maxRacksInvalid}
         onClick={() =>
           void mutate(() =>
             updateStorageSettings(token, {
               enabled: settings.enabled,
               allowOverflow: settings.allowOverflow,
+              maxRacks: maxRacksValue,
               machineTypes: types,
             }),
           )

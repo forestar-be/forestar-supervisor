@@ -21,7 +21,7 @@ afterEach(() => {
 });
 it('review: ne renvoie pas la clé interne id reçue par GET storage', async () => {
   const data = {
-    settings: { id: 1, enabled: false, allowOverflow: true },
+    settings: { id: 1, enabled: false, allowOverflow: true, maxRacks: null },
     machineTypes: [{ name: 'Robot', isRobot: true }],
     racks: [],
     unlocated: [],
@@ -34,4 +34,29 @@ it('review: ne renvoie pas la clé interne id reçue par GET storage', async () 
     expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
   );
   expect(api.updateStorageSettings.mock.calls[0][1]).not.toHaveProperty('id');
+});
+
+it('envoie le maximum de racks saisi, et null quand le champ est vide', async () => {
+  const data = {
+    settings: { enabled: true, allowOverflow: true, maxRacks: 3 },
+    machineTypes: [{ name: 'Robot', isRobot: true }],
+    racks: [],
+    unlocated: [],
+  };
+  api.updateStorageSettings.mockResolvedValue({});
+  render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
+  const field = screen.getByLabelText('Nombre maximum de racks');
+  expect(field).toHaveValue(3);
+  fireEvent.change(field, { target: { value: '5' } });
+  fireEvent.click(screen.getByText('Enregistrer les paramètres'));
+  await waitFor(() =>
+    expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
+  );
+  expect(api.updateStorageSettings.mock.calls[0][1].maxRacks).toBe(5);
+  fireEvent.change(field, { target: { value: '' } });
+  fireEvent.click(screen.getByText('Enregistrer les paramètres'));
+  await waitFor(() =>
+    expect(api.updateStorageSettings).toHaveBeenCalledTimes(2),
+  );
+  expect(api.updateStorageSettings.mock.calls[1][1].maxRacks).toBeNull();
 });
