@@ -78,6 +78,7 @@ import {
 } from '@/lib/single-repair';
 import { CounterPrintFailedDialog } from './counter-print-failed-dialog';
 import { RepairHeader } from './repair-header';
+import { RepairStoragePanel } from '@/components/storage/repair-storage-panel';
 import { RepairField } from './repair-field';
 import { RepairSelect } from './repair-select';
 import { RepairDatesSection } from './repair-dates-section';
@@ -138,7 +139,9 @@ export function RepairPageClient() {
   const [isLoadingDownload, setIsLoadingDownload] = useState(false);
   const [isLoadingPrint, setIsLoadingPrint] = useState(false);
   const [isPrintingTickets, setIsPrintingTickets] = useState(false);
-  const [counterPrintError, setCounterPrintError] = useState<string | null>(null);
+  const [counterPrintError, setCounterPrintError] = useState<string | null>(
+    null,
+  );
   const [isLoadingSaveCall, setIsLoadingSaveCall] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
@@ -1107,7 +1110,7 @@ export function RepairPageClient() {
   // L'application est pleine largeur pour ses tableaux ; la fiche, en deux
   // colonnes de champs, garde l'ancienne borne de 1600 px pour rester lisible.
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       {loading && repair && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
           <Spinner size="lg" />
@@ -1339,16 +1342,25 @@ export function RepairPageClient() {
                 {renderSectionToggle('technicalInfo')}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <RepairSelect
-                  label="État"
-                  name="state"
-                  value={repair.state || 'Non commencé'}
-                  options={Object.keys(colorByState)}
-                  editable={!!editableSections.technicalInfo}
-                  onChange={(v) => handleSelectField('state', v)}
-                  colorByValue={colorByState}
-                  className="max-w-sm"
-                />
+                <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-2">
+                  <RepairSelect
+                    label="État"
+                    name="state"
+                    value={repair.state || 'Non commencé'}
+                    options={Object.keys(colorByState)}
+                    editable={!!editableSections.technicalInfo}
+                    onChange={(v) => handleSelectField('state', v)}
+                    colorByValue={colorByState}
+                  />
+                  <RepairStoragePanel
+                    id={repair.id}
+                    token={auth.token}
+                    machineType={repair.machine_type_name}
+                    exited={!!repair.exit_date}
+                    onPrint={() => void handlePrintTickets()}
+                    printing={isPrintingTickets}
+                  />
+                </div>
                 <RepairField
                   label="Dernier appel au client"
                   name="last_client_call_time"

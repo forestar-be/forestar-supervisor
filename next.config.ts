@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
-const ROBOT_URL = process.env.NEXT_PUBLIC_ROBOT_URL ?? 'https://robot.forestar.be';
+const ROBOT_URL =
+  process.env.NEXT_PUBLIC_ROBOT_URL ?? 'https://robot.forestar.be';
 
 /**
  * En développement, Next refuse ses ressources internes (`/_next/hmr`…) à une
@@ -20,6 +21,34 @@ function lanDevOrigins(): string[] {
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: lanDevOrigins(),
+  images: {
+    remotePatterns: Array.from(
+      new Set(
+        ['https://api.forestar.be', process.env.NEXT_PUBLIC_API_URL].filter(
+          (url): url is string => Boolean(url),
+        ),
+      ),
+    ).flatMap((baseUrl) => {
+      const url = new URL(baseUrl);
+      // Le front et l'API locale peuvent nommer la boucle locale différemment.
+      const hostnames =
+        process.env.NODE_ENV === 'development' &&
+        ['localhost', '127.0.0.1'].includes(url.hostname)
+          ? ['localhost', '127.0.0.1']
+          : [url.hostname];
+      return hostnames.map((hostname) => ({
+        protocol: url.protocol.slice(0, -1) as 'https' | 'http',
+        hostname,
+        port: url.port,
+        pathname: '/images/**',
+      }));
+    }),
+    // L'API locale peut être sur le réseau du magasin en développement.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV === 'development',
+    qualities: [65, 75],
+    minimumCacheTTL: 300,
+    maximumRedirects: 0,
+  },
   async redirects() {
     return [
       {
