@@ -14,6 +14,7 @@ const api = vi.hoisted(() => ({
   commandRepairStorage: vi.fn(),
   getRepairStorage: vi.fn(),
   fetchRepairById: vi.fn(),
+  searchStorageRepairs: vi.fn(),
 }));
 vi.mock('@/lib/api', () => ({
   ...api,
@@ -417,9 +418,26 @@ it('un glisser-déposer annulé dans la modale quitte le mode déplacement', asy
 });
 
 describe('Ajout depuis une place libre', () => {
-  it('place un robot sans emplacement sur la case cliquée', async () => {
-    api.commandRepairStorage.mockResolvedValue({
-      location: { code: 'R1/1/B' },
+  it('ne montre rien avant la saisie, puis cherche au serveur rangés puis à ranger', async () => {
+    api.searchStorageRepairs.mockResolvedValue({
+      truncated: false,
+      items: [
+        {
+          repair: { id: 20, client: { firstName: 'Paul', lastName: 'Dupont' } },
+          depositedAt: '2026-10-01T00:00:00Z',
+          slot: { id: 210, code: 'R2/1/A' },
+        },
+        {
+          repair: { id: 30, client: { firstName: 'Marie', lastName: 'Dupont' } },
+          depositedAt: '2026-10-01T00:00:00Z',
+          slot: null,
+        },
+        {
+          repair: { id: 1712, client: { firstName: 'Luc', lastName: 'Dupont' } },
+          depositedAt: null,
+          slot: null,
+        },
+      ],
     });
     await open();
     fireEvent.click(
@@ -436,11 +454,101 @@ describe('Ajout depuis une place libre', () => {
     });
     expect(create).toHaveAttribute('href', 'https://operateur.forestar.be');
     expect(create).toHaveAttribute('target', '_blank');
-    const unlocated = within(dialog).getByLabelText('Robots sans emplacement');
-    fireEvent.click(within(unlocated).getByRole('button', { name: /#30/ }));
+    expect(within(dialog).queryAllByRole('listitem')).toHaveLength(0);
+    expect(api.searchStorageRepairs).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByLabelText('Rechercher un robot'), {
+      target: { value: 'dupont' },
+    });
+    const stored = await within(dialog).findByLabelText('Robots déjà rangés');
+    expect(api.searchStorageRepairs).toHaveBeenCalledTimes(1);
+    const [, q, since] = api.searchStorageRepairs.mock.calls[0];
+    expect(q).toBe('dupont');
+    // 6 derniers mois par défaut.
+    const expected = new Date();
+    expected.setMonth(expected.getMonth() - 6);
+    expect(since).toBe(expected.toISOString().slice(0, 10));
+    expect(within(stored).getByRole('button', { name: /#20/ })).toHaveTextContent(
+      'R2/1/A',
+    );
+    const toStore = within(dialog).getByLabelText('Robots à ranger');
+    const rows = within(toStore).getAllByRole('button');
+    expect(rows.map((b) => b.textContent)).toEqual([
+      expect.stringMatching(/#30.*Sans emplacement/),
+      expect.stringMatching(/#1712.*Non déposé/),
+    ]);
+    // Les rangés passent avant les robots à ranger.
+    expect(
+      stored.compareDocumentPosition(toStore) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+  it('dépose sur la case cliquée une fiche jamais déposée', async () => {
+    api.searchStorageRepairs.mockResolvedValue({
+      truncated: false,
+      items: [
+        {
+          repair: { id: 1712, client: { firstName: 'Luc', lastName: 'Dupont' } },
+          depositedAt: null,
+          slot: null,
+        },
+      ],
+    });
+    api.commandRepairStorage.mockResolvedValue({
+      location: { code: 'R1/1/B' },
+    });
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Rechercher un robot'), {
+      target: { value: '1712' },
+    });
+    fireEvent.click(
+      await within(dialog).findByRole('button', { name: /#1712/ }),
+    );
     fireEvent.click(
       within(dialog).getByRole('button', {
-        name: 'Placer #30 : sans place → R1/1/B',
+        name: 'Placer #1712 : non déposé → R1/1/B',
+      }),
+    );
+    await waitFor(() =>
+      expect(api.commandRepairStorage).toHaveBeenCalledWith(
+        'test',
+        1712,
+        expect.objectContaining({ action: 'deposit', slotId: 111 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+  });
+  it('place un robot déposé sans emplacement sur la case cliquée', async () => {
+    api.searchStorageRepairs.mockResolvedValue({
+      truncated: false,
+      items: [
+        {
+          repair: { id: 30, client: { firstName: 'Marie', lastName: 'Martin' } },
+          depositedAt: '2026-10-01T00:00:00Z',
+          slot: null,
+        },
+      ],
+    });
+    api.commandRepairStorage.mockResolvedValue({
+      location: { code: 'R1/1/B' },
+    });
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Rechercher un robot'), {
+      target: { value: 'martin' },
+    });
+    fireEvent.click(await within(dialog).findByRole('button', { name: /#30/ }));
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Placer #30 : sans emplacement → R1/1/B',
       }),
     );
     await waitFor(() =>
@@ -450,11 +558,18 @@ describe('Ajout depuis une place libre', () => {
         expect.objectContaining({ action: 'assign', slotId: 111 }),
       ),
     );
-    await waitFor(() =>
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-    );
   });
-  it('déplace ici un robot déjà rangé dans un autre rack, filtré par recherche', async () => {
+  it('déplace ici un robot déjà rangé dans un autre rack', async () => {
+    api.searchStorageRepairs.mockResolvedValue({
+      truncated: false,
+      items: [
+        {
+          repair: { id: 20, client: { firstName: 'Jean', lastName: 'Dupont' } },
+          depositedAt: '2026-10-01T00:00:00Z',
+          slot: { id: 210, code: 'R2/1/A' },
+        },
+      ],
+    });
     api.commandRepairStorage.mockResolvedValue({
       location: { code: 'R1/1/B' },
     });
@@ -463,11 +578,10 @@ describe('Ajout depuis une place libre', () => {
       screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
     );
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Filtrer les robots'), {
+    fireEvent.change(within(dialog).getByLabelText('Rechercher un robot'), {
       target: { value: 'R2/1/A' },
     });
-    const stored = within(dialog).getByLabelText('Robots déjà rangés');
-    expect(within(stored).getAllByRole('button')).toHaveLength(1);
+    const stored = await within(dialog).findByLabelText('Robots déjà rangés');
     fireEvent.click(within(stored).getByRole('button', { name: /#20/ }));
     fireEvent.click(
       within(dialog).getByRole('button', {

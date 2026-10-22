@@ -693,6 +693,19 @@ export const getStorage = (
   token: string,
 ): Promise<import('./storage').StorageOverview> =>
   apiRequest('/supervisor/storage', 'GET', token);
+export const searchStorageRepairs = (
+  token: string,
+  q: string,
+  since: string | null,
+): Promise<import('./storage').StorageSearchResult> =>
+  apiRequest(
+    `/supervisor/storage/search?${new URLSearchParams({
+      q,
+      ...(since ? { since } : {}),
+    })}`,
+    'GET',
+    token,
+  );
 export const updateStorageSettings = (
   token: string,
   data: Partial<import('./storage').StorageOverview['settings']> & {
