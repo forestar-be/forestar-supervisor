@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  ScrollArea,
 } from '@forestar-be/ui';
 import {
   normalizeStorageText as normalize,
@@ -44,6 +45,13 @@ export function StorageSlotPicker({
   onClose: () => void;
   onConfirm: (source: StoragePick, slot: StorageSlot) => void;
 }) {
+  const robotCount =
+    data.unlocated.length +
+    data.racks.reduce(
+      (count, rack) =>
+        count + (rack.active ? rack.slots.filter((s) => s.repair).length : 0),
+      0,
+    );
   return (
     <Dialog
       open={!!slot}
@@ -51,7 +59,14 @@ export function StorageSlotPicker({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-xl">
+      <DialogContent
+        className={`flex flex-col overflow-hidden sm:max-w-xl ${
+          // La zone défilante n'est bornée que si la modale a une hauteur fixe.
+          robotCount > 5
+            ? 'h-[min(85dvh,44rem)] max-h-none sm:max-h-none'
+            : 'max-h-[85dvh] sm:max-h-[85dvh]'
+        }`}
+      >
         {slot && (
           <PickerBody
             key={slot.id}
@@ -173,32 +188,34 @@ function PickerBody({
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1">
-        <section aria-label="Robots sans emplacement">
-          <h3 className="mb-2 text-sm font-semibold">
-            Sans emplacement ({visibleUnlocated.length})
-          </h3>
-          {visibleUnlocated.length ? (
-            <ul className="space-y-1.5">{visibleUnlocated.map(row)}</ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Aucun robot sans emplacement.
-            </p>
-          )}
-        </section>
-        <section aria-label="Robots déjà rangés">
-          <h3 className="mb-2 text-sm font-semibold">
-            Déjà rangés · déplacer ici ({visibleStored.length})
-          </h3>
-          {visibleStored.length ? (
-            <ul className="space-y-1.5">{visibleStored.map(row)}</ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Aucun robot rangé trouvé.
-            </p>
-          )}
-        </section>
-      </div>
+      <ScrollArea className="-mx-2 min-h-0 flex-1">
+        <div className="space-y-4 px-2 pb-1">
+          <section aria-label="Robots sans emplacement">
+            <h3 className="sticky top-0 z-10 bg-popover pb-2 text-sm font-semibold">
+              Sans emplacement ({visibleUnlocated.length})
+            </h3>
+            {visibleUnlocated.length ? (
+              <ul className="space-y-1.5">{visibleUnlocated.map(row)}</ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Aucun robot sans emplacement.
+              </p>
+            )}
+          </section>
+          <section aria-label="Robots déjà rangés">
+            <h3 className="sticky top-0 z-10 bg-popover pb-2 text-sm font-semibold">
+              Déjà rangés · déplacer ici ({visibleStored.length})
+            </h3>
+            {visibleStored.length ? (
+              <ul className="space-y-1.5">{visibleStored.map(row)}</ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Aucun robot rangé trouvé.
+              </p>
+            )}
+          </section>
+        </div>
+      </ScrollArea>
       <DialogFooter>
         <Button variant="outline" disabled={busy} onClick={onClose}>
           Annuler
