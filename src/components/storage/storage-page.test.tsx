@@ -431,6 +431,11 @@ describe('Ajout depuis une place libre', () => {
         name: 'Ajouter un robot en R1/1/B',
       }),
     ).toBeInTheDocument();
+    const create = within(dialog).getByRole('link', {
+      name: 'Créer une fiche de dépôt',
+    });
+    expect(create).toHaveAttribute('href', 'https://operateur.forestar.be');
+    expect(create).toHaveAttribute('target', '_blank');
     const unlocated = within(dialog).getByLabelText('Robots sans emplacement');
     fireEvent.click(within(unlocated).getByRole('button', { name: /#30/ }));
     fireEvent.click(

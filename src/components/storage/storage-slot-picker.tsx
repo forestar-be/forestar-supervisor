@@ -1,9 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { ExternalLink, FilePlus2, Search } from 'lucide-react';
+import { APP_CATALOG } from '@forestar-be/core/app-menu';
 import {
   Button,
+  buttonVariants,
+  cn,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -22,6 +25,10 @@ import {
   type StorageRepair,
   type StorageSlot,
 } from '@/lib/storage';
+
+const OPERATOR_URL =
+  APP_CATALOG.find((app) => app.id === 'operator')?.href ??
+  'https://operateur.forestar.be';
 
 export interface StoragePick {
   repair: StorageRepair;
@@ -217,6 +224,20 @@ function PickerBody({
         </div>
       </ScrollArea>
       <DialogFooter>
+        {/* Action à part : couleur distincte du vert des boutons de la page. */}
+        <a
+          href={OPERATOR_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            buttonVariants(),
+            'bg-amber-500 text-amber-950 hover:bg-amber-400 sm:mr-auto',
+          )}
+        >
+          <FilePlus2 className="size-4" aria-hidden />
+          Créer une fiche de dépôt
+          <ExternalLink className="size-3.5 opacity-70" aria-hidden />
+        </a>
         <Button variant="outline" disabled={busy} onClick={onClose}>
           Annuler
         </Button>
