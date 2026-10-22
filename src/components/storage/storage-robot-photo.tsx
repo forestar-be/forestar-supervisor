@@ -9,7 +9,7 @@ export function StorageRobotPhoto({ src }: { src?: string | null }) {
   const [failed, setFailed] = useState<string | null>(null);
   return (
     <span
-      className="relative flex h-12 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background/70 sm:h-16 sm:w-20 xl:h-24"
+      className="relative flex h-12 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background/70 sm:h-16 sm:w-20 xl:h-auto xl:min-h-24 xl:w-[clamp(80px,12dvh,112px)] xl:self-stretch"
       aria-hidden
     >
       {src && failed !== src ? (
@@ -17,7 +17,7 @@ export function StorageRobotPhoto({ src }: { src?: string | null }) {
           src={src}
           alt=""
           fill
-          sizes="(min-width: 640px) 80px, 56px"
+          sizes="(min-width: 1280px) 112px, (min-width: 640px) 80px, 56px"
           quality={65}
           loading="lazy"
           decoding="async"
