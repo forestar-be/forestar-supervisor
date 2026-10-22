@@ -21,7 +21,7 @@ export function StorageRobotPhoto({ src }: { src?: string | null }) {
           quality={65}
           loading="lazy"
           decoding="async"
-          className="object-contain"
+          className="object-cover object-center"
           onError={() => setFailed(src)}
         />
       ) : (
