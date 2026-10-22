@@ -268,7 +268,7 @@ it('Le retour sur la fenêtre annule la destination préparée même si l’orig
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });
 
-it('masque les exceptions vides et rend les places libres inertes au repos', async () => {
+it('masque les exceptions vides et propose d’ajouter un robot sur une place libre', async () => {
   const data = fixture();
   data.unlocated = [];
   api.getStorage.mockResolvedValue(data);
@@ -279,7 +279,9 @@ it('masque les exceptions vides et rend les places libres inertes au repos', asy
   expect(
     screen.queryByRole('button', { name: 'Actualiser' }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'R1/1/B, libre' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+  ).toBeEnabled();
   expect(screen.getByLabelText('Colonnes du rack')).toHaveTextContent('ABC');
   expect(
     within(screen.getByLabelText('Rack de face')).queryByText('R1/1/A'),
@@ -309,7 +311,9 @@ it('désélectionne au clic extérieur et annule le déplacement sans mutation',
   expect(screen.getByLabelText('Robot sélectionné')).not.toHaveTextContent(
     '#10',
   );
-  expect(screen.getByRole('button', { name: 'R1/1/B, libre' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+  ).toBeEnabled();
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });
 
@@ -410,4 +414,80 @@ it('un glisser-déposer annulé dans la modale quitte le mode déplacement', asy
   );
   expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent('#10');
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
+});
+
+describe('Ajout depuis une place libre', () => {
+  it('place un robot sans emplacement sur la case cliquée', async () => {
+    api.commandRepairStorage.mockResolvedValue({
+      location: { code: 'R1/1/B' },
+    });
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('heading', {
+        name: 'Ajouter un robot en R1/1/B',
+      }),
+    ).toBeInTheDocument();
+    const unlocated = within(dialog).getByLabelText('Robots sans emplacement');
+    fireEvent.click(within(unlocated).getByRole('button', { name: /#30/ }));
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Placer #30 : sans place → R1/1/B',
+      }),
+    );
+    await waitFor(() =>
+      expect(api.commandRepairStorage).toHaveBeenCalledWith(
+        'test',
+        30,
+        expect.objectContaining({ action: 'assign', slotId: 111 }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+  });
+  it('déplace ici un robot déjà rangé dans un autre rack, filtré par recherche', async () => {
+    api.commandRepairStorage.mockResolvedValue({
+      location: { code: 'R1/1/B' },
+    });
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Filtrer les robots'), {
+      target: { value: 'R2/1/A' },
+    });
+    const stored = within(dialog).getByLabelText('Robots déjà rangés');
+    expect(within(stored).getAllByRole('button')).toHaveLength(1);
+    fireEvent.click(within(stored).getByRole('button', { name: /#20/ }));
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Déplacer #20 : R2/1/A → R1/1/B',
+      }),
+    );
+    await waitFor(() =>
+      expect(api.commandRepairStorage).toHaveBeenCalledWith(
+        'test',
+        20,
+        expect.objectContaining({
+          action: 'move',
+          slotId: 111,
+          expectedSlotId: 210,
+        }),
+      ),
+    );
+  });
+  it('laisse les places libres inertes quand le rangement est désactivé', async () => {
+    const data = fixture();
+    data.settings.enabled = false;
+    api.getStorage.mockResolvedValue(data);
+    await open();
+    expect(
+      screen.getByRole('button', { name: 'R1/1/B, libre' }),
+    ).toBeDisabled();
+  });
 });

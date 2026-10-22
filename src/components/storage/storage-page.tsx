@@ -59,6 +59,7 @@ import {
 
 import { StorageSearch } from './storage-search';
 import { StorageRobotPhoto } from './storage-robot-photo';
+import { StorageSlotPicker } from './storage-slot-picker';
 import type { MachineRepair } from '@/lib/types';
 
 type RobotDetails = Pick<
@@ -105,10 +106,11 @@ export function StoragePage() {
   const dragDropped = useRef(false);
   const dragWasMoving = useRef(false);
   const [dragging, setDragging] = useState(false);
+  const [pickerSlot, setPickerSlot] = useState<StorageSlot | null>(null);
   const confirming = useRef(false);
   useEffect(() => {
-    confirming.current = !!destination;
-  }, [destination]);
+    confirming.current = !!destination || !!pickerSlot;
+  }, [destination, pickerSlot]);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const load = useCallback(
     async (cancelMove = false) => {
@@ -258,7 +260,7 @@ export function StoragePage() {
     source: Selection | null = selected,
   ) {
     const selected = source;
-    if (!selected || running.current) return;
+    if (!selected || running.current) return false;
     running.current = true;
     setBusy(true);
     setError('');
@@ -288,6 +290,7 @@ export function StoragePage() {
         `Fiche #${selected.repair.id} affectée à ${detail.location?.code ?? 'sans emplacement'}`,
         { description: 'Réimprimez les tickets depuis la fiche.' },
       );
+      return true;
     } catch (e) {
       setError(
         e instanceof Error
@@ -312,10 +315,17 @@ export function StoragePage() {
           /* Le retour sur la fenêtre relancera la lecture après une coupure. */
         }
       }
+      return false;
     } finally {
       running.current = false;
       setBusy(false);
     }
+  }
+  async function placeFromPicker(source: Selection, slot: StorageSlot) {
+    pending.current = null;
+    setMoving(false);
+    setDestination(null);
+    if (await assign(slot, source)) setPickerSlot(null);
   }
   function startDrag(item: Selection, event: DragEvent) {
     const current = selectedRef.current;
@@ -780,9 +790,7 @@ export function StoragePage() {
                                 <button
                                   key={slot.id}
                                   type="button"
-                                  data-storage-interactive={
-                                    slot.repair || moving ? '' : undefined
-                                  }
+                                  data-storage-interactive=""
                                   draggable={canDrag}
                                   onDragStart={(event) =>
                                     slot.repair &&
@@ -808,13 +816,13 @@ export function StoragePage() {
                                     busy ||
                                     (moving
                                       ? !!slot.repair && !isSource
-                                      : !slot.repair)
+                                      : !slot.repair && !data.settings.enabled)
                                   }
                                   aria-pressed={
                                     selected?.slot?.id === slot.id ||
                                     destination?.id === slot.id
                                   }
-                                  aria-label={`${slot.code}, ${slot.repair ? storageRepairLabel(slot.repair) : 'libre'}`}
+                                  aria-label={`${slot.code}, ${slot.repair ? storageRepairLabel(slot.repair) : moving || !data.settings.enabled ? 'libre' : 'libre, ajouter un robot'}`}
                                   onClick={() => {
                                     if (moving) {
                                       if (slot.repair) return;
@@ -826,8 +834,9 @@ export function StoragePage() {
                                         slot,
                                         rack,
                                       });
+                                    else setPickerSlot(slot);
                                   }}
-                                  className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${canDrag ? 'enabled:cursor-grab enabled:active:cursor-grabbing' : ''} ${(slot.repair && !moving) || (moving && !slot.repair) ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair && !isSource ? 'opacity-50' : ''} ${isSource || isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && isSource ? 'motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
+                                  className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${canDrag ? 'enabled:cursor-grab enabled:active:cursor-grabbing' : ''} ${!moving || !slot.repair ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair && !isSource ? 'opacity-50' : ''} ${isSource || isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && isSource ? 'motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
                                 >
                                   {slot.repair ? (
                                     <>
@@ -877,6 +886,11 @@ export function StoragePage() {
                                         aria-hidden
                                       />
                                       Libre
+                                      {data.settings.enabled && (
+                                        <span className="text-xs">
+                                          Ajouter un robot
+                                        </span>
+                                      )}
                                     </span>
                                   )}
                                 </button>
@@ -893,6 +907,16 @@ export function StoragePage() {
             </div>
           </Tabs>
         </>
+      )}
+      {data && (
+        <StorageSlotPicker
+          data={data}
+          slot={pickerSlot}
+          initial={selected}
+          busy={busy}
+          onClose={() => setPickerSlot(null)}
+          onConfirm={(source, slot) => void placeFromPicker(source, slot)}
+        />
       )}
       <ConfirmDialog
         open={!!selected && !!destination}

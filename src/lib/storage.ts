@@ -71,7 +71,7 @@ export function storageRobotLabel(repair: StorageRepair) {
     ? model
     : `${brand} ${model}`;
 }
-function normalizeStorageText(value: string) {
+export function normalizeStorageText(value: string) {
   return value
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
