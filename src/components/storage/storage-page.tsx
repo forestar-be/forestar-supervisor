@@ -298,7 +298,7 @@ export function StoragePage() {
     }
   }
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 xl:flex-1">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl">Rangement des robots</h1>
         <StorageSearch
@@ -378,7 +378,7 @@ export function StoragePage() {
                 setDestination(null);
               }
             }}
-            className="gap-5 xl:flex-1"
+            className="gap-5"
           >
             <div
               ref={nav}
@@ -440,7 +440,7 @@ export function StoragePage() {
                 {message}
               </p>
             )}
-            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:flex-1 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-stretch">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
               <aside
                 data-storage-interactive
                 className={`${selected ? 'order-first' : 'order-last'} min-w-0 self-start rounded-2xl border bg-card p-5 shadow-sm sm:p-6 lg:order-last`}
@@ -667,8 +667,8 @@ export function StoragePage() {
                 aria-label="Rack de face"
               >
                 {rack ? (
-                  <div className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4 xl:flex xl:flex-1 xl:flex-col xl:p-5">
-                    <div className="space-y-2 xl:grid xl:flex-1 xl:grid-rows-[auto_repeat(4,minmax(112px,1fr))] xl:gap-2 xl:space-y-0">
+                  <div className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4 xl:p-5">
+                    <div className="space-y-2">
                       <div
                         className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 text-center text-sm font-semibold sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
                         aria-label="Colonnes du rack"
@@ -722,7 +722,7 @@ export function StoragePage() {
                                   } else if (slot.repair)
                                     choose({ repair: slot.repair, slot, rack });
                                 }}
-                                className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${slot.repair || moving ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair ? 'opacity-50' : ''} ${selected?.slot?.id === slot.id || destination?.id === slot.id ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
+                                className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${slot.repair || moving ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair ? 'opacity-50' : ''} ${selected?.slot?.id === slot.id || destination?.id === slot.id ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
                               >
                                 {slot.repair ? (
                                   <>
