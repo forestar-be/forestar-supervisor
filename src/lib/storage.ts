@@ -50,6 +50,17 @@ export interface RepairStorage {
     createdAt: string;
   }[];
 }
+/** Résultat de la recherche de la modale : un robot non rendu, rangé ou non. */
+export interface StorageSearchItem {
+  repair: StorageRepair;
+  depositedAt: string | null;
+  slot: { id: number; code: string } | null;
+}
+export interface StorageSearchResult {
+  items: StorageSearchItem[];
+  /** Plus de résultats que la limite du serveur : préciser la recherche. */
+  truncated: boolean;
+}
 export interface StorageCommand {
   commandId: string;
   action: 'deposit' | 'assign' | 'move';

@@ -77,6 +77,8 @@ interface Selection {
   repair: StorageRepair;
   slot: StorageSlot | null;
   rack: StorageRack | null;
+  /** false : fiche jamais déposée (proposée par la recherche de la modale). */
+  deposited?: boolean;
 }
 export function StoragePage() {
   const { token } = useAuth();
@@ -266,7 +268,11 @@ export function StoragePage() {
     setError('');
     const command = pending.current ?? {
       commandId: crypto.randomUUID(),
-      action: selected.slot ? ('move' as const) : ('assign' as const),
+      action: selected.slot
+        ? ('move' as const)
+        : selected.deposited === false
+          ? ('deposit' as const)
+          : ('assign' as const),
       ...(slot ? { slotId: slot.id } : {}),
       ...(selected.slot ? { expectedSlotId: selected.slot.id } : {}),
     };
