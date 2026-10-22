@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { Input } from '@forestar-be/ui';
+import { Search } from 'lucide-react';
 import {
   searchStorage,
   storageRepairLabel,
@@ -35,8 +36,13 @@ export function StorageSearch({
     setIndex(-1);
   }
   return (
-    <div className="relative w-full sm:w-80" data-storage-interactive>
+    <div className="relative w-full sm:w-96" data-storage-interactive>
+      <Search
+        className="pointer-events-none absolute left-3.5 top-3 size-4 text-foreground"
+        aria-hidden
+      />
       <Input
+        className="h-10 rounded-full bg-card pl-10 shadow-sm"
         id="storage-search"
         type="search"
         role="combobox"

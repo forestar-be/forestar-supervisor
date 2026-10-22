@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Bot, Plus } from 'lucide-react';
+import {
+  Bot,
+  CalendarDays,
+  Check,
+  Clock3,
+  FileText,
+  Move,
+  Plus,
+  RefreshCw,
+  UserRound,
+  Warehouse,
+  Wrench,
+} from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -39,6 +51,7 @@ import {
 } from '@/lib/storage';
 
 import { StorageSearch } from './storage-search';
+import { StorageRobotPhoto } from './storage-robot-photo';
 import type { MachineRepair } from '@/lib/types';
 
 type RobotDetails = Pick<
@@ -149,6 +162,9 @@ export function StoragePage() {
   }, [data?.racks.length]);
   const racks = data?.racks.filter((r) => r.active) ?? [];
   const rack = racks.find((r) => r.id === rackId);
+  const occupied = rack?.slots.filter((slot) => slot.repair).length ?? 0;
+  const capacity = rack?.slots.length ?? 0;
+  const occupancy = capacity ? Math.round((occupied / capacity) * 100) : 0;
   const selectedId = selected?.repair.id;
   const selectedSlotId = selected?.slot?.id;
   useEffect(() => {
@@ -286,11 +302,13 @@ export function StoragePage() {
     }
   }
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl">Rangement des robots</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Rangement des robots
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
             Places réservées jusqu’à la remise physique au client.
           </p>
         </div>
@@ -371,7 +389,7 @@ export function StoragePage() {
                 setDestination(null);
               }
             }}
-            className="gap-4"
+            className="gap-5"
           >
             <div
               ref={nav}
@@ -382,13 +400,14 @@ export function StoragePage() {
                 ref={tabs}
                 aria-label="Choisir un rack"
                 aria-hidden={selectNavigation}
-                className={`w-max ${selectNavigation ? 'invisible absolute pointer-events-none' : ''}`}
+                className={`h-11 w-max rounded-2xl p-1 ${selectNavigation ? 'invisible absolute pointer-events-none' : ''}`}
               >
                 {racks.map((r) => (
                   <TabsTrigger
                     key={r.id}
                     value={String(r.id)}
                     tabIndex={selectNavigation ? -1 : undefined}
+                    className="rounded-xl px-5 text-sm data-active:text-primary"
                   >
                     {rackLabel(r)}
                   </TabsTrigger>
@@ -432,60 +451,95 @@ export function StoragePage() {
                 {message}
               </p>
             )}
-            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
               <aside
                 data-storage-interactive
-                className={`order-first self-start rounded-xl border p-5 lg:order-last ${selected ? 'border-primary/40 bg-card shadow-lg ring-2 ring-primary/15' : 'border-dashed bg-muted/30'}`}
+                className={`${selected ? 'order-first' : 'order-last'} min-w-0 rounded-2xl border bg-card p-5 shadow-sm sm:p-6 lg:order-last`}
                 aria-label="Robot sélectionné"
               >
                 {selected ? (
                   <>
-                    <h2 className="font-medium">
+                    <h2 className="text-lg font-semibold">
                       {moving ? 'Déplacement en cours' : 'Robot sélectionné'}
                     </h2>
-                    <p className="my-2 text-xl font-semibold">
-                      {selected.slot?.code ?? 'Sans emplacement'}
-                      {destination ? ` → ${destination.code}` : ''}
-                    </p>
-                    <p>{storageRepairLabel(selected.repair)}</p>
-                    {storageRobotLabel(selected.repair) && (
-                      <p className="mt-2 text-lg font-semibold">
-                        {storageRobotLabel(selected.repair)}
-                      </p>
-                    )}
-                    {selected.repair.state && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {selected.repair.state}
-                      </p>
-                    )}
+                    <div className="my-5 flex items-center gap-4">
+                      <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/8">
+                        <Bot className="size-8" aria-hidden />
+                      </span>
+                      <div className="min-w-0 break-words">
+                        <p className="text-xl font-semibold sm:text-2xl">
+                          {selected.slot?.code ?? 'Sans emplacement'}
+                          {destination ? ` → ${destination.code}` : ''}
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {storageRepairLabel(selected.repair)}
+                        </p>
+                        {storageRobotLabel(selected.repair) && (
+                          <p className="mt-1 font-semibold">
+                            {storageRobotLabel(selected.repair)}
+                          </p>
+                        )}
+                        {selected.repair.state && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {selected.repair.state}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                     {robotDetails && (
-                      <div className="mt-4 space-y-2 border-t pt-3 text-sm">
-                        <dl className="space-y-2">
+                      <div className="space-y-4 border-t py-5 text-sm">
+                        <dl className="space-y-4">
                           {robotDetails.repair_or_maintenance && (
-                            <div>
-                              <dt className="text-muted-foreground">
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                              <dt className="flex items-center gap-2 text-muted-foreground">
+                                <Wrench
+                                  className="size-4 shrink-0"
+                                  aria-hidden
+                                />
                                 Prestation
                               </dt>
                               <dd>{robotDetails.repair_or_maintenance}</dd>
                             </div>
                           )}
-                          <div>
-                            <dt className="text-muted-foreground">
+                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                            <dt className="flex items-center gap-2 text-muted-foreground">
+                              <UserRound
+                                className="size-4 shrink-0"
+                                aria-hidden
+                              />
                               Réparateur
                             </dt>
-                            <dd>
+                            <dd className="break-words">
                               {robotDetails.repairer_name || 'Non attribué'}
                             </dd>
                           </div>
                           {robotDetails.entry_date && (
-                            <div>
-                              <dt className="text-muted-foreground">
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                              <dt className="flex items-center gap-2 text-muted-foreground">
+                                <CalendarDays
+                                  className="size-4 shrink-0"
+                                  aria-hidden
+                                />
                                 Entrée à l’atelier
                               </dt>
                               <dd>
                                 {new Date(
                                   robotDetails.entry_date,
                                 ).toLocaleDateString('fr-BE')}
+                              </dd>
+                            </div>
+                          )}
+                          {robotDetails.fault_description && (
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                              <dt className="flex items-start gap-2 text-muted-foreground">
+                                <FileText
+                                  className="mt-0.5 size-4 shrink-0"
+                                  aria-hidden
+                                />
+                                Demande du client
+                              </dt>
+                              <dd className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                                {robotDetails.fault_description}
                               </dd>
                             </div>
                           )}
@@ -503,16 +557,6 @@ export function StoragePage() {
                               .join(' · ')}
                           </p>
                         )}
-                        {robotDetails.fault_description && (
-                          <div>
-                            <p className="text-muted-foreground">
-                              Demande du client
-                            </p>
-                            <p className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
-                              {robotDetails.fault_description}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
                     {robotError && (
@@ -523,25 +567,40 @@ export function StoragePage() {
                         {robotError}
                       </p>
                     )}
-                    {detail?.depositedAt && (
-                      <p className="mt-3 text-sm">
-                        <span className="text-muted-foreground">
-                          Déposé le :{' '}
-                        </span>
-                        {new Date(detail.depositedAt).toLocaleString('fr-BE')}
-                      </p>
-                    )}
-                    {detail?.history[0] && (
-                      <p className="mt-1 text-sm">
-                        <span className="text-muted-foreground">
-                          Dernier mouvement :{' '}
-                        </span>
-                        {new Date(detail.history[0].createdAt).toLocaleString(
-                          'fr-BE',
+                    {(detail?.depositedAt || detail?.history[0]) && (
+                      <dl className="space-y-4 border-t py-5 text-sm">
+                        {detail.depositedAt && (
+                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                            <dt className="flex items-center gap-2 text-muted-foreground">
+                              <Clock3 className="size-4 shrink-0" aria-hidden />
+                              Déposé le
+                            </dt>
+                            <dd>
+                              {new Date(detail.depositedAt).toLocaleString(
+                                'fr-BE',
+                              )}
+                            </dd>
+                          </div>
                         )}
-                      </p>
+                        {detail.history[0] && (
+                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                            <dt className="flex items-center gap-2 text-muted-foreground">
+                              <RefreshCw
+                                className="size-4 shrink-0"
+                                aria-hidden
+                              />
+                              Dernier mouvement
+                            </dt>
+                            <dd>
+                              {new Date(
+                                detail.history[0].createdAt,
+                              ).toLocaleString('fr-BE')}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
                     )}
-                    <div className="mt-3 flex flex-col gap-2">
+                    <div className="mt-2 flex flex-col gap-2.5">
                       {data.settings.enabled && (
                         <>
                           {!selected.slot && !moving && (
@@ -553,7 +612,8 @@ export function StoragePage() {
                             </Button>
                           )}
                           <Button
-                            variant="outline"
+                            variant={moving ? 'outline' : 'default'}
+                            className="h-auto min-h-11 whitespace-normal py-3"
                             disabled={busy}
                             onClick={() => {
                               setMoving(!moving);
@@ -561,6 +621,7 @@ export function StoragePage() {
                               pending.current = null;
                             }}
                           >
+                            <Move className="size-4 shrink-0" aria-hidden />
                             {moving
                               ? 'Annuler le déplacement'
                               : selected.slot
@@ -581,11 +642,13 @@ export function StoragePage() {
                       )}
                       <Button
                         variant="outline"
+                        className="h-auto min-h-11 whitespace-normal border-primary/40 py-3"
                         nativeButton={false}
                         render={
                           <Link href={`/reparation/${selected.repair.id}`} />
                         }
                       >
+                        <FileText className="size-4 shrink-0" aria-hidden />
                         Ouvrir la fiche et réimprimer
                       </Button>
                     </div>
@@ -597,10 +660,16 @@ export function StoragePage() {
                     )}
                   </>
                 ) : (
-                  <p>
-                    Sélectionnez un robot dans le rack, les résultats ou la
-                    liste des sans emplacement.
-                  </p>
+                  <div className="flex flex-col items-center gap-3 py-4 text-center">
+                    <span className="flex size-14 items-center justify-center rounded-full bg-primary/8">
+                      <Bot className="size-7 text-primary" aria-hidden />
+                    </span>
+                    <h2 className="font-semibold">Aucun robot sélectionné</h2>
+                    <p className="max-w-xs text-sm text-muted-foreground">
+                      Sélectionnez un robot dans le rack, les résultats ou la
+                      liste des sans emplacement.
+                    </p>
+                  </div>
                 )}
               </aside>
               <TabsContent
@@ -609,24 +678,80 @@ export function StoragePage() {
                 aria-label="Rack de face"
               >
                 {rack ? (
-                  <>
-                    <div className="rounded border-x-8 border-muted bg-card px-1 sm:px-3">
+                  <div className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4 xl:p-5">
+                    <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/8 text-primary">
+                          <Warehouse className="size-6" aria-hidden />
+                        </span>
+                        <div>
+                          <h2 className="text-lg font-semibold">
+                            Rack {rack.number}
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            {occupied} / {capacity} emplacements occupés
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex min-w-28 flex-1 items-center gap-3 sm:border-l sm:pl-5">
+                        <div
+                          role="meter"
+                          aria-label="Occupation du rack"
+                          aria-valuemin={0}
+                          aria-valuemax={capacity}
+                          aria-valuenow={occupied}
+                          aria-valuetext={`${occupied} places occupées sur ${capacity}`}
+                          className="h-3 flex-1 overflow-hidden rounded-full bg-muted"
+                        >
+                          <div
+                            className="h-full rounded-full bg-primary transition-[width]"
+                            style={{ width: `${occupancy}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold tabular-nums">
+                          {occupancy}%
+                        </span>
+                      </div>
                       <div
-                        className="grid grid-cols-[14px_repeat(3,minmax(0,1fr))] gap-1 pt-3 text-center text-sm font-semibold sm:gap-3"
+                        className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground sm:text-sm"
+                        aria-label="Légende du rack"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span className="size-5 rounded-[6px] border border-dashed border-foreground/20 bg-muted/30" />
+                          Libre
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="size-5 rounded-[6px] border bg-muted" />
+                          Occupé
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="size-5 rounded-[6px] border-2 border-primary bg-primary/10" />
+                          Sélectionné
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div
+                        className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 text-center text-sm font-semibold sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
                         aria-label="Colonnes du rack"
                       >
                         <span />
                         {['A', 'B', 'C'].map((position) => (
-                          <span key={position}>{position}</span>
+                          <span
+                            key={position}
+                            className="rounded-t-lg bg-primary/5 py-2"
+                          >
+                            {position}
+                          </span>
                         ))}
                       </div>
                       {[4, 3, 2, 1].map((level) => (
                         <div
                           key={level}
-                          className="grid grid-cols-[14px_repeat(3,minmax(0,1fr))] gap-1 border-b-8 border-muted py-3 sm:gap-3"
+                          className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
                         >
                           <span
-                            className="self-center text-center text-sm font-semibold"
+                            className="flex items-center justify-center rounded-l-lg bg-primary/5 text-sm font-semibold sm:text-base"
                             aria-label={`Étage ${level}`}
                           >
                             {level}
@@ -659,36 +784,55 @@ export function StoragePage() {
                                   } else if (slot.repair)
                                     choose({ repair: slot.repair, slot, rack });
                                 }}
-                                className={`flex min-h-24 min-w-0 flex-col items-center justify-center rounded-lg border px-1 py-3 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:text-sm ${slot.repair || moving ? 'enabled:cursor-pointer' : ''} ${moving && slot.repair ? 'opacity-50' : ''} ${selected?.slot?.id === slot.id || destination?.id === slot.id ? 'border-primary bg-primary text-primary-foreground' : slot.repair ? 'border-primary/30 bg-primary/10' : 'border-dashed bg-background'} ${moving && !slot.repair ? 'border-primary' : ''}`}
+                                className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:flex-row xl:gap-3 xl:text-left ${slot.repair || moving ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair ? 'opacity-50' : ''} ${selected?.slot?.id === slot.id || destination?.id === slot.id ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
                               >
                                 {slot.repair ? (
                                   <>
-                                    <Bot
-                                      className="mb-1 size-5 shrink-0"
-                                      aria-hidden
+                                    <StorageRobotPhoto
+                                      src={slot.repair.imageUrl}
                                     />
-                                    <strong className="max-w-full break-words">
-                                      {storageRobotLabel(slot.repair) ||
-                                        'Robot'}
-                                    </strong>
-                                    <span className="mt-1 max-w-full break-words">
-                                      {slot.repair.client.firstName}{' '}
-                                      {slot.repair.client.lastName}
+                                    <span className="min-w-0 w-full max-w-full sm:w-auto sm:break-words xl:border-l xl:pl-3">
+                                      <strong
+                                        className="block truncate font-semibold leading-snug sm:whitespace-normal"
+                                        title={
+                                          storageRobotLabel(slot.repair) ||
+                                          'Robot'
+                                        }
+                                      >
+                                        {storageRobotLabel(slot.repair) ||
+                                          'Robot'}
+                                      </strong>
+                                      <span className="mt-1 block truncate text-muted-foreground sm:whitespace-normal">
+                                        {slot.repair.client.firstName}{' '}
+                                        {slot.repair.client.lastName}
+                                      </span>
+                                      <span className="mt-0.5 block text-muted-foreground">
+                                        #{slot.repair.id}
+                                      </span>
                                     </span>
-                                    <span className="mt-1">
-                                      #{slot.repair.id}
-                                      {slot.repair.state
-                                        ? ` · ${slot.repair.state}`
-                                        : ''}
-                                    </span>
+                                    {selected?.slot?.id === slot.id && (
+                                      <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                        <Check
+                                          className="size-3.5"
+                                          aria-hidden
+                                        />
+                                      </span>
+                                    )}
                                   </>
                                 ) : moving ? (
                                   <>
-                                    <Plus className="mb-1 size-6" aria-hidden />
+                                    <Plus
+                                      className="size-6 rounded-full bg-primary/10 p-1 text-primary"
+                                      aria-hidden
+                                    />
                                     <span>Placer ici</span>
                                   </>
                                 ) : (
-                                  <span className="text-muted-foreground">
+                                  <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                                    <Plus
+                                      className="size-6 rounded-full bg-muted p-1"
+                                      aria-hidden
+                                    />
                                     Libre
                                   </span>
                                 )}
@@ -697,10 +841,7 @@ export function StoragePage() {
                         </div>
                       ))}
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Étages de bas en haut · A à C de gauche à droite
-                    </p>
-                  </>
+                  </div>
                 ) : (
                   <p>Aucun rack actif.</p>
                 )}

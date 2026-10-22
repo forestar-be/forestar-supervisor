@@ -4,6 +4,8 @@ export interface StorageRepair {
   robot_type_name?: string | null;
   brand_name?: string | null;
   state?: string | null;
+  /** Première photo de la fiche ; affichée via l'optimiseur de vignettes Next. */
+  imageUrl?: string | null;
 }
 export interface StorageSlot {
   id: number;
