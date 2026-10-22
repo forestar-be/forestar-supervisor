@@ -28,14 +28,20 @@ const nextConfig: NextConfig = {
           (url): url is string => Boolean(url),
         ),
       ),
-    ).map((baseUrl) => {
+    ).flatMap((baseUrl) => {
       const url = new URL(baseUrl);
-      return {
+      // Le front et l'API locale peuvent nommer la boucle locale différemment.
+      const hostnames =
+        process.env.NODE_ENV === 'development' &&
+        ['localhost', '127.0.0.1'].includes(url.hostname)
+          ? ['localhost', '127.0.0.1']
+          : [url.hostname];
+      return hostnames.map((hostname) => ({
         protocol: url.protocol.slice(0, -1) as 'https' | 'http',
-        hostname: url.hostname,
+        hostname,
         port: url.port,
         pathname: '/images/**',
-      };
+      }));
     }),
     // L'API locale peut être sur le réseau du magasin en développement.
     dangerouslyAllowLocalIP: process.env.NODE_ENV === 'development',
