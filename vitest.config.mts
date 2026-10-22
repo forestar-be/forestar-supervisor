@@ -12,6 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
+    setupFiles: ['./test/setup.ts'],
     // Transformés pour que l'alias de `next/navigation` s'applique aussi aux
     // imports faits à l'intérieur des paquets, et que `next/link` (sans
     // extension, importé par l'ui) se résolve.
