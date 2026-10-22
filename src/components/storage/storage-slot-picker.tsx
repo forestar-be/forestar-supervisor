@@ -218,21 +218,6 @@ function PickerBody({
           </section>
         </div>
       </ScrollArea>
-      <p
-        className="-mt-2 min-h-5 text-sm text-muted-foreground"
-        aria-live="polite"
-      >
-        {choice ? (
-          <>
-            <span className="font-medium text-foreground">
-              {storageRepairLabel(choice.repair)}
-            </span>{' '}
-            : {choice.slot?.code ?? 'sans place'} → {slot.code}
-          </>
-        ) : (
-          'Aucun robot choisi.'
-        )}
-      </p>
       <DialogFooter className="-mx-6 -mb-6 flex-wrap rounded-b-2xl px-6 py-4">
         {/* Action à part : couleur distincte du vert des boutons de la page. */}
         <a
@@ -254,11 +239,9 @@ function PickerBody({
           disabled={!choice || busy}
           onClick={() => choice && onConfirm(choice, slot)}
         >
-          {!choice
-            ? 'Choisir un robot'
-            : choice.slot
-              ? 'Déplacer ici'
-              : 'Placer ici'}
+          {choice
+            ? `${choice.slot ? 'Déplacer' : 'Placer'} #${choice.repair.id} : ${choice.slot?.code ?? 'sans place'} → ${slot.code}`
+            : 'Choisir un robot'}
         </Button>
       </DialogFooter>
     </>

@@ -440,7 +440,7 @@ describe('Ajout depuis une place libre', () => {
     fireEvent.click(within(unlocated).getByRole('button', { name: /#30/ }));
     fireEvent.click(
       within(dialog).getByRole('button', {
-        name: 'Placer ici',
+        name: 'Placer #30 : sans place → R1/1/B',
       }),
     );
     await waitFor(() =>
@@ -471,7 +471,7 @@ describe('Ajout depuis une place libre', () => {
     fireEvent.click(within(stored).getByRole('button', { name: /#20/ }));
     fireEvent.click(
       within(dialog).getByRole('button', {
-        name: 'Déplacer ici',
+        name: 'Déplacer #20 : R2/1/A → R1/1/B',
       }),
     );
     await waitFor(() =>
