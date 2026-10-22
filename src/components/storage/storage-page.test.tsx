@@ -347,3 +347,34 @@ it('affiche la marque seule si le modèle manque, sans répéter la fiche', asyn
     'Husqvarna',
   );
 });
+
+it('déplace un robot par glisser-déposer et fait clignoter la case source', async () => {
+  api.commandRepairStorage.mockResolvedValue({ location: { code: 'R1/1/B' } });
+  await open();
+  const source = screen.getByRole('button', {
+    name: 'R1/1/A, #10 · Jean Dupont',
+  });
+  const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+  fireEvent.dragStart(source, { dataTransfer });
+  await waitFor(() =>
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'Déplacement en cours',
+    ),
+  );
+  expect(source.className).toContain('storage-moving-blink');
+  const target = screen.getByRole('button', { name: 'R1/1/B, libre' });
+  fireEvent.dragOver(target, { dataTransfer });
+  fireEvent.drop(target, { dataTransfer });
+  fireEvent.dragEnd(source, { dataTransfer });
+  await waitFor(() =>
+    expect(api.commandRepairStorage).toHaveBeenCalledWith(
+      'test',
+      10,
+      expect.objectContaining({
+        action: 'move',
+        slotId: 111,
+        expectedSlotId: 110,
+      }),
+    ),
+  );
+});
