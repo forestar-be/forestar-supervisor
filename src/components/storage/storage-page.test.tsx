@@ -366,6 +366,13 @@ it('déplace un robot par glisser-déposer et fait clignoter la case source', as
   fireEvent.dragOver(target, { dataTransfer });
   fireEvent.drop(target, { dataTransfer });
   fireEvent.dragEnd(source, { dataTransfer });
+  expect(api.commandRepairStorage).not.toHaveBeenCalled();
+  expect(screen.getByLabelText('Robot sélectionné').className).toContain(
+    'storage-moving-blink',
+  );
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Confirmer R1/1/A → R1/1/B' }),
+  );
   await waitFor(() =>
     expect(api.commandRepairStorage).toHaveBeenCalledWith(
       'test',
@@ -377,4 +384,30 @@ it('déplace un robot par glisser-déposer et fait clignoter la case source', as
       }),
     ),
   );
+});
+
+it('un glisser-déposer annulé dans la modale quitte le mode déplacement', async () => {
+  await open();
+  const source = screen.getByRole('button', {
+    name: 'R1/1/A, #10 · Jean Dupont',
+  });
+  const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+  fireEvent.dragStart(source, { dataTransfer });
+  await waitFor(() =>
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'Déplacement en cours',
+    ),
+  );
+  const target = screen.getByRole('button', { name: 'R1/1/B, libre' });
+  fireEvent.dragOver(target, { dataTransfer });
+  fireEvent.drop(target, { dataTransfer });
+  fireEvent.dragEnd(source, { dataTransfer });
+  fireEvent.click(await screen.findByRole('button', { name: 'Annuler' }));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'Robot sélectionné',
+    ),
+  );
+  expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent('#10');
+  expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });

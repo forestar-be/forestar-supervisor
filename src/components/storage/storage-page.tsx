@@ -24,6 +24,7 @@ import {
   Alert,
   AlertDescription,
   Button,
+  ConfirmDialog,
   Tabs,
   TabsList,
   TabsContent,
@@ -34,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
   Spinner,
+  toast,
 } from '@forestar-be/ui';
 import { useAuth } from '@/lib/auth';
 import {
@@ -92,7 +94,6 @@ export function StoragePage() {
   const [destination, setDestination] = useState<StorageSlot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
   const [exceptions, setExceptions] = useState(false);
   const [selectNavigation, setSelectNavigation] = useState(true);
   const nav = useRef<HTMLDivElement>(null);
@@ -104,6 +105,10 @@ export function StoragePage() {
   const dragDropped = useRef(false);
   const dragWasMoving = useRef(false);
   const [dragging, setDragging] = useState(false);
+  const confirming = useRef(false);
+  useEffect(() => {
+    confirming.current = !!destination;
+  }, [destination]);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const load = useCallback(
     async (cancelMove = false) => {
@@ -127,7 +132,6 @@ export function StoragePage() {
           setDestination(null);
         }
         if (found?.rack && sourceChanged) setRackId(found.rack.id);
-        if (cancelMove || sourceChanged || !found) setMessage('');
       }
       if (!linked.current) {
         linked.current = true;
@@ -211,12 +215,14 @@ export function StoragePage() {
   }, [load]);
   useEffect(() => {
     const dismiss = (event: PointerEvent | KeyboardEvent) => {
-      if (busy) return;
+      if (busy || confirming.current) return;
       if (event instanceof KeyboardEvent) {
         if (event.key !== 'Escape') return;
       } else if (
         event.target instanceof Element &&
-        event.target.closest('[data-storage-interactive], [role="listbox"]')
+        event.target.closest(
+          '[data-storage-interactive], [role="listbox"], [role="dialog"], [role="alertdialog"]',
+        )
       )
         return;
       setSelected(null);
@@ -224,7 +230,6 @@ export function StoragePage() {
       setMoving(false);
       setDestination(null);
       pending.current = null;
-      setMessage('');
     };
     document.addEventListener('pointerdown', dismiss);
     document.addEventListener('keydown', dismiss);
@@ -246,7 +251,6 @@ export function StoragePage() {
       setRobotError('');
     }
     setSelected(item);
-    setMessage('');
     if (item.rack) setRackId(item.rack.id);
   }
   async function assign(
@@ -280,8 +284,9 @@ export function StoragePage() {
       );
       setSelected(found ?? null);
       if (found?.rack) setRackId(found.rack.id);
-      setMessage(
-        `Fiche #${selected.repair.id} affectée à ${detail.location?.code ?? 'sans emplacement'}. Réimprimez les tickets depuis la fiche.`,
+      toast.success(
+        `Fiche #${selected.repair.id} affectée à ${detail.location?.code ?? 'sans emplacement'}`,
+        { description: 'Réimprimez les tickets depuis la fiche.' },
       );
     } catch (e) {
       setError(
@@ -344,6 +349,14 @@ export function StoragePage() {
       setDestination(null);
     }
   }
+  function cancelConfirmation() {
+    if (busy) return;
+    setDestination(null);
+    pending.current = null;
+    // Un glisser-déposer annulé ne laisse pas la page en mode déplacement.
+    if (dragDropped.current && !dragWasMoving.current) setMoving(false);
+    dragDropped.current = false;
+  }
   function dropOn(slot: StorageSlot, event: DragEvent) {
     event.preventDefault();
     const source = dragged.current;
@@ -352,7 +365,6 @@ export function StoragePage() {
     dragDropped.current = true;
     pending.current = null;
     setDestination(slot);
-    void assign(slot, source);
   }
   return (
     <div className="flex w-full flex-col gap-5">
@@ -505,15 +517,10 @@ export function StoragePage() {
                 </div>
               )}
             </div>
-            {message && (
-              <p role="status" className="rounded-lg bg-primary/10 p-3">
-                {message}
-              </p>
-            )}
-            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
               <aside
                 data-storage-interactive
-                className={`${selected ? 'order-first' : 'order-last'} min-w-0 self-start rounded-2xl border bg-card p-5 shadow-sm sm:p-6 lg:order-last`}
+                className={`${selected ? 'order-first' : 'order-last'} min-w-0 self-start rounded-2xl border bg-card p-5 shadow-sm sm:p-6 lg:order-last ${moving ? 'border-primary motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''}`}
                 aria-label="Robot sélectionné"
               >
                 {selected ? (
@@ -687,16 +694,6 @@ export function StoragePage() {
                                 ? 'Déplacer le robot'
                                 : 'Choisir une place'}
                           </Button>
-                          {destination && (
-                            <Button
-                              disabled={busy}
-                              onClick={() => void assign(destination)}
-                            >
-                              Confirmer{' '}
-                              {selected.slot?.code ?? 'Sans emplacement'} →{' '}
-                              {destination.code}
-                            </Button>
-                          )}
                         </>
                       )}
                       <Button
@@ -897,6 +894,22 @@ export function StoragePage() {
           </Tabs>
         </>
       )}
+      <ConfirmDialog
+        open={!!selected && !!destination}
+        title="Déplacer le robot"
+        message={
+          selected && destination
+            ? `${storageRepairLabel(selected.repair)} : ${selected.slot?.code ?? 'sans emplacement'} → ${destination.code}. Pensez à réimprimer les tickets depuis la fiche.`
+            : ''
+        }
+        confirmText={`Confirmer ${selected?.slot?.code ?? 'Sans emplacement'} → ${destination?.code ?? ''}`}
+        cancelText="Annuler"
+        isLoading={busy}
+        onConfirm={() => {
+          if (destination) void assign(destination);
+        }}
+        onClose={cancelConfirmation}
+      />
     </div>
   );
 }

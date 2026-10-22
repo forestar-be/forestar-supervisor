@@ -1110,7 +1110,7 @@ export function RepairPageClient() {
   // L'application est pleine largeur pour ses tableaux ; la fiche, en deux
   // colonnes de champs, garde l'ancienne borne de 1600 px pour rester lisible.
   return (
-    <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       {loading && repair && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
           <Spinner size="lg" />
