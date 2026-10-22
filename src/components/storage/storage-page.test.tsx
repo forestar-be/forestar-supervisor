@@ -432,7 +432,7 @@ describe('Ajout depuis une place libre', () => {
       }),
     ).toBeInTheDocument();
     const create = within(dialog).getByRole('link', {
-      name: 'Créer une fiche de dépôt',
+      name: 'Créer une fiche',
     });
     expect(create).toHaveAttribute('href', 'https://operateur.forestar.be');
     expect(create).toHaveAttribute('target', '_blank');
@@ -485,6 +485,22 @@ describe('Ajout depuis une place libre', () => {
         }),
       ),
     );
+  });
+  it('ne présélectionne pas le robot sélectionné sur la page', async () => {
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/B, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('button', { name: 'Choisir un robot' }),
+    ).toBeDisabled();
+    expect(
+      within(dialog).queryByRole('button', { pressed: true }),
+    ).not.toBeInTheDocument();
   });
   it('laisse les places libres inertes quand le rangement est désactivé', async () => {
     const data = fixture();

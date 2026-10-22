@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ExternalLink, FilePlus2, Search } from 'lucide-react';
+import { FilePlus2, Search } from 'lucide-react';
 import { APP_CATALOG } from '@forestar-be/core/app-menu';
 import {
   Button,
@@ -40,14 +40,12 @@ export interface StoragePick {
 export function StorageSlotPicker({
   data,
   slot,
-  initial,
   busy,
   onClose,
   onConfirm,
 }: {
   data: StorageOverview;
   slot: StorageSlot | null;
-  initial: StoragePick | null;
   busy: boolean;
   onClose: () => void;
   onConfirm: (source: StoragePick, slot: StorageSlot) => void;
@@ -79,7 +77,6 @@ export function StorageSlotPicker({
             key={slot.id}
             data={data}
             slot={slot}
-            initial={initial}
             busy={busy}
             onClose={onClose}
             onConfirm={onConfirm}
@@ -93,20 +90,18 @@ export function StorageSlotPicker({
 function PickerBody({
   data,
   slot,
-  initial,
   busy,
   onClose,
   onConfirm,
 }: {
   data: StorageOverview;
   slot: StorageSlot;
-  initial: StoragePick | null;
   busy: boolean;
   onClose: () => void;
   onConfirm: (source: StoragePick, slot: StorageSlot) => void;
 }) {
   const [query, setQuery] = useState('');
-  const [choice, setChoice] = useState<StoragePick | null>(initial);
+  const [choice, setChoice] = useState<StoragePick | null>(null);
   const unlocated = useMemo<StoragePick[]>(
     () => data.unlocated.map((repair) => ({ repair, slot: null, rack: null })),
     [data],
@@ -250,8 +245,7 @@ function PickerBody({
           )}
         >
           <FilePlus2 className="size-4" aria-hidden />
-          Créer une fiche de dépôt
-          <ExternalLink className="size-3.5 opacity-70" aria-hidden />
+          Créer une fiche
         </a>
         <Button variant="outline" disabled={busy} onClick={onClose}>
           Annuler

@@ -912,7 +912,6 @@ export function StoragePage() {
         <StorageSlotPicker
           data={data}
           slot={pickerSlot}
-          initial={selected}
           busy={busy}
           onClose={() => setPickerSlot(null)}
           onConfirm={(source, slot) => void placeFromPicker(source, slot)}
