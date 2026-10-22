@@ -12,7 +12,6 @@ import {
   Plus,
   RefreshCw,
   UserRound,
-  Warehouse,
   Wrench,
 } from 'lucide-react';
 import {
@@ -162,9 +161,6 @@ export function StoragePage() {
   }, [data?.racks.length]);
   const racks = data?.racks.filter((r) => r.active) ?? [];
   const rack = racks.find((r) => r.id === rackId);
-  const occupied = rack?.slots.filter((slot) => slot.repair).length ?? 0;
-  const capacity = rack?.slots.length ?? 0;
-  const occupancy = capacity ? Math.round((occupied / capacity) * 100) : 0;
   const selectedId = selected?.repair.id;
   const selectedSlotId = selected?.slot?.id;
   useEffect(() => {
@@ -304,14 +300,7 @@ export function StoragePage() {
   return (
     <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Rangement des robots
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-            Places réservées jusqu’à la remise physique au client.
-          </p>
-        </div>
+        <h1 className="text-2xl">Rangement des robots</h1>
         <StorageSearch
           data={data}
           disabled={moving || busy}
@@ -679,57 +668,6 @@ export function StoragePage() {
               >
                 {rack ? (
                   <div className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4 xl:p-5">
-                    <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/8 text-primary">
-                          <Warehouse className="size-6" aria-hidden />
-                        </span>
-                        <div>
-                          <h2 className="text-lg font-semibold">
-                            Rack {rack.number}
-                          </h2>
-                          <p className="text-sm text-muted-foreground">
-                            {occupied} / {capacity} emplacements occupés
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex min-w-28 flex-1 items-center gap-3 sm:border-l sm:pl-5">
-                        <div
-                          role="meter"
-                          aria-label="Occupation du rack"
-                          aria-valuemin={0}
-                          aria-valuemax={capacity}
-                          aria-valuenow={occupied}
-                          aria-valuetext={`${occupied} places occupées sur ${capacity}`}
-                          className="h-3 flex-1 overflow-hidden rounded-full bg-muted"
-                        >
-                          <div
-                            className="h-full rounded-full bg-primary transition-[width]"
-                            style={{ width: `${occupancy}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums">
-                          {occupancy}%
-                        </span>
-                      </div>
-                      <div
-                        className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground sm:text-sm"
-                        aria-label="Légende du rack"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <span className="size-5 rounded-[6px] border border-dashed border-foreground/20 bg-muted/30" />
-                          Libre
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <span className="size-5 rounded-[6px] border bg-muted" />
-                          Occupé
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <span className="size-5 rounded-[6px] border-2 border-primary bg-primary/10" />
-                          Sélectionné
-                        </span>
-                      </div>
-                    </div>
                     <div className="space-y-2">
                       <div
                         className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 text-center text-sm font-semibold sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
