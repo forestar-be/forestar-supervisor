@@ -106,7 +106,7 @@ it('review: Le retour sur la fenêtre remplace aussi le détail du robot déplac
 // jsdom has no layout, so the desktop tabs are hidden from accessibility but clickable for navigation assertions.
 function changeRack() {
   fireEvent.click(
-    screen.getByText('Atelier · Rack 2 · 11 libres', { selector: 'button' }),
+    screen.getByText('Rack 2 · 11 libres', { selector: 'button' }),
   );
 }
 describe('Rangement visuel', () => {

@@ -7,20 +7,23 @@ import {
   ConfirmDialog,
   Input,
   Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@forestar-be/ui';
 import {
   getStorage,
   addStorageRack,
   deactivateStorageRack,
+  activateStorageRack,
   changeStorageRackCategory,
   updateStorageSettings,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import {
-  rackCategoryLabel,
-  type StorageOverview,
-  type StorageRackCategory,
-} from '@/lib/storage';
+import type { StorageOverview } from '@/lib/storage';
 
 export function StorageSettings({
   data,
@@ -70,8 +73,7 @@ function SettingsForm({
     maxRacksValue !== null &&
     (!Number.isInteger(maxRacksValue) || maxRacksValue <= 0);
   const [busy, setBusy] = useState(false);
-  const [newCategory, setNewCategory] =
-    useState<StorageRackCategory>('ATELIER');
+  const [newWinter, setNewWinter] = useState(false);
   const [error, setError] = useState('');
   const [deactivate, setDeactivate] = useState<number | null>(null);
   const running = useRef(false);
@@ -188,76 +190,105 @@ function SettingsForm({
       >
         Enregistrer les paramètres
       </Button>
-      <div>
+      <div className="max-w-xl">
         <h3 className="mb-2 font-medium">Racks · 4 étages × 3 places</h3>
-        <ul className="space-y-2">
-          {data.racks.map((rack) => (
-            <li key={rack.id} className="flex flex-wrap items-center gap-3">
-              <span>
-                Rack {rack.number} · {rackCategoryLabel(rack.category)}
-                {!rack.active ? ' · Désactivé' : ''}
-              </span>
-              <label className="flex items-center gap-2 text-sm">
-                Catégorie du rack {rack.number}
-                <select
-                  value={rack.category ?? 'ATELIER'}
-                  disabled={busy || rack.slots.some((slot) => !!slot.repair)}
-                  className="rounded border bg-field p-2"
-                  onChange={(event) =>
-                    void mutate(() =>
-                      changeStorageRackCategory(
-                        token,
-                        rack.id,
-                        event.target.value as StorageRackCategory,
-                      ),
-                    )
-                  }
-                >
-                  <option value="ATELIER">Atelier</option>
-                  <option value="HIVERNAGE">Hivernage</option>
-                </select>
-              </label>
-              {rack.active && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={busy || rack.slots.some((slot) => !!slot.repair)}
-                  onClick={() => setDeactivate(rack.id)}
-                >
-                  Désactiver le rack {rack.number}
-                </Button>
-              )}
-              {rack.active && rack.slots.some((slot) => !!slot.repair) && (
-                <span className="text-sm text-muted-foreground">
-                  Occupé : désactivation impossible
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <Table aria-label="Racks" className="text-xs sm:text-sm">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-1.5 sm:px-2">Numéro</TableHead>
+              <TableHead className="px-1.5 sm:px-2 text-center">
+                Hivernage
+              </TableHead>
+              <TableHead className="px-1.5 sm:px-2">Statut</TableHead>
+              <TableHead className="px-1.5 sm:px-2 text-right">
+                Action
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.racks.map((rack) => {
+              const occupied = rack.slots.some((slot) => !!slot.repair);
+              return (
+                <TableRow key={rack.id}>
+                  <TableCell className="px-1.5 py-1.5 font-medium sm:px-2">
+                    R{rack.number}
+                  </TableCell>
+                  <TableCell className="px-1.5 py-1.5 text-center sm:px-2">
+                    <Checkbox
+                      aria-label={`Hivernage du rack ${rack.number}`}
+                      checked={rack.category === 'HIVERNAGE'}
+                      disabled={busy || occupied}
+                      title={
+                        occupied
+                          ? 'Videz le rack avant de changer son usage.'
+                          : undefined
+                      }
+                      onCheckedChange={(checked) =>
+                        void mutate(() =>
+                          changeStorageRackCategory(
+                            token,
+                            rack.id,
+                            checked === true ? 'HIVERNAGE' : 'ATELIER',
+                          ),
+                        )
+                      }
+                    />
+                  </TableCell>
+                  <TableCell
+                    className={`px-1.5 py-1.5 sm:px-2 ${rack.active ? 'text-primary' : 'text-muted-foreground'}`}
+                  >
+                    {rack.active ? 'Activé' : 'Désactivé'}
+                  </TableCell>
+                  <TableCell className="px-1.5 py-1.5 text-right sm:px-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 min-w-20 px-2 text-xs sm:min-w-24 sm:text-sm"
+                      aria-label={`${rack.active ? 'Désactiver' : 'Activer'} le rack ${rack.number}`}
+                      disabled={busy || (rack.active && occupied)}
+                      title={
+                        rack.active && occupied
+                          ? 'Videz le rack avant de le désactiver.'
+                          : undefined
+                      }
+                      onClick={() =>
+                        rack.active
+                          ? setDeactivate(rack.id)
+                          : void mutate(() =>
+                              activateStorageRack(token, rack.id),
+                            )
+                      }
+                    >
+                      {rack.active ? 'Désactiver' : 'Activer'}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        Catégorie du nouveau rack
-        <select
-          value={newCategory}
+      <div className="flex flex-wrap items-center gap-4">
+        <Button
+          variant="outline"
           disabled={busy}
-          className="rounded border bg-field p-2"
-          onChange={(event) =>
-            setNewCategory(event.target.value as StorageRackCategory)
+          onClick={() =>
+            void mutate(() =>
+              addStorageRack(token, newWinter ? 'HIVERNAGE' : 'ATELIER'),
+            )
           }
         >
-          <option value="ATELIER">Atelier</option>
-          <option value="HIVERNAGE">Hivernage</option>
-        </select>
-      </label>
-      <Button
-        variant="outline"
-        className="self-start"
-        disabled={busy}
-        onClick={() => void mutate(() => addStorageRack(token, newCategory))}
-      >
-        Ajouter un rack
-      </Button>
+          Ajouter un rack
+        </Button>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={newWinter}
+            disabled={busy}
+            onCheckedChange={(checked) => setNewWinter(checked === true)}
+          />
+          Hivernage
+        </label>
+      </div>
       <ConfirmDialog
         open={deactivate !== null}
         title="Désactiver ce rack vide ?"

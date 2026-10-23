@@ -990,5 +990,5 @@ export function StoragePage() {
 }
 function rackLabel(rack: StorageRack) {
   const free = rack.slots.filter((slot) => !slot.repair).length;
-  return `${rack.category === 'HIVERNAGE' ? 'Hivernage' : 'Atelier'} · Rack ${rack.number} · ${free ? `${free} libres` : 'Complet'}`;
+  return `Rack ${rack.number} · ${free ? `${free} libres` : 'Complet'}${rack.category === 'HIVERNAGE' ? ' · Hivernage' : ''}`;
 }
