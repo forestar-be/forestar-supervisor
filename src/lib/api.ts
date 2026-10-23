@@ -735,6 +735,13 @@ export const previewRepairStorageTransition = (
     token,
     patch,
   );
+export const activateStorageRack = (
+  token: string,
+  id: number,
+): Promise<unknown> =>
+  apiRequest(`/supervisor/storage/racks/${id}`, 'PATCH', token, {
+    active: true,
+  });
 export const deactivateStorageRack = (
   token: string,
   id: number,
