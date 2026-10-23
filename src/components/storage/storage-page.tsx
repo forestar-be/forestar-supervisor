@@ -178,7 +178,11 @@ export function StoragePage() {
     measure();
     return () => observer.disconnect();
   }, [data?.racks.length]);
-  const racks = data?.racks.filter((r) => r.active) ?? [];
+  const racks = (data?.racks.filter((r) => r.active) ?? []).toSorted(
+    (a, b) =>
+      Number(a.category === 'HIVERNAGE') - Number(b.category === 'HIVERNAGE') ||
+      a.number - b.number,
+  );
   const rack = racks.find((r) => r.id === rackId);
   const selectedId = selected?.repair.id;
   const selectedSlotId = selected?.slot?.id;
@@ -262,6 +266,19 @@ export function StoragePage() {
     source: Selection | null = selected,
   ) {
     const selected = source;
+    if (selected && slot && data) {
+      const target = data.racks.find((r) =>
+        r.slots.some((s) => s.id === slot.id),
+      );
+      const category =
+        selected.repair.state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER';
+      if (target && (target.category ?? 'ATELIER') !== category) {
+        setError(
+          'Cette place ne correspond pas au statut du robot. Changez son statut depuis sa fiche pour changer de zone.',
+        );
+        return false;
+      }
+    }
     if (!selected || running.current) return false;
     running.current = true;
     setBusy(true);
@@ -378,6 +395,19 @@ export function StoragePage() {
     const source = dragged.current;
     setDropTargetId(null);
     if (!source || slot.repair || slot.id === source.slot?.id) return;
+    const target = data?.racks.find((r) =>
+      r.slots.some((s) => s.id === slot.id),
+    );
+    if (
+      target &&
+      (target.category ?? 'ATELIER') !==
+        (source.repair.state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER')
+    ) {
+      setError(
+        'Changez le statut depuis la fiche pour déplacer le robot vers cette zone.',
+      );
+      return;
+    }
     dragDropped.current = true;
     pending.current = null;
     setDestination(slot);
@@ -807,7 +837,17 @@ export function StoragePage() {
                                   }
                                   onDragEnd={endDrag}
                                   onDragOver={(event) => {
-                                    if (!dragging || slot.repair) return;
+                                    if (
+                                      !dragging ||
+                                      slot.repair ||
+                                      (dragged.current &&
+                                        (rack.category ?? 'ATELIER') !==
+                                          (dragged.current.repair.state ===
+                                          'Hivernage'
+                                            ? 'HIVERNAGE'
+                                            : 'ATELIER'))
+                                    )
+                                      return;
                                     event.preventDefault();
                                     event.dataTransfer.dropEffect = 'move';
                                     if (dropTargetId !== slot.id)
@@ -819,6 +859,12 @@ export function StoragePage() {
                                   }}
                                   onDrop={(event) => dropOn(slot, event)}
                                   disabled={
+                                    (moving &&
+                                      !!selected &&
+                                      (rack.category ?? 'ATELIER') !==
+                                        (selected.repair.state === 'Hivernage'
+                                          ? 'HIVERNAGE'
+                                          : 'ATELIER')) ||
                                     busy ||
                                     (moving
                                       ? !!slot.repair && !isSource
@@ -944,5 +990,5 @@ export function StoragePage() {
 }
 function rackLabel(rack: StorageRack) {
   const free = rack.slots.filter((slot) => !slot.repair).length;
-  return `Rack ${rack.number} · ${free ? `${free} libres` : 'Complet'}`;
+  return `${rack.category === 'HIVERNAGE' ? 'Hivernage' : 'Atelier'} · Rack ${rack.number} · ${free ? `${free} libres` : 'Complet'}`;
 }

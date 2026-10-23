@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   updateStorageSettings: vi.fn(),
   addStorageRack: vi.fn(),
   deactivateStorageRack: vi.fn(),
+  changeStorageRackCategory: vi.fn(),
 }));
 vi.mock('@/lib/api', () => api);
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'test' }) }));
@@ -59,4 +60,65 @@ it('envoie le maximum de racks saisi, et null quand le champ est vide', async ()
     expect(api.updateStorageSettings).toHaveBeenCalledTimes(2),
   );
   expect(api.updateStorageSettings.mock.calls[1][1].maxRacks).toBeNull();
+});
+
+it('creates racks in the selected category and locks conversion for occupied racks', async () => {
+  const data = {
+    settings: { enabled: true, allowOverflow: true, maxRacks: null },
+    machineTypes: [],
+    unlocated: [],
+    racks: [
+      {
+        id: 1,
+        number: 1,
+        active: true,
+        category: 'ATELIER' as const,
+        slots: [
+          {
+            id: 1,
+            level: 1,
+            position: 'A',
+            code: 'R1/1/A',
+            repair: {
+              id: 10,
+              client: { firstName: 'Jean', lastName: 'Dupont' },
+            },
+          },
+        ],
+      },
+      {
+        id: 2,
+        number: 2,
+        active: true,
+        category: 'HIVERNAGE' as const,
+        slots: [],
+      },
+    ],
+  };
+  api.addStorageRack.mockResolvedValue({});
+  api.changeStorageRackCategory.mockResolvedValue({});
+  render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
+  expect(screen.getByLabelText('Catégorie du rack 1')).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Catégorie du rack 2'), {
+    target: { value: 'ATELIER' },
+  });
+  await waitFor(() =>
+    expect(api.changeStorageRackCategory).toHaveBeenCalledWith(
+      'test',
+      2,
+      'ATELIER',
+    ),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByLabelText('Catégorie du nouveau rack'),
+    ).not.toBeDisabled(),
+  );
+  fireEvent.change(screen.getByLabelText('Catégorie du nouveau rack'), {
+    target: { value: 'HIVERNAGE' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Ajouter un rack' }));
+  await waitFor(() =>
+    expect(api.addStorageRack).toHaveBeenCalledWith('test', 'HIVERNAGE'),
+  );
 });

@@ -28,6 +28,7 @@ function rack(id: number): StorageRack {
     id,
     number: id,
     active: true,
+    category: 'ATELIER',
     slots: [1, 2, 3, 4].flatMap((level) =>
       ['A', 'B', 'C'].map((position, i) => ({
         id: id * 100 + level * 10 + i,
@@ -105,7 +106,7 @@ it('review: Le retour sur la fenêtre remplace aussi le détail du robot déplac
 // jsdom has no layout, so the desktop tabs are hidden from accessibility but clickable for navigation assertions.
 function changeRack() {
   fireEvent.click(
-    screen.getByText('Rack 2 · 11 libres', { selector: 'button' }),
+    screen.getByText('Atelier · Rack 2 · 11 libres', { selector: 'button' }),
   );
 }
 describe('Rangement visuel', () => {
@@ -428,12 +429,18 @@ describe('Ajout depuis une place libre', () => {
           slot: { id: 210, code: 'R2/1/A' },
         },
         {
-          repair: { id: 30, client: { firstName: 'Marie', lastName: 'Dupont' } },
+          repair: {
+            id: 30,
+            client: { firstName: 'Marie', lastName: 'Dupont' },
+          },
           depositedAt: '2026-10-01T00:00:00Z',
           slot: null,
         },
         {
-          repair: { id: 1712, client: { firstName: 'Luc', lastName: 'Dupont' } },
+          repair: {
+            id: 1712,
+            client: { firstName: 'Luc', lastName: 'Dupont' },
+          },
           depositedAt: null,
           slot: null,
         },
@@ -467,9 +474,9 @@ describe('Ajout depuis une place libre', () => {
     const expected = new Date();
     expected.setMonth(expected.getMonth() - 6);
     expect(since).toBe(expected.toISOString().slice(0, 10));
-    expect(within(stored).getByRole('button', { name: /#20/ })).toHaveTextContent(
-      'R2/1/A',
-    );
+    expect(
+      within(stored).getByRole('button', { name: /#20/ }),
+    ).toHaveTextContent('R2/1/A');
     const toStore = within(dialog).getByLabelText('Robots à ranger');
     const rows = within(toStore).getAllByRole('button');
     expect(rows.map((b) => b.textContent)).toEqual([
@@ -487,7 +494,10 @@ describe('Ajout depuis une place libre', () => {
       truncated: false,
       items: [
         {
-          repair: { id: 1712, client: { firstName: 'Luc', lastName: 'Dupont' } },
+          repair: {
+            id: 1712,
+            client: { firstName: 'Luc', lastName: 'Dupont' },
+          },
           depositedAt: null,
           slot: null,
         },
@@ -528,7 +538,10 @@ describe('Ajout depuis une place libre', () => {
       truncated: false,
       items: [
         {
-          repair: { id: 30, client: { firstName: 'Marie', lastName: 'Martin' } },
+          repair: {
+            id: 30,
+            client: { firstName: 'Marie', lastName: 'Martin' },
+          },
           depositedAt: '2026-10-01T00:00:00Z',
           slot: null,
         },

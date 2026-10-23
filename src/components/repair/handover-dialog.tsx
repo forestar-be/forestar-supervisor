@@ -16,7 +16,7 @@ import {
 import dayjs from '@/lib/dayjs';
 
 /** États qui veulent dire « réparée » : pas d'avertissement en dessous (D-18). */
-const COMPLETED_STATES = new Set(['Terminé', 'Terminé et en hivernage']);
+const COMPLETED_STATES = new Set(['Terminé', 'Hivernage']);
 
 interface HandoverDialogProps {
   open: boolean;

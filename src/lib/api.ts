@@ -713,8 +713,28 @@ export const updateStorageSettings = (
   },
 ): Promise<unknown> =>
   apiRequest('/supervisor/storage/settings', 'PATCH', token, data);
-export const addStorageRack = (token: string): Promise<unknown> =>
-  apiRequest('/supervisor/storage/racks', 'POST', token, {});
+export const addStorageRack = (
+  token: string,
+  category: import('./storage').StorageRackCategory = 'ATELIER',
+): Promise<unknown> =>
+  apiRequest('/supervisor/storage/racks', 'POST', token, { category });
+export const changeStorageRackCategory = (
+  token: string,
+  id: number,
+  category: import('./storage').StorageRackCategory,
+): Promise<unknown> =>
+  apiRequest(`/supervisor/storage/racks/${id}`, 'PATCH', token, { category });
+export const previewRepairStorageTransition = (
+  token: string,
+  id: string,
+  patch: unknown,
+): Promise<import('./storage').StorageTransitionPreview> =>
+  apiRequest(
+    `/supervisor/machine-repairs/${id}/storage/transition-preview`,
+    'POST',
+    token,
+    patch,
+  );
 export const deactivateStorageRack = (
   token: string,
   id: number,
