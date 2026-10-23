@@ -14,10 +14,28 @@ export interface StorageSlot {
   code: string;
   repair: StorageRepair | null;
 }
+export type StorageRackCategory = 'ATELIER' | 'HIVERNAGE';
+export const rackCategoryLabel = (category?: StorageRackCategory) =>
+  category === 'HIVERNAGE' ? 'Hivernage' : 'Atelier';
+export const repairStorageCategory = (
+  state?: string | null,
+): StorageRackCategory => (state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER');
+export interface StorageTransitionPreview {
+  movement: boolean;
+  fromCode: string | null;
+  toCode: string | null;
+  category: StorageRackCategory;
+  token: string | null;
+}
+export interface StorageTransitionConfirmation {
+  commandId: string;
+  token: string;
+}
 export interface StorageRack {
   id: number;
   number: number;
   active: boolean;
+  category: StorageRackCategory;
   slots: StorageSlot[];
 }
 export interface StorageOverview {
@@ -37,6 +55,7 @@ export interface RepairStorage {
     slotId: number;
     rackId: number;
     rackNumber: number;
+    category?: StorageRackCategory;
     level: number;
     position: string;
     code: string;

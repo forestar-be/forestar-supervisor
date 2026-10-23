@@ -173,10 +173,18 @@ function PickerBody({
       clearTimeout(timer);
     };
   }, [token, trimmed, period, requestKey, places]);
+  const targetCategory =
+    [...places.values()].find((place) => place.slot.id === slot.id)?.rack
+      .category ?? 'ATELIER';
+  const compatible = (item: StoragePick) =>
+    (item.repair.state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER') ===
+    targetCategory;
   const current = trimmed && result?.key === requestKey ? result : null;
   const loading = !!trimmed && !current && !error;
-  const stored = current?.items.filter((item) => item.slot) ?? [];
-  const toStore = current?.items.filter((item) => !item.slot) ?? [];
+  const stored =
+    current?.items.filter((item) => item.slot && compatible(item)) ?? [];
+  const toStore =
+    current?.items.filter((item) => !item.slot && compatible(item)) ?? [];
   const isChosen = (item: StoragePick) => choice?.repair.id === item.repair.id;
   const placeLabel = (item: StoragePick) =>
     item.slot?.code ??

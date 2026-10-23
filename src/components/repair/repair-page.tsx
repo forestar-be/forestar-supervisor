@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useStopwatch } from 'react-timer-hook';
@@ -45,6 +45,7 @@ import {
   sendRepairToDropbox,
   unarchiveRepair,
   updateRepair,
+  previewRepairStorageTransition,
 } from '@/lib/api';
 import { notifyError, notifySuccess, notifyWarning } from '@/lib/notifications';
 import { getInvoiceStatusLabel, getInvoiceStatusTone } from '@/lib/invoice';
@@ -78,6 +79,7 @@ import {
 } from '@/lib/single-repair';
 import { CounterPrintFailedDialog } from './counter-print-failed-dialog';
 import { RepairHeader } from './repair-header';
+import { StorageTransitionDialogs } from '@/components/storage/storage-transition-dialogs';
 import { RepairStoragePanel } from '@/components/storage/repair-storage-panel';
 import { RepairField } from './repair-field';
 import { RepairSelect } from './repair-select';
@@ -93,6 +95,11 @@ import {
   type CalendarEventData,
 } from './calendar-event-dialog';
 import { ChangeClientDialog } from './change-client-dialog';
+
+import type {
+  StorageTransitionPreview,
+  StorageTransitionConfirmation,
+} from '@/lib/storage';
 
 type EditableSection = 'repairDetails' | 'technicalInfo';
 
@@ -133,6 +140,13 @@ export function RepairPageClient() {
     null,
   );
   const [loading, setLoading] = useState(true);
+  const savingRepair = useRef(false);
+  const [pendingTransition, setPendingTransition] = useState<{
+    data: Record<string, unknown>;
+    preview: StorageTransitionPreview;
+    confirmation: StorageTransitionConfirmation;
+  } | null>(null);
+  const [physicalReminder, setPhysicalReminder] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [isLoadingSendEmail, setIsLoadingSendEmail] = useState(false);
   const [isLoadingDropbox, setIsLoadingDropbox] = useState(false);
@@ -372,37 +386,96 @@ export function RepairPageClient() {
     }
   };
 
+  async function persistRepair(
+    data: Record<string, unknown>,
+    confirmation?: StorageTransitionConfirmation,
+  ) {
+    const updated = await updateRepair(auth.token, id, {
+      ...data,
+      ...(confirmation ? { storageTransition: confirmation } : {}),
+    });
+    const saved = mapRepairFromApi(
+      confirmation ? await fetchRepairById(id, auth.token) : updated,
+    );
+    setRepair(saved);
+    setInitialRepair(saved);
+    toast.success('Fiche mise à jour avec succès', {
+      id: 'successUpdateSingleRepair',
+    });
+    closeAllEditableSections();
+  }
+
   async function handleUpdate(
     repairData: MachineRepair,
     initialRepairData: MachineRepair,
   ) {
+    if (savingRepair.current) return;
+    savingRepair.current = true;
     setLoading(true);
-    const updatedData = diffRepairFields(
+    const data = diffRepairFields(
       repairData as unknown as Record<string, unknown>,
       initialRepairData as unknown as Record<string, unknown>,
     );
     try {
-      await updateRepair(auth.token, id, updatedData);
-      // Même identifiant de notification que l'ancienne version : les
-      // sauvegardes rapprochées (temps de travail) mettent à jour un seul
-      // toast au lieu de les empiler.
-      toast.success('Fiche mise à jour avec succès', {
-        id: 'successUpdateSingleRepair',
-      });
-      setInitialRepair(repairData);
+      if ('state' in data || 'hivernage' in data) {
+        const preview = await previewRepairStorageTransition(
+          auth.token,
+          id,
+          data,
+        );
+        if (preview.movement && preview.token) {
+          setPendingTransition({
+            data,
+            preview,
+            confirmation: {
+              commandId: crypto.randomUUID(),
+              token: preview.token,
+            },
+          });
+          return;
+        }
+      }
+      await persistRepair(data);
     } catch (error) {
-      console.error('Error updating repair:', error);
-      const archivedMessage = archivedConflictMessage(error);
       notifyError(
-        archivedMessage ??
-          "Une erreur s'est produite lors de la mise à jour de la réparation",
+        isHttpError(error)
+          ? error.message
+          : 'Mise à jour impossible. Réessayez.',
       );
-      // Fiche archivée ailleurs entre-temps (409) : la valeur refusée reste
-      // affichée et modifiable tant qu'on ne relit pas la fiche réelle.
-      if (archivedMessage) void reloadRepairAfterConflict();
+      await reloadRepairAfterConflict();
     } finally {
+      savingRepair.current = false;
       setLoading(false);
-      closeAllEditableSections();
+    }
+  }
+
+  async function confirmStorageTransition() {
+    if (!pendingTransition || savingRepair.current) return;
+    savingRepair.current = true;
+    setLoading(true);
+    try {
+      await persistRepair(
+        pendingTransition.data,
+        pendingTransition.confirmation,
+      );
+      setPhysicalReminder(
+        `Déplacez physiquement le robot de ${pendingTransition.preview.fromCode ?? 'sa position actuelle'} vers ${pendingTransition.preview.toCode}. Réimprimez les tickets depuis la fiche si nécessaire.`,
+      );
+      setPendingTransition(null);
+    } catch (error) {
+      notifyError(
+        isHttpError(error)
+          ? error.message
+          : 'Réponse non reçue. Réessayez pour vérifier le même déplacement.',
+      );
+      if (isHttpError(error)) {
+        setPendingTransition(null);
+        await reloadRepairAfterConflict();
+      }
+      // On network errors keep the exact payload/UUID for an idempotent retry.
+    } finally {
+      savingRepair.current = false;
+      setLoading(false);
     }
   }
 
@@ -1111,6 +1184,17 @@ export function RepairPageClient() {
   // colonnes de champs, garde l'ancienne borne de 1600 px pour rester lisible.
   return (
     <div className="flex w-full flex-col gap-4">
+      <StorageTransitionDialogs
+        preview={pendingTransition?.preview ?? null}
+        reminder={physicalReminder}
+        busy={loading}
+        onCancel={() => {
+          setPendingTransition(null);
+          void reloadRepairAfterConflict();
+        }}
+        onConfirm={() => void confirmStorageTransition()}
+        onAcknowledge={() => setPhysicalReminder(null)}
+      />
       {loading && repair && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent">
           <Spinner size="lg" />
@@ -1347,12 +1431,15 @@ export function RepairPageClient() {
                     label="État"
                     name="state"
                     value={repair.state || 'Non commencé'}
-                    options={Object.keys(colorByState)}
+                    options={Object.keys(colorByState).filter(
+                      (state) => state !== 'Hivernage' || repair.hivernage,
+                    )}
                     editable={!!editableSections.technicalInfo}
                     onChange={(v) => handleSelectField('state', v)}
                     colorByValue={colorByState}
                   />
                   <RepairStoragePanel
+                    key={`${repair.id}-${initialRepair?.state}`}
                     id={repair.id}
                     token={auth.token}
                     machineType={repair.machine_type_name}

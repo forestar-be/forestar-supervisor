@@ -12,10 +12,15 @@ import {
   getStorage,
   addStorageRack,
   deactivateStorageRack,
+  changeStorageRackCategory,
   updateStorageSettings,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import type { StorageOverview } from '@/lib/storage';
+import {
+  rackCategoryLabel,
+  type StorageOverview,
+  type StorageRackCategory,
+} from '@/lib/storage';
 
 export function StorageSettings({
   data,
@@ -36,7 +41,7 @@ export function StorageSettings({
         key={JSON.stringify([
           data.settings,
           data.machineTypes,
-          data.racks.map((r) => [r.id, r.active]),
+          data.racks.map((r) => [r.id, r.active, r.category]),
         ])}
         data={data}
         token={token}
@@ -65,6 +70,8 @@ function SettingsForm({
     maxRacksValue !== null &&
     (!Number.isInteger(maxRacksValue) || maxRacksValue <= 0);
   const [busy, setBusy] = useState(false);
+  const [newCategory, setNewCategory] =
+    useState<StorageRackCategory>('ATELIER');
   const [error, setError] = useState('');
   const [deactivate, setDeactivate] = useState<number | null>(null);
   const running = useRef(false);
@@ -187,9 +194,29 @@ function SettingsForm({
           {data.racks.map((rack) => (
             <li key={rack.id} className="flex flex-wrap items-center gap-3">
               <span>
-                Rack {rack.number}
+                Rack {rack.number} · {rackCategoryLabel(rack.category)}
                 {!rack.active ? ' · Désactivé' : ''}
               </span>
+              <label className="flex items-center gap-2 text-sm">
+                Catégorie du rack {rack.number}
+                <select
+                  value={rack.category ?? 'ATELIER'}
+                  disabled={busy || rack.slots.some((slot) => !!slot.repair)}
+                  className="rounded border bg-field p-2"
+                  onChange={(event) =>
+                    void mutate(() =>
+                      changeStorageRackCategory(
+                        token,
+                        rack.id,
+                        event.target.value as StorageRackCategory,
+                      ),
+                    )
+                  }
+                >
+                  <option value="ATELIER">Atelier</option>
+                  <option value="HIVERNAGE">Hivernage</option>
+                </select>
+              </label>
               {rack.active && (
                 <Button
                   size="sm"
@@ -209,11 +236,25 @@ function SettingsForm({
           ))}
         </ul>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        Catégorie du nouveau rack
+        <select
+          value={newCategory}
+          disabled={busy}
+          className="rounded border bg-field p-2"
+          onChange={(event) =>
+            setNewCategory(event.target.value as StorageRackCategory)
+          }
+        >
+          <option value="ATELIER">Atelier</option>
+          <option value="HIVERNAGE">Hivernage</option>
+        </select>
+      </label>
       <Button
         variant="outline"
         className="self-start"
         disabled={busy}
-        onClick={() => void mutate(() => addStorageRack(token))}
+        onClick={() => void mutate(() => addStorageRack(token, newCategory))}
       >
         Ajouter un rack
       </Button>

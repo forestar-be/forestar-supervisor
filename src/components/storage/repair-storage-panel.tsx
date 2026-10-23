@@ -243,6 +243,7 @@ export function RepairStoragePanel({
                           deposit: 'Dépôt à l’atelier',
                           assign: 'Attribution d’une place',
                           move: 'Déplacement',
+                          state_move: 'Déplacement lié au statut',
                           release: 'Libération de la place',
                         } as Record<string, string>
                       )[event.action] ?? 'Modification du rangement'}{' '}
