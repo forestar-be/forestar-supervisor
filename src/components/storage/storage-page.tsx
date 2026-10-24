@@ -17,6 +17,7 @@ import {
   Move,
   Plus,
   RefreshCw,
+  Snowflake,
   UserRound,
   Wrench,
 } from 'lucide-react';
@@ -25,13 +26,11 @@ import {
   AlertDescription,
   Button,
   ConfirmDialog,
-  Tabs,
-  TabsList,
-  TabsContent,
-  TabsTrigger,
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
   Spinner,
@@ -47,12 +46,14 @@ import {
 } from '@/lib/api';
 import {
   searchStorage,
+  rackCategoryLabel,
   storageRepairLabel,
   storageRobotLabel,
   type RepairStorage,
   type StorageCommand,
   type StorageOverview,
   type StorageRack,
+  type StorageRackCategory,
   type StorageRepair,
   type StorageSlot,
 } from '@/lib/storage';
@@ -98,9 +99,6 @@ export function StoragePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [exceptions, setExceptions] = useState(false);
-  const [selectNavigation, setSelectNavigation] = useState(true);
-  const nav = useRef<HTMLDivElement>(null);
-  const tabs = useRef<HTMLDivElement>(null);
   const pending = useRef<StorageCommand | null>(null);
   const running = useRef(false);
   const linked = useRef(false);
@@ -164,26 +162,14 @@ export function StoragePage() {
       active = false;
     };
   }, [load]);
-  useEffect(() => {
-    const container = nav.current;
-    const list = tabs.current;
-    if (!container || !list) return;
-    const measure = () =>
-      setSelectNavigation(
-        container.clientWidth < 768 || list.scrollWidth > container.clientWidth,
-      );
-    const observer = new ResizeObserver(measure);
-    observer.observe(container);
-    observer.observe(list);
-    measure();
-    return () => observer.disconnect();
-  }, [data?.racks.length]);
   const racks = (data?.racks.filter((r) => r.active) ?? []).toSorted(
     (a, b) =>
       Number(a.category === 'HIVERNAGE') - Number(b.category === 'HIVERNAGE') ||
       a.number - b.number,
   );
   const rack = racks.find((r) => r.id === rackId);
+  const rackAppearance = rackCategoryAppearance(rack?.category);
+  const RackIcon = rackAppearance.Icon;
   const selectedId = selected?.repair.id;
   const selectedSlotId = selected?.slot?.id;
   useEffect(() => {
@@ -414,8 +400,66 @@ export function StoragePage() {
   }
   return (
     <div className="flex w-full flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl">Rangement des robots</h1>
+      <div className="flex flex-wrap items-center gap-4">
+        <h1 className="mr-auto text-2xl">Rangement des robots</h1>
+        <div data-storage-interactive className="w-full sm:w-64">
+          <Select
+            value={String(rackId ?? '')}
+            disabled={!racks.length || busy}
+            onValueChange={(value) => {
+              if (value) {
+                setRackId(Number(value));
+                setDestination(null);
+              }
+            }}
+          >
+            <SelectTrigger
+              aria-label="Rack affiché"
+              className="bg-card data-[size=default]:h-10"
+            >
+              <RackIcon
+                className={`size-4 ${rackAppearance.foreground}`}
+                aria-hidden
+              />
+              <SelectValue className="min-w-0">
+                {() => (rack ? rackLabel(rack) : 'Aucun rack actif')}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {(['ATELIER', 'HIVERNAGE'] as const).map((category) => {
+                const group = racks.filter(
+                  (r) => (r.category ?? 'ATELIER') === category,
+                );
+                if (!group.length) return null;
+                const appearance = rackCategoryAppearance(category);
+                const Icon = appearance.Icon;
+                return (
+                  <SelectGroup key={category}>
+                    <SelectLabel
+                      className={`flex items-center gap-2 font-medium ${appearance.foreground}`}
+                    >
+                      <Icon className="size-4" aria-hidden />
+                      {rackCategoryLabel(category)}
+                    </SelectLabel>
+                    {group.map((r) => (
+                      <SelectItem
+                        key={r.id}
+                        value={String(r.id)}
+                        label={rackLabel(r)}
+                      >
+                        <Icon
+                          className={`size-4 ${appearance.foreground}`}
+                          aria-hidden
+                        />
+                        {rackLabel(r)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
         <StorageSearch
           data={data}
           disabled={moving || busy}
@@ -490,474 +534,389 @@ export function StoragePage() {
               )}
             </section>
           )}
-          <Tabs
-            value={String(rackId ?? '')}
-            onValueChange={(value) => {
-              if (value) {
-                setRackId(Number(value));
-                setDestination(null);
-              }
-            }}
-            className="gap-5"
-          >
-            <div
-              ref={nav}
+          <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
+            <aside
               data-storage-interactive
-              className="relative min-w-0 overflow-hidden"
+              className={`${selected ? 'order-first' : 'order-last'} min-w-0 self-start rounded-2xl border bg-card p-5 shadow-sm sm:p-6 lg:order-last ${moving ? 'border-primary motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''}`}
+              aria-label="Robot sélectionné"
             >
-              <TabsList
-                ref={tabs}
-                aria-label="Choisir un rack"
-                aria-hidden={selectNavigation}
-                className={`h-11 w-max rounded-2xl p-1 ${selectNavigation ? 'invisible absolute pointer-events-none' : ''}`}
-              >
-                {racks.map((r) => (
-                  <TabsTrigger
-                    key={r.id}
-                    value={String(r.id)}
-                    tabIndex={selectNavigation ? -1 : undefined}
-                    onDragOver={(event) => {
-                      if (!dragging) return;
-                      event.preventDefault();
-                      if (rackId !== r.id) {
-                        setRackId(r.id);
-                        setDestination(null);
-                      }
-                    }}
-                    className="rounded-xl px-5 text-sm data-active:text-primary"
-                  >
-                    {rackLabel(r)}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {selectNavigation && (
-                <div>
-                  <label className="text-sm" id="rack-picker-label">
-                    Rack affiché
-                  </label>
-                  <Select
-                    value={String(rackId ?? '')}
-                    onValueChange={(value) => {
-                      if (value) {
-                        setRackId(Number(value));
-                        setDestination(null);
-                      }
-                    }}
-                  >
-                    <SelectTrigger
-                      aria-labelledby="rack-picker-label"
-                      className="w-full"
-                    >
-                      <SelectValue>
-                        {() => (rack ? rackLabel(rack) : 'Aucun rack actif')}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {racks.map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          {rackLabel(r)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-            <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_480px]">
-              <aside
-                data-storage-interactive
-                className={`${selected ? 'order-first' : 'order-last'} min-w-0 self-start rounded-2xl border bg-card p-5 shadow-sm sm:p-6 lg:order-last ${moving ? 'border-primary motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''}`}
-                aria-label="Robot sélectionné"
-              >
-                {selected ? (
-                  <>
-                    <h2 className="text-lg font-semibold">
-                      {moving ? 'Déplacement en cours' : 'Robot sélectionné'}
-                    </h2>
-                    <div className="my-5 flex items-center gap-4">
-                      <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/8">
-                        <Bot className="size-8" aria-hidden />
-                      </span>
-                      <div className="min-w-0 break-words">
-                        <p className="text-xl font-semibold sm:text-2xl">
-                          {selected.slot?.code ?? 'Sans emplacement'}
-                          {destination ? ` → ${destination.code}` : ''}
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {storageRepairLabel(selected.repair)}
-                        </p>
-                        {storageRobotLabel(selected.repair) && (
-                          <p className="mt-1 font-semibold">
-                            {storageRobotLabel(selected.repair)}
-                          </p>
-                        )}
-                        {selected.repair.state && (
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {selected.repair.state}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {robotDetails && (
-                      <div className="space-y-4 border-t py-5 text-sm">
-                        <dl className="space-y-4">
-                          {robotDetails.repair_or_maintenance && (
-                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                              <dt className="flex items-center gap-2 text-muted-foreground">
-                                <Wrench
-                                  className="size-4 shrink-0"
-                                  aria-hidden
-                                />
-                                Prestation
-                              </dt>
-                              <dd>{robotDetails.repair_or_maintenance}</dd>
-                            </div>
-                          )}
-                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                            <dt className="flex items-center gap-2 text-muted-foreground">
-                              <UserRound
-                                className="size-4 shrink-0"
-                                aria-hidden
-                              />
-                              Réparateur
-                            </dt>
-                            <dd className="break-words">
-                              {robotDetails.repairer_name || 'Non attribué'}
-                            </dd>
-                          </div>
-                          {robotDetails.entry_date && (
-                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                              <dt className="flex items-center gap-2 text-muted-foreground">
-                                <CalendarDays
-                                  className="size-4 shrink-0"
-                                  aria-hidden
-                                />
-                                Entrée à l’atelier
-                              </dt>
-                              <dd>
-                                {new Date(
-                                  robotDetails.entry_date,
-                                ).toLocaleDateString('fr-BE')}
-                              </dd>
-                            </div>
-                          )}
-                          {robotDetails.fault_description && (
-                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
-                              <dt className="flex items-start gap-2 text-muted-foreground">
-                                <FileText
-                                  className="mt-0.5 size-4 shrink-0"
-                                  aria-hidden
-                                />
-                                Demande du client
-                              </dt>
-                              <dd className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
-                                {robotDetails.fault_description}
-                              </dd>
-                            </div>
-                          )}
-                        </dl>
-                        {(robotDetails.hivernage ||
-                          robotDetails.warranty ||
-                          robotDetails.devis) && (
-                          <p className="font-medium">
-                            {[
-                              robotDetails.hivernage && 'Hivernage',
-                              robotDetails.warranty && 'Garantie',
-                              robotDetails.devis && 'Devis demandé',
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    {robotError && (
-                      <p
-                        className="mt-3 text-sm text-muted-foreground"
-                        role="status"
-                      >
-                        {robotError}
+              {selected ? (
+                <>
+                  <h2 className="text-lg font-semibold">
+                    {moving ? 'Déplacement en cours' : 'Robot sélectionné'}
+                  </h2>
+                  <div className="my-5 flex items-center gap-4">
+                    <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/8">
+                      <Bot className="size-8" aria-hidden />
+                    </span>
+                    <div className="min-w-0 break-words">
+                      <p className="text-xl font-semibold sm:text-2xl">
+                        {selected.slot?.code ?? 'Sans emplacement'}
+                        {destination ? ` → ${destination.code}` : ''}
                       </p>
-                    )}
-                    {(detail?.depositedAt || detail?.history[0]) && (
-                      <dl className="space-y-4 border-t py-5 text-sm">
-                        {detail.depositedAt && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {storageRepairLabel(selected.repair)}
+                      </p>
+                      {storageRobotLabel(selected.repair) && (
+                        <p className="mt-1 font-semibold">
+                          {storageRobotLabel(selected.repair)}
+                        </p>
+                      )}
+                      {selected.repair.state && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {selected.repair.state}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {robotDetails && (
+                    <div className="space-y-4 border-t py-5 text-sm">
+                      <dl className="space-y-4">
+                        {robotDetails.repair_or_maintenance && (
                           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
                             <dt className="flex items-center gap-2 text-muted-foreground">
-                              <Clock3 className="size-4 shrink-0" aria-hidden />
-                              Déposé le
+                              <Wrench className="size-4 shrink-0" aria-hidden />
+                              Prestation
                             </dt>
-                            <dd>
-                              {new Date(detail.depositedAt).toLocaleString(
-                                'fr-BE',
-                              )}
-                            </dd>
+                            <dd>{robotDetails.repair_or_maintenance}</dd>
                           </div>
                         )}
-                        {detail.history[0] && (
+                        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                          <dt className="flex items-center gap-2 text-muted-foreground">
+                            <UserRound
+                              className="size-4 shrink-0"
+                              aria-hidden
+                            />
+                            Réparateur
+                          </dt>
+                          <dd className="break-words">
+                            {robotDetails.repairer_name || 'Non attribué'}
+                          </dd>
+                        </div>
+                        {robotDetails.entry_date && (
                           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
                             <dt className="flex items-center gap-2 text-muted-foreground">
-                              <RefreshCw
+                              <CalendarDays
                                 className="size-4 shrink-0"
                                 aria-hidden
                               />
-                              Dernier mouvement
+                              Entrée à l’atelier
                             </dt>
                             <dd>
                               {new Date(
-                                detail.history[0].createdAt,
-                              ).toLocaleString('fr-BE')}
+                                robotDetails.entry_date,
+                              ).toLocaleDateString('fr-BE')}
+                            </dd>
+                          </div>
+                        )}
+                        {robotDetails.fault_description && (
+                          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                            <dt className="flex items-start gap-2 text-muted-foreground">
+                              <FileText
+                                className="mt-0.5 size-4 shrink-0"
+                                aria-hidden
+                              />
+                              Demande du client
+                            </dt>
+                            <dd className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                              {robotDetails.fault_description}
                             </dd>
                           </div>
                         )}
                       </dl>
-                    )}
-                    <div className="mt-2 flex flex-col gap-2.5">
-                      {data.settings.enabled && (
-                        <>
-                          {!selected.slot && !moving && (
-                            <Button
-                              disabled={busy}
-                              onClick={() => void assign()}
-                            >
-                              Attribuer une place libre
-                            </Button>
-                          )}
-                          <Button
-                            variant={moving ? 'outline' : 'default'}
-                            className="h-auto min-h-11 whitespace-normal py-3"
-                            disabled={busy}
-                            onClick={() => {
-                              setMoving(!moving);
-                              setDestination(null);
-                              pending.current = null;
-                            }}
-                          >
-                            <Move className="size-4 shrink-0" aria-hidden />
-                            {moving
-                              ? 'Annuler le déplacement'
-                              : selected.slot
-                                ? 'Déplacer le robot'
-                                : 'Choisir une place'}
-                          </Button>
-                        </>
+                      {(robotDetails.hivernage ||
+                        robotDetails.warranty ||
+                        robotDetails.devis) && (
+                        <p className="font-medium">
+                          {[
+                            robotDetails.hivernage && 'Hivernage',
+                            robotDetails.warranty && 'Garantie',
+                            robotDetails.devis && 'Devis demandé',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
                       )}
-                      <Button
-                        variant="outline"
-                        className="h-auto min-h-11 whitespace-normal border-primary/40 py-3"
-                        nativeButton={false}
-                        render={
-                          <Link href={`/reparation/${selected.repair.id}`} />
-                        }
-                      >
-                        <FileText className="size-4 shrink-0" aria-hidden />
-                        Ouvrir la fiche et réimprimer
-                      </Button>
                     </div>
-                    {moving && (
-                      <p className="mt-3 text-sm">
-                        Choisissez une place libre ou glissez le robot dessus.
-                        Vous pouvez changer de rack en conservant ce robot.
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-3 py-4 text-center">
-                    <span className="flex size-14 items-center justify-center rounded-full bg-primary/8">
-                      <Bot className="size-7 text-primary" aria-hidden />
-                    </span>
-                    <h2 className="font-semibold">Aucun robot sélectionné</h2>
-                    <p className="max-w-xs text-sm text-muted-foreground">
-                      Sélectionnez un robot dans le rack, les résultats ou la
-                      liste des sans emplacement.
+                  )}
+                  {robotError && (
+                    <p
+                      className="mt-3 text-sm text-muted-foreground"
+                      role="status"
+                    >
+                      {robotError}
                     </p>
-                  </div>
-                )}
-              </aside>
-              <TabsContent
-                value={String(rackId ?? '')}
-                className="min-w-0"
-                aria-label="Rack de face"
-              >
-                {rack ? (
-                  <div className="rounded-2xl border bg-card p-3 shadow-sm sm:p-4 xl:p-5">
-                    <div className="space-y-2">
-                      <div
-                        className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 text-center text-sm font-semibold sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
-                        aria-label="Colonnes du rack"
-                      >
-                        <span />
-                        {['A', 'B', 'C'].map((position) => (
-                          <span
-                            key={position}
-                            className="rounded-t-lg bg-primary/5 py-2"
-                          >
-                            {position}
-                          </span>
-                        ))}
-                      </div>
-                      {[4, 3, 2, 1].map((level) => (
-                        <div
-                          key={level}
-                          className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
-                        >
-                          <span
-                            className="flex items-center justify-center rounded-l-lg bg-primary/5 text-sm font-semibold sm:text-base"
-                            aria-label={`Étage ${level}`}
-                          >
-                            {level}
-                          </span>
-                          {rack.slots
-                            .filter((slot) => slot.level === level)
-                            .sort((a, b) =>
-                              a.position.localeCompare(b.position),
-                            )
-                            .map((slot) => {
-                              const isSource = selected?.slot?.id === slot.id;
-                              const isTarget =
-                                destination?.id === slot.id ||
-                                dropTargetId === slot.id;
-                              const canDrag =
-                                !!slot.repair &&
-                                !busy &&
-                                data.settings.enabled &&
-                                (!moving || isSource);
-                              return (
-                                <button
-                                  key={slot.id}
-                                  type="button"
-                                  data-storage-interactive=""
-                                  draggable={canDrag}
-                                  onDragStart={(event) =>
-                                    slot.repair &&
-                                    startDrag(
-                                      { repair: slot.repair, slot, rack },
-                                      event,
-                                    )
-                                  }
-                                  onDragEnd={endDrag}
-                                  onDragOver={(event) => {
-                                    if (
-                                      !dragging ||
-                                      slot.repair ||
-                                      (dragged.current &&
-                                        (rack.category ?? 'ATELIER') !==
-                                          (dragged.current.repair.state ===
-                                          'Hivernage'
-                                            ? 'HIVERNAGE'
-                                            : 'ATELIER'))
-                                    )
-                                      return;
-                                    event.preventDefault();
-                                    event.dataTransfer.dropEffect = 'move';
-                                    if (dropTargetId !== slot.id)
-                                      setDropTargetId(slot.id);
-                                  }}
-                                  onDragLeave={() => {
-                                    if (dropTargetId === slot.id)
-                                      setDropTargetId(null);
-                                  }}
-                                  onDrop={(event) => dropOn(slot, event)}
-                                  disabled={
-                                    (moving &&
-                                      !!selected &&
-                                      (rack.category ?? 'ATELIER') !==
-                                        (selected.repair.state === 'Hivernage'
-                                          ? 'HIVERNAGE'
-                                          : 'ATELIER')) ||
-                                    busy ||
-                                    (moving
-                                      ? !!slot.repair && !isSource
-                                      : !slot.repair && !data.settings.enabled)
-                                  }
-                                  aria-pressed={
-                                    selected?.slot?.id === slot.id ||
-                                    destination?.id === slot.id
-                                  }
-                                  aria-label={`${slot.code}, ${slot.repair ? storageRepairLabel(slot.repair) : moving || !data.settings.enabled ? 'libre' : 'libre, ajouter un robot'}`}
-                                  onClick={() => {
-                                    if (moving) {
-                                      if (slot.repair) return;
-                                      setDestination(slot);
-                                      pending.current = null;
-                                    } else if (slot.repair)
-                                      choose({
-                                        repair: slot.repair,
-                                        slot,
-                                        rack,
-                                      });
-                                    else setPickerSlot(slot);
-                                  }}
-                                  className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${canDrag ? 'enabled:cursor-grab enabled:active:cursor-grabbing' : ''} ${!moving || !slot.repair ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair && !isSource ? 'opacity-50' : ''} ${isSource || isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && isSource ? 'motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
-                                >
-                                  {slot.repair ? (
-                                    <>
-                                      <StorageRobotPhoto
-                                        src={slot.repair.imageUrl}
-                                      />
-                                      <span className="min-w-0 w-full max-w-full sm:w-auto sm:break-words xl:border-l xl:pl-3">
-                                        <strong
-                                          className="block truncate font-semibold leading-snug sm:whitespace-normal"
-                                          title={
-                                            storageRobotLabel(slot.repair) ||
-                                            'Robot'
-                                          }
-                                        >
-                                          {storageRobotLabel(slot.repair) ||
-                                            'Robot'}
-                                        </strong>
-                                        <span className="mt-1 block truncate text-muted-foreground sm:whitespace-normal">
-                                          {slot.repair.client.firstName}{' '}
-                                          {slot.repair.client.lastName}
-                                        </span>
-                                        <span className="mt-0.5 block text-muted-foreground">
-                                          #{slot.repair.id}
-                                        </span>
-                                      </span>
-                                      {selected?.slot?.id === slot.id && (
-                                        <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                          <Check
-                                            className="size-3.5"
-                                            aria-hidden
-                                          />
-                                        </span>
-                                      )}
-                                    </>
-                                  ) : moving ? (
-                                    <>
-                                      <Plus
-                                        className="size-6 rounded-full bg-primary/10 p-1 text-primary"
-                                        aria-hidden
-                                      />
-                                      <span>Placer ici</span>
-                                    </>
-                                  ) : (
-                                    <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                                      <Plus
-                                        className="size-6 rounded-full bg-muted p-1"
-                                        aria-hidden
-                                      />
-                                      Libre
-                                      {data.settings.enabled && (
-                                        <span className="text-xs">
-                                          Ajouter un robot
-                                        </span>
-                                      )}
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
+                  )}
+                  {(detail?.depositedAt || detail?.history[0]) && (
+                    <dl className="space-y-4 border-t py-5 text-sm">
+                      {detail.depositedAt && (
+                        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                          <dt className="flex items-center gap-2 text-muted-foreground">
+                            <Clock3 className="size-4 shrink-0" aria-hidden />
+                            Déposé le
+                          </dt>
+                          <dd>
+                            {new Date(detail.depositedAt).toLocaleString(
+                              'fr-BE',
+                            )}
+                          </dd>
                         </div>
+                      )}
+                      {detail.history[0] && (
+                        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
+                          <dt className="flex items-center gap-2 text-muted-foreground">
+                            <RefreshCw
+                              className="size-4 shrink-0"
+                              aria-hidden
+                            />
+                            Dernier mouvement
+                          </dt>
+                          <dd>
+                            {new Date(
+                              detail.history[0].createdAt,
+                            ).toLocaleString('fr-BE')}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
+                  <div className="mt-2 flex flex-col gap-2.5">
+                    {data.settings.enabled && (
+                      <>
+                        {!selected.slot && !moving && (
+                          <Button disabled={busy} onClick={() => void assign()}>
+                            Attribuer une place libre
+                          </Button>
+                        )}
+                        <Button
+                          variant={moving ? 'outline' : 'default'}
+                          className="h-auto min-h-11 whitespace-normal py-3"
+                          disabled={busy}
+                          onClick={() => {
+                            setMoving(!moving);
+                            setDestination(null);
+                            pending.current = null;
+                          }}
+                        >
+                          <Move className="size-4 shrink-0" aria-hidden />
+                          {moving
+                            ? 'Annuler le déplacement'
+                            : selected.slot
+                              ? 'Déplacer le robot'
+                              : 'Choisir une place'}
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="h-auto min-h-11 whitespace-normal border-primary/40 py-3"
+                      nativeButton={false}
+                      render={
+                        <Link href={`/reparation/${selected.repair.id}`} />
+                      }
+                    >
+                      <FileText className="size-4 shrink-0" aria-hidden />
+                      Ouvrir la fiche et réimprimer
+                    </Button>
+                  </div>
+                  {moving && (
+                    <p className="mt-3 text-sm">
+                      Choisissez une place libre ou glissez le robot dessus.
+                      Vous pouvez changer de rack en conservant ce robot.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-4 text-center">
+                  <span className="flex size-14 items-center justify-center rounded-full bg-primary/8">
+                    <Bot className="size-7 text-primary" aria-hidden />
+                  </span>
+                  <h2 className="font-semibold">Aucun robot sélectionné</h2>
+                  <p className="max-w-xs text-sm text-muted-foreground">
+                    Sélectionnez un robot dans le rack, les résultats ou la
+                    liste des sans emplacement.
+                  </p>
+                </div>
+              )}
+            </aside>
+            <section className="min-w-0" aria-label="Rack de face">
+              {rack ? (
+                <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+                  <StorageRackHeader rack={rack} />
+                  <div className="space-y-2 p-3 sm:p-4 xl:p-5">
+                    <div
+                      className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 text-center text-sm font-semibold sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
+                      aria-label="Colonnes du rack"
+                    >
+                      <span />
+                      {['A', 'B', 'C'].map((position) => (
+                        <span
+                          key={position}
+                          className={`rounded-t-lg py-2 ${rackAppearance.axis}`}
+                        >
+                          {position}
+                        </span>
                       ))}
                     </div>
+                    {[4, 3, 2, 1].map((level) => (
+                      <div
+                        key={level}
+                        className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
+                      >
+                        <span
+                          className={`flex items-center justify-center rounded-l-lg text-sm font-semibold sm:text-base ${rackAppearance.axis}`}
+                          aria-label={`Étage ${level}`}
+                        >
+                          {level}
+                        </span>
+                        {rack.slots
+                          .filter((slot) => slot.level === level)
+                          .sort((a, b) => a.position.localeCompare(b.position))
+                          .map((slot) => {
+                            const isSource = selected?.slot?.id === slot.id;
+                            const isTarget =
+                              destination?.id === slot.id ||
+                              dropTargetId === slot.id;
+                            const canDrag =
+                              !!slot.repair &&
+                              !busy &&
+                              data.settings.enabled &&
+                              (!moving || isSource);
+                            return (
+                              <button
+                                key={slot.id}
+                                type="button"
+                                data-storage-interactive=""
+                                draggable={canDrag}
+                                onDragStart={(event) =>
+                                  slot.repair &&
+                                  startDrag(
+                                    { repair: slot.repair, slot, rack },
+                                    event,
+                                  )
+                                }
+                                onDragEnd={endDrag}
+                                onDragOver={(event) => {
+                                  if (
+                                    !dragging ||
+                                    slot.repair ||
+                                    (dragged.current &&
+                                      (rack.category ?? 'ATELIER') !==
+                                        (dragged.current.repair.state ===
+                                        'Hivernage'
+                                          ? 'HIVERNAGE'
+                                          : 'ATELIER'))
+                                  )
+                                    return;
+                                  event.preventDefault();
+                                  event.dataTransfer.dropEffect = 'move';
+                                  if (dropTargetId !== slot.id)
+                                    setDropTargetId(slot.id);
+                                }}
+                                onDragLeave={() => {
+                                  if (dropTargetId === slot.id)
+                                    setDropTargetId(null);
+                                }}
+                                onDrop={(event) => dropOn(slot, event)}
+                                disabled={
+                                  (moving &&
+                                    !!selected &&
+                                    (rack.category ?? 'ATELIER') !==
+                                      (selected.repair.state === 'Hivernage'
+                                        ? 'HIVERNAGE'
+                                        : 'ATELIER')) ||
+                                  busy ||
+                                  (moving
+                                    ? !!slot.repair && !isSource
+                                    : !slot.repair && !data.settings.enabled)
+                                }
+                                aria-pressed={
+                                  selected?.slot?.id === slot.id ||
+                                  destination?.id === slot.id
+                                }
+                                aria-label={`${slot.code}, ${slot.repair ? storageRepairLabel(slot.repair) : moving || !data.settings.enabled ? 'libre' : 'libre, ajouter un robot'}`}
+                                onClick={() => {
+                                  if (moving) {
+                                    if (slot.repair) return;
+                                    setDestination(slot);
+                                    pending.current = null;
+                                  } else if (slot.repair)
+                                    choose({
+                                      repair: slot.repair,
+                                      slot,
+                                      rack,
+                                    });
+                                  else setPickerSlot(slot);
+                                }}
+                                className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${canDrag ? 'enabled:cursor-grab enabled:active:cursor-grabbing' : ''} ${!moving || !slot.repair ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair && !isSource ? 'opacity-50' : ''} ${isSource || isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && isSource ? 'motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
+                              >
+                                {slot.repair ? (
+                                  <>
+                                    <StorageRobotPhoto
+                                      src={slot.repair.imageUrl}
+                                    />
+                                    <span className="min-w-0 w-full max-w-full sm:w-auto sm:break-words xl:border-l xl:pl-3">
+                                      <strong
+                                        className="block truncate font-semibold leading-snug sm:whitespace-normal"
+                                        title={
+                                          storageRobotLabel(slot.repair) ||
+                                          'Robot'
+                                        }
+                                      >
+                                        {storageRobotLabel(slot.repair) ||
+                                          'Robot'}
+                                      </strong>
+                                      <span className="mt-1 block truncate text-muted-foreground sm:whitespace-normal">
+                                        {slot.repair.client.firstName}{' '}
+                                        {slot.repair.client.lastName}
+                                      </span>
+                                      <span className="mt-0.5 block text-muted-foreground">
+                                        #{slot.repair.id}
+                                      </span>
+                                    </span>
+                                    {selected?.slot?.id === slot.id && (
+                                      <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                        <Check
+                                          className="size-3.5"
+                                          aria-hidden
+                                        />
+                                      </span>
+                                    )}
+                                  </>
+                                ) : moving ? (
+                                  <>
+                                    <Plus
+                                      className="size-6 rounded-full bg-primary/10 p-1 text-primary"
+                                      aria-hidden
+                                    />
+                                    <span>Placer ici</span>
+                                  </>
+                                ) : (
+                                  <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
+                                    <Plus
+                                      className="size-6 rounded-full bg-muted p-1"
+                                      aria-hidden
+                                    />
+                                    Libre
+                                    {data.settings.enabled && (
+                                      <span className="text-xs">
+                                        Ajouter un robot
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <p>Aucun rack actif.</p>
-                )}
-              </TabsContent>
-            </div>
-          </Tabs>
+                </div>
+              ) : (
+                <p>Aucun rack actif.</p>
+              )}
+            </section>
+          </div>
         </>
       )}
       {data && (
@@ -990,5 +949,76 @@ export function StoragePage() {
 }
 function rackLabel(rack: StorageRack) {
   const free = rack.slots.filter((slot) => !slot.repair).length;
-  return `Rack ${rack.number} · ${free ? `${free} libres` : 'Complet'}${rack.category === 'HIVERNAGE' ? ' · Hivernage' : ''}`;
+  return `Rack ${rack.number} · ${free ? `${free} libre${free > 1 ? 's' : ''}` : 'Complet'}`;
+}
+
+function rackCategoryAppearance(category?: StorageRackCategory) {
+  return category === 'HIVERNAGE'
+    ? {
+        Icon: Snowflake,
+        foreground: 'text-sky-800 dark:text-sky-200',
+        header:
+          'border-t-sky-700 bg-sky-50 dark:border-t-sky-300 dark:bg-sky-950/60',
+        axis: 'bg-sky-50 dark:bg-sky-950/60',
+        progress: 'bg-sky-700 dark:bg-sky-300',
+      }
+    : {
+        Icon: Wrench,
+        foreground: 'text-emerald-800 dark:text-emerald-200',
+        header:
+          'border-t-emerald-700 bg-emerald-50 dark:border-t-emerald-300 dark:bg-emerald-950/60',
+        axis: 'bg-emerald-50 dark:bg-emerald-950/60',
+        progress: 'bg-emerald-700 dark:bg-emerald-300',
+      };
+}
+
+function StorageRackHeader({ rack }: { rack: StorageRack }) {
+  const appearance = rackCategoryAppearance(rack.category);
+  const Icon = appearance.Icon;
+  const total = rack.slots.length;
+  const occupied = rack.slots.filter((slot) => slot.repair).length;
+  const percentage = total ? Math.round((occupied / total) * 100) : 0;
+  return (
+    <header
+      className={`flex flex-wrap items-center gap-3 border-b border-t-4 p-4 sm:gap-4 xl:px-5 ${appearance.header}`}
+      aria-label="En-tête du rack"
+    >
+      <span
+        className={`flex size-11 shrink-0 items-center justify-center rounded-xl border bg-card ${appearance.foreground}`}
+      >
+        <Icon className="size-6" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 basis-40">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-semibold">Rack {rack.number}</h2>
+          <span
+            className={`rounded-md bg-card px-2 py-1 text-xs font-semibold ${appearance.foreground}`}
+          >
+            {rackCategoryLabel(rack.category)}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {occupied} / {total} emplacement{total > 1 ? 's' : ''} occupé
+          {total > 1 ? 's' : ''}
+        </p>
+      </div>
+      <div className="flex w-full items-center gap-3 text-sm tabular-nums sm:w-40">
+        <div
+          role="meter"
+          aria-label="Occupation du rack"
+          aria-valuemin={0}
+          aria-valuemax={total || 1}
+          aria-valuenow={occupied}
+          aria-valuetext={`${occupied} sur ${total} emplacements occupés`}
+          className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/10"
+        >
+          <div
+            className={`h-full rounded-full ${appearance.progress}`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        <span>{percentage} %</span>
+      </div>
+    </header>
+  );
 }

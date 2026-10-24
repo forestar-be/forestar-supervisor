@@ -103,13 +103,72 @@ it('review: Le retour sur la fenêtre remplace aussi le détail du robot déplac
     ),
   );
 });
-// jsdom has no layout, so the desktop tabs are hidden from accessibility but clickable for navigation assertions.
-function changeRack() {
-  fireEvent.click(
-    screen.getByText('Rack 2 · 11 libres', { selector: 'button' }),
-  );
+async function changeRack(name = 'Rack 2 · 11 libres') {
+  fireEvent.click(screen.getByRole('combobox', { name: 'Rack affiché' }));
+  const option = await screen.findByRole('option', { name });
+  fireEvent.pointerDown(option, { pointerType: 'mouse' });
+  fireEvent.click(option);
 }
 describe('Rangement visuel', () => {
+  it('regroupe les racks et synchronise catégorie, occupation et recherche entre zones', async () => {
+    const data = fixture();
+    const winter = rack(18);
+    winter.category = 'HIVERNAGE';
+    winter.slots.forEach((slot, index) => {
+      slot.repair =
+        index < 9
+          ? {
+              id: 100 + index,
+              state: 'Hivernage',
+              client: { firstName: 'Luc', lastName: 'Martin' },
+            }
+          : null;
+    });
+    data.racks.push(winter);
+    api.getStorage.mockResolvedValue(data);
+    await open();
+    const header = screen.getByLabelText('En-tête du rack');
+    expect(header).toHaveTextContent('Atelier');
+    expect(within(header).getByRole('meter')).toHaveAttribute(
+      'aria-valuenow',
+      '1',
+    );
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Rack affiché' }));
+    const group = await screen.findByRole('group', { name: 'Hivernage' });
+    const option = within(group).getByRole('option', {
+      name: 'Rack 18 · 3 libres',
+    });
+    fireEvent.pointerDown(option, { pointerType: 'mouse' });
+    fireEvent.click(option);
+    await waitFor(() => expect(header).toHaveTextContent('Hivernage'));
+    expect(
+      within(header).getByRole('heading', { name: 'Rack 18' }),
+    ).toBeInTheDocument();
+    expect(header).toHaveTextContent('9 / 12 emplacements occupés');
+    expect(header).toHaveTextContent('75 %');
+    expect(within(header).getByRole('meter')).toHaveAttribute(
+      'aria-valuenow',
+      '9',
+    );
+    await changeRack('Rack 1 · 11 libres');
+    fireEvent.change(
+      screen.getByRole('combobox', { name: 'Retrouver un robot' }),
+      {
+        target: { value: '#100' },
+      },
+    );
+    fireEvent.click(
+      await screen.findByRole('option', {
+        name: '#100 · Luc Martin · R18/1/A',
+      }),
+    );
+    expect(
+      screen.getByRole('combobox', { name: 'Rack affiché' }),
+    ).toHaveTextContent('Rack 18');
+    expect(header).toHaveTextContent('Hivernage');
+    expect(api.commandRepairStorage).not.toHaveBeenCalled();
+  });
   it('affiche toutes les fiches du même client et garde les exceptions avant le rack', async () => {
     await open();
     fireEvent.keyDown(
@@ -145,7 +204,7 @@ describe('Rangement visuel', () => {
       screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
-    changeRack();
+    await changeRack();
     expect(
       screen.getByRole('button', { name: 'R2/1/A, #20 · Jean Dupont' }),
     ).toBeDisabled();
