@@ -2,11 +2,23 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
+  Bot,
+  LockKeyhole,
+  Plus,
+  Save,
+  Settings2,
+  Snowflake,
+  Warehouse,
+} from 'lucide-react';
+import {
+  Alert,
+  AlertDescription,
   Button,
   Checkbox,
   ConfirmDialog,
   Input,
   Spinner,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -24,6 +36,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import type { StorageOverview } from '@/lib/storage';
+import { rackCategoryAppearance } from './storage-rack-appearance';
 
 export function StorageSettings({
   data,
@@ -35,11 +48,13 @@ export function StorageSettings({
   onSaved: () => Promise<unknown>;
 }) {
   return (
-    <section
-      aria-label="Paramètres du rangement"
-      className="rounded-lg border bg-card p-4"
-    >
-      <h2 className="font-medium">Paramètres du rangement</h2>
+    <section aria-label="Paramètres du rangement" className="space-y-5">
+      <div className="flex items-center gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
+          <Warehouse className="size-6" aria-hidden />
+        </span>
+        <h2 className="text-lg font-semibold">Paramètres du rangement</h2>
+      </div>
       <SettingsForm
         key={JSON.stringify([
           data.settings,
@@ -94,200 +109,296 @@ function SettingsForm({
     }
   }
   return (
-    <div className="mt-4 flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        Définissez les types de machines concernés et les racks disponibles à
-        l’atelier.
-      </p>
+    <div className="space-y-5">
       {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
-      <label className="flex items-center gap-2">
-        <Checkbox
-          checked={settings.enabled}
-          disabled={busy}
-          onCheckedChange={(checked) =>
-            setSettings({ ...settings, enabled: checked === true })
-          }
-        />
-        Activer le rangement et les nouveaux dépôts
-      </label>
-      <label className="flex items-center gap-2">
-        <Checkbox
-          checked={settings.allowOverflow}
-          disabled={busy}
-          onCheckedChange={(checked) =>
-            setSettings({ ...settings, allowOverflow: checked === true })
-          }
-        />
-        Autoriser un dépôt sans emplacement quand le maximum de racks est
-        atteint
-      </label>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={maxRacksId}>Nombre maximum de racks</label>
-        <Input
-          id={maxRacksId}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          className="w-32"
-          placeholder="Sans limite"
-          value={maxRacks}
-          disabled={busy}
-          aria-invalid={maxRacksInvalid}
-          onChange={(e) => setMaxRacks(e.target.value)}
-        />
-        <span className="text-sm text-muted-foreground">
-          Quand toutes les places sont prises, un rack est ajouté
-          automatiquement tant que ce nombre n’est pas atteint. Vide : sans
-          limite.
-        </span>
-        {maxRacksInvalid && (
-          <span className="text-sm text-destructive">
-            Entrez un nombre entier positif, ou laissez vide.
-          </span>
-        )}
-      </div>
-      <fieldset className="space-y-2">
-        <legend className="mb-2 font-medium">
-          Types de machines qui sont des robots
-        </legend>
-        {types.map((type) => (
-          <label key={type.name} className="flex items-center gap-2">
-            <Checkbox
-              checked={type.isRobot}
-              disabled={busy}
-              onCheckedChange={(checked) =>
-                setTypes(
-                  types.map((item) =>
-                    item.name === type.name
-                      ? { ...item, isRobot: checked === true }
-                      : item,
-                  ),
-                )
-              }
-            />
-            {type.name}
-          </label>
-        ))}
-      </fieldset>
-      <Button
-        className="self-start"
-        disabled={busy || maxRacksInvalid}
-        onClick={() =>
-          void mutate(() =>
-            updateStorageSettings(token, {
-              enabled: settings.enabled,
-              allowOverflow: settings.allowOverflow,
-              maxRacks: maxRacksValue,
-              machineTypes: types,
-            }),
-          )
-        }
-      >
-        Enregistrer les paramètres
-      </Button>
-      <div className="max-w-xl">
-        <h3 className="mb-2 font-medium">Racks · 4 étages × 3 places</h3>
-        <Table aria-label="Racks" className="text-xs sm:text-sm">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-1.5 sm:px-2">Numéro</TableHead>
-              <TableHead className="px-1.5 sm:px-2 text-center">
-                Hivernage
-              </TableHead>
-              <TableHead className="px-1.5 sm:px-2">Statut</TableHead>
-              <TableHead className="px-1.5 sm:px-2 text-right">
-                Action
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.racks.map((rack) => {
-              const occupied = rack.slots.some((slot) => !!slot.repair);
-              return (
-                <TableRow key={rack.id}>
-                  <TableCell className="px-1.5 py-1.5 font-medium sm:px-2">
-                    R{rack.number}
-                  </TableCell>
-                  <TableCell className="px-1.5 py-1.5 text-center sm:px-2">
+      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+        <section
+          className="min-w-0 rounded-2xl border bg-card shadow-sm"
+          aria-label="Configuration du rangement"
+        >
+          <div className="flex items-center gap-2 border-b px-5 py-4">
+            <Settings2 className="size-4 text-primary" aria-hidden />
+            <h3 className="font-semibold">Configuration</h3>
+          </div>
+          <div className="space-y-5 p-5">
+            <div className="space-y-4">
+              <label className="flex cursor-pointer items-start justify-between gap-4">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">
+                    Activer le rangement
+                  </span>
+                  <span className="mt-1 block text-sm text-muted-foreground">
+                    Autoriser les nouveaux dépôts.
+                  </span>
+                </span>
+                <Switch
+                  className="mt-1"
+                  checked={settings.enabled}
+                  disabled={busy}
+                  onCheckedChange={(checked) =>
+                    setSettings({ ...settings, enabled: checked })
+                  }
+                />
+              </label>
+              <label className="flex cursor-pointer items-start justify-between gap-4 border-t pt-4">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium">
+                    Dépôts sans emplacement
+                  </span>
+                  <span className="mt-1 block text-sm text-muted-foreground">
+                    Les autoriser quand la limite de racks est atteinte.
+                  </span>
+                </span>
+                <Switch
+                  className="mt-1"
+                  checked={settings.allowOverflow}
+                  disabled={busy}
+                  onCheckedChange={(checked) =>
+                    setSettings({ ...settings, allowOverflow: checked })
+                  }
+                />
+              </label>
+            </div>
+            <div className="space-y-2 border-t pt-5">
+              <label htmlFor={maxRacksId} className="block text-sm font-medium">
+                Nombre maximum de racks
+              </label>
+              <Input
+                id={maxRacksId}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={1}
+                className="w-full"
+                placeholder="Sans limite"
+                value={maxRacks}
+                disabled={busy}
+                aria-invalid={maxRacksInvalid}
+                aria-describedby={`${maxRacksId}-hint`}
+                onChange={(e) => setMaxRacks(e.target.value)}
+              />
+              <p
+                id={`${maxRacksId}-hint`}
+                className="text-sm text-muted-foreground"
+              >
+                Création automatique quand les places sont prises. Limite
+                commune aux deux zones. Vide : sans limite.
+              </p>
+              {maxRacksInvalid && (
+                <p className="text-sm text-destructive">
+                  Entrez un nombre entier positif, ou laissez vide.
+                </p>
+              )}
+            </div>
+            <fieldset className="min-w-0 border-t pt-5">
+              <legend className="flex items-center gap-2 pr-2 text-sm font-semibold">
+                <Bot className="size-4 text-primary" aria-hidden />
+                Machines à ranger
+              </legend>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {types.map((type) => (
+                  <label
+                    key={type.name}
+                    className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-sm transition-colors ${type.isRobot ? 'border-primary/25 bg-primary/5' : 'border-border bg-muted/15 hover:bg-muted/40'}`}
+                  >
                     <Checkbox
-                      aria-label={`Hivernage du rack ${rack.number}`}
-                      checked={rack.category === 'HIVERNAGE'}
-                      disabled={busy || occupied}
-                      title={
-                        occupied
-                          ? 'Videz le rack avant de changer son usage.'
-                          : undefined
-                      }
+                      checked={type.isRobot}
+                      disabled={busy}
                       onCheckedChange={(checked) =>
-                        void mutate(() =>
-                          changeStorageRackCategory(
-                            token,
-                            rack.id,
-                            checked === true ? 'HIVERNAGE' : 'ATELIER',
+                        setTypes(
+                          types.map((item) =>
+                            item.name === type.name
+                              ? { ...item, isRobot: checked === true }
+                              : item,
                           ),
                         )
                       }
                     />
-                  </TableCell>
+                    <span className="min-w-0 break-words">{type.name}</span>
+                  </label>
+                ))}
+              </div>
+              {!types.length && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Aucun type de machine configuré.
+                </p>
+              )}
+            </fieldset>
+          </div>
+          <div className="border-t p-4 sm:px-5">
+            <Button
+              className="h-auto min-h-10 w-full whitespace-normal"
+              disabled={busy || maxRacksInvalid}
+              onClick={() =>
+                void mutate(() =>
+                  updateStorageSettings(token, {
+                    enabled: settings.enabled,
+                    allowOverflow: settings.allowOverflow,
+                    maxRacks: maxRacksValue,
+                    machineTypes: types,
+                  }),
+                )
+              }
+            >
+              <Save className="size-4 shrink-0" aria-hidden />
+              Enregistrer les paramètres
+            </Button>
+          </div>
+        </section>
+        <section
+          className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm"
+          aria-label="Gestion des racks"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b p-4 sm:px-5">
+            <div>
+              <h3 className="font-semibold">Racks</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                12 places · 4 étages × 3 positions
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox
+                  checked={newWinter}
+                  disabled={busy}
+                  onCheckedChange={(checked) => setNewWinter(checked === true)}
+                />
+                <Snowflake
+                  className="size-4 text-sky-800 dark:text-sky-200"
+                  aria-hidden
+                />
+                Hivernage
+              </label>
+              <Button
+                variant="outline"
+                disabled={busy}
+                onClick={() =>
+                  void mutate(() =>
+                    addStorageRack(token, newWinter ? 'HIVERNAGE' : 'ATELIER'),
+                  )
+                }
+              >
+                <Plus className="size-4" aria-hidden />
+                Ajouter un rack
+              </Button>
+            </div>
+          </div>
+          <Table aria-label="Racks" className="text-xs sm:text-sm">
+            <TableHeader className="bg-muted/30">
+              <TableRow>
+                <TableHead className="px-1.5 sm:px-5">Numéro</TableHead>
+                <TableHead className="px-1.5 text-center sm:px-3">
+                  <span className="sr-only sm:not-sr-only">Hivernage</span>
+                  <Snowflake
+                    className="mx-auto size-4 text-sky-800 sm:hidden dark:text-sky-200"
+                    aria-hidden
+                  />
+                </TableHead>
+                <TableHead className="px-1.5 sm:px-3">Statut</TableHead>
+                <TableHead className="px-1.5 text-right sm:px-5">
+                  Action
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.racks.map((rack) => {
+                const occupied = rack.slots.some((slot) => !!slot.repair);
+                const appearance = rackCategoryAppearance(rack.category);
+                const Icon = appearance.Icon;
+                return (
+                  <TableRow key={rack.id}>
+                    <TableCell className="px-1.5 py-2 font-semibold sm:px-5">
+                      <span className="flex items-center gap-2.5">
+                        <span
+                          className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${appearance.axis} ${appearance.foreground}`}
+                        >
+                          <Icon className="size-4" aria-hidden />
+                        </span>
+                        <span className={appearance.foreground}>
+                          R{rack.number}
+                        </span>
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-1.5 py-2 text-center sm:px-3">
+                      <Checkbox
+                        className="mx-auto"
+                        aria-label={`Hivernage du rack ${rack.number}`}
+                        checked={rack.category === 'HIVERNAGE'}
+                        disabled={busy || occupied}
+                        title={
+                          occupied
+                            ? 'Videz le rack avant de changer son usage.'
+                            : undefined
+                        }
+                        onCheckedChange={(checked) =>
+                          void mutate(() =>
+                            changeStorageRackCategory(
+                              token,
+                              rack.id,
+                              checked === true ? 'HIVERNAGE' : 'ATELIER',
+                            ),
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="px-1.5 py-2 sm:px-3">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium sm:px-2 ${rack.active ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200' : 'bg-muted text-muted-foreground'}`}
+                      >
+                        <span
+                          className={`hidden size-1.5 rounded-full sm:block ${rack.active ? 'bg-emerald-700 dark:bg-emerald-300' : 'bg-muted-foreground'}`}
+                          aria-hidden
+                        />
+                        {rack.active ? 'Activé' : 'Désactivé'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-1.5 py-2 text-right sm:px-5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 text-xs sm:min-w-24 sm:text-sm"
+                        aria-label={`${rack.active ? 'Désactiver' : 'Activer'} le rack ${rack.number}`}
+                        disabled={busy || (rack.active && occupied)}
+                        title={
+                          rack.active && occupied
+                            ? 'Videz le rack avant de le désactiver.'
+                            : undefined
+                        }
+                        onClick={() =>
+                          rack.active
+                            ? setDeactivate(rack.id)
+                            : void mutate(() =>
+                                activateStorageRack(token, rack.id),
+                              )
+                        }
+                      >
+                        {rack.active ? 'Désactiver' : 'Activer'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {!data.racks.length && (
+                <TableRow>
                   <TableCell
-                    className={`px-1.5 py-1.5 sm:px-2 ${rack.active ? 'text-primary' : 'text-muted-foreground'}`}
+                    colSpan={4}
+                    className="px-5 py-10 text-center text-sm text-muted-foreground"
                   >
-                    {rack.active ? 'Activé' : 'Désactivé'}
-                  </TableCell>
-                  <TableCell className="px-1.5 py-1.5 text-right sm:px-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 min-w-20 px-2 text-xs sm:min-w-24 sm:text-sm"
-                      aria-label={`${rack.active ? 'Désactiver' : 'Activer'} le rack ${rack.number}`}
-                      disabled={busy || (rack.active && occupied)}
-                      title={
-                        rack.active && occupied
-                          ? 'Videz le rack avant de le désactiver.'
-                          : undefined
-                      }
-                      onClick={() =>
-                        rack.active
-                          ? setDeactivate(rack.id)
-                          : void mutate(() =>
-                              activateStorageRack(token, rack.id),
-                            )
-                      }
-                    >
-                      {rack.active ? 'Désactiver' : 'Activer'}
-                    </Button>
+                    Aucun rack créé. Ajoutez le premier ci-dessus.
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex flex-wrap items-center gap-4">
-        <Button
-          variant="outline"
-          disabled={busy}
-          onClick={() =>
-            void mutate(() =>
-              addStorageRack(token, newWinter ? 'HIVERNAGE' : 'ATELIER'),
-            )
-          }
-        >
-          Ajouter un rack
-        </Button>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={newWinter}
-            disabled={busy}
-            onCheckedChange={(checked) => setNewWinter(checked === true)}
-          />
-          Hivernage
-        </label>
+              )}
+            </TableBody>
+          </Table>
+          <p className="flex items-start gap-2 border-t bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+            <LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden />
+            Videz un rack avant de changer sa catégorie ou de le désactiver.
+          </p>
+        </section>
       </div>
       <ConfirmDialog
         open={deactivate !== null}

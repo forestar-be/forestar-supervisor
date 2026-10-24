@@ -31,12 +31,27 @@ it('review: ne renvoie pas la clé interne id reçue par GET storage', async () 
   };
   api.updateStorageSettings.mockResolvedValue({});
   render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
-  fireEvent.click(screen.getByText('Paramètres du rangement'));
+  fireEvent.click(
+    screen.getByRole('switch', {
+      name: /Activer le rangement/,
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole('switch', {
+      name: /Dépôts sans emplacement/,
+    }),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Robot' }));
   fireEvent.click(screen.getByText('Enregistrer les paramètres'));
   await waitFor(() =>
     expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
   );
   expect(api.updateStorageSettings.mock.calls[0][1]).not.toHaveProperty('id');
+  expect(api.updateStorageSettings.mock.calls[0][1]).toMatchObject({
+    enabled: true,
+    allowOverflow: false,
+    machineTypes: [{ name: 'Robot', isRobot: false }],
+  });
 });
 
 it('envoie le maximum de racks saisi, et null quand le champ est vide', async () => {
@@ -118,9 +133,7 @@ it('creates racks in the selected category and locks conversion for occupied rac
       screen.getByRole('checkbox', { name: 'Hivernage' }),
     ).not.toHaveAttribute('aria-disabled', 'true'),
   );
-  fireEvent.click(
-    screen.getByRole('checkbox', { name: 'Hivernage' }),
-  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Hivernage' }));
   fireEvent.click(screen.getByRole('button', { name: 'Ajouter un rack' }));
   await waitFor(() =>
     expect(api.addStorageRack).toHaveBeenCalledWith('test', 'HIVERNAGE'),
