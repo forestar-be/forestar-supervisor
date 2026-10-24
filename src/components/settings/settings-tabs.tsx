@@ -179,7 +179,7 @@ export default function SettingsTabs() {
 
         <TabsContent
           value="storage"
-          className="mt-4 min-h-0 flex-1 overflow-auto"
+          className="mt-4 min-h-0 flex-1 overflow-auto lg:overflow-hidden"
         >
           <StorageSettingsPage />
         </TabsContent>

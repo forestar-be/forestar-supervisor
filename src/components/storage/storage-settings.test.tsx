@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   cleanup,
   fireEvent,
@@ -18,10 +18,26 @@ const api = vi.hoisted(() => ({
 vi.mock('@/lib/api', () => api);
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'test' }) }));
 import { StorageSettings } from './storage-settings';
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+});
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
+async function selectRackType(name: string, type: 'Atelier' | 'Hivernage') {
+  fireEvent.click(screen.getByRole('combobox', { name }));
+  const option = await screen.findByRole('option', { name: type });
+  fireEvent.pointerDown(option, { pointerType: 'mouse' });
+  fireEvent.click(option);
+}
 it('review: ne renvoie pas la clé interne id reçue par GET storage', async () => {
   const data = {
     settings: { id: 1, enabled: false, allowOverflow: true, maxRacks: null },
@@ -31,12 +47,27 @@ it('review: ne renvoie pas la clé interne id reçue par GET storage', async () 
   };
   api.updateStorageSettings.mockResolvedValue({});
   render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
-  fireEvent.click(screen.getByText('Paramètres du rangement'));
+  fireEvent.click(
+    screen.getByRole('switch', {
+      name: /Activer le rangement/,
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole('switch', {
+      name: /Dépôts sans emplacement/,
+    }),
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Robot' }));
   fireEvent.click(screen.getByText('Enregistrer les paramètres'));
   await waitFor(() =>
     expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
   );
   expect(api.updateStorageSettings.mock.calls[0][1]).not.toHaveProperty('id');
+  expect(api.updateStorageSettings.mock.calls[0][1]).toMatchObject({
+    enabled: true,
+    allowOverflow: false,
+    machineTypes: [{ name: 'Robot', isRobot: false }],
+  });
 });
 
 it('envoie le maximum de racks saisi, et null quand le champ est vide', async () => {
@@ -101,11 +132,9 @@ it('creates racks in the selected category and locks conversion for occupied rac
   api.changeStorageRackCategory.mockResolvedValue({});
   render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
   expect(
-    screen.getByRole('checkbox', { name: 'Hivernage du rack 1' }),
-  ).toHaveAttribute('aria-disabled', 'true');
-  fireEvent.click(
-    screen.getByRole('checkbox', { name: 'Hivernage du rack 2' }),
-  );
+    screen.getByRole('combobox', { name: 'Type du rack 1' }),
+  ).toBeDisabled();
+  await selectRackType('Type du rack 2', 'Atelier');
   await waitFor(() =>
     expect(api.changeStorageRackCategory).toHaveBeenCalledWith(
       'test',
@@ -115,12 +144,10 @@ it('creates racks in the selected category and locks conversion for occupied rac
   );
   await waitFor(() =>
     expect(
-      screen.getByRole('checkbox', { name: 'Hivernage' }),
-    ).not.toHaveAttribute('aria-disabled', 'true'),
+      screen.getByRole('combobox', { name: 'Type du nouveau rack' }),
+    ).toBeEnabled(),
   );
-  fireEvent.click(
-    screen.getByRole('checkbox', { name: 'Hivernage' }),
-  );
+  await selectRackType('Type du nouveau rack', 'Hivernage');
   fireEvent.click(screen.getByRole('button', { name: 'Ajouter un rack' }));
   await waitFor(() =>
     expect(api.addStorageRack).toHaveBeenCalledWith('test', 'HIVERNAGE'),
@@ -154,7 +181,7 @@ it('shows compact columns and reactivates a disabled rack after a confirmed deac
     within(screen.getByRole('table', { name: 'Racks' }))
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent),
-  ).toEqual(['Numéro', 'Hivernage', 'Statut', 'Action']);
+  ).toEqual(['Numéro', 'Type de rack', 'Statut', 'Action']);
   expect(screen.queryByText(/Catégorie du rack/)).not.toBeInTheDocument();
   api.deactivateStorageRack.mockImplementation(async () => {
     data = { ...data, racks: [{ ...data.racks[0], active: false }] };
@@ -169,12 +196,16 @@ it('shows compact columns and reactivates a disabled rack after a confirmed deac
   const activate = await screen.findByRole('button', {
     name: 'Activer le rack 2',
   });
-  expect(screen.getByText('Désactivé')).toBeInTheDocument();
+  expect(screen.getByRole('table', { name: 'Racks' })).toHaveTextContent(
+    'Désactivé',
+  );
   api.activateStorageRack.mockImplementation(async () => {
     data = { ...data, racks: [{ ...data.racks[0], active: true }] };
   });
   fireEvent.click(activate);
   await screen.findByRole('button', { name: 'Désactiver le rack 2' });
   expect(api.activateStorageRack).toHaveBeenCalledWith('test', 2);
-  expect(screen.getByText('Activé')).toBeInTheDocument();
+  expect(screen.getByRole('table', { name: 'Racks' })).toHaveTextContent(
+    'Activé',
+  );
 });
