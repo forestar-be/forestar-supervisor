@@ -390,13 +390,12 @@ export function RepairPageClient() {
     data: Record<string, unknown>,
     confirmation?: StorageTransitionConfirmation,
   ) {
-    const updated = await updateRepair(auth.token, id, {
+    await updateRepair(auth.token, id, {
       ...data,
       ...(confirmation ? { storageTransition: confirmation } : {}),
     });
-    const saved = mapRepairFromApi(
-      confirmation ? await fetchRepairById(id, auth.token) : updated,
-    );
+    // PATCH returns the scalar fields only; GET supplies parts, client and images.
+    const saved = mapRepairFromApi(await fetchRepairById(id, auth.token));
     setRepair(saved);
     setInitialRepair(saved);
     toast.success('Fiche mise à jour avec succès', {

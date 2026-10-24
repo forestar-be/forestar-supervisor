@@ -127,6 +127,43 @@ beforeEach(() => {
   api.updateRepair.mockResolvedValue({ ...fixture, state: 'Hivernage' });
 });
 afterEach(cleanup);
+it.each([false, true])(
+  'reloads the complete repair after saving hivernage=%s with a scalar PATCH response',
+  async (hivernage) => {
+    const initial = { ...fixture, hivernage: !hivernage };
+    const saved = {
+      ...fixture,
+      hivernage,
+      replaced_part_list: [
+        { quantity: 2, replacedPart: { name: 'Lame', price: 10 } },
+      ],
+    };
+    api.fetchRepairById.mockResolvedValueOnce(initial).mockResolvedValue(saved);
+    api.previewRepairStorageTransition.mockResolvedValue({ movement: false });
+    api.updateRepair.mockResolvedValue({
+      id: fixture.id,
+      state: fixture.state,
+      hivernage,
+      client_call_times: [],
+      working_time_in_sec: 0,
+    });
+    render(<RepairPageClient />);
+    const card = (await screen.findByText('Détails')).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Modifier' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hivernage' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(api.fetchRepairById).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        within(card).getByRole('button', { name: 'Modifier' }),
+      ).toBeInTheDocument(),
+    );
+    expect(api.updateRepair).toHaveBeenCalledWith('test', '1', { hivernage });
+    expect(screen.getAllByText('20,00€').length).toBeGreaterThan(0);
+  },
+);
 async function edit() {
   render(<RepairPageClient />);
   const title = await screen.findByText('Informations techniques');
