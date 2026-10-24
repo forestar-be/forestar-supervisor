@@ -1,14 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import {
-  Bot,
-  LockKeyhole,
-  Plus,
-  Save,
-  Settings2,
-  Warehouse,
-} from 'lucide-react';
+import { Bot, LockKeyhole, Plus, Save, Settings2 } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -60,12 +53,6 @@ export function StorageSettings({
       aria-label="Paramètres du rangement"
       className="flex shrink-0 flex-col gap-5 lg:min-h-0 lg:flex-1 lg:shrink"
     >
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
-          <Warehouse className="size-6" aria-hidden />
-        </span>
-        <h2 className="text-lg font-semibold">Paramètres du rangement</h2>
-      </div>
       <SettingsForm
         key={JSON.stringify([
           data.settings,
