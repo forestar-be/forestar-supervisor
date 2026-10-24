@@ -7,7 +7,6 @@ import {
   Plus,
   Save,
   Settings2,
-  Snowflake,
   Warehouse,
 } from 'lucide-react';
 import {
@@ -17,6 +16,11 @@ import {
   Checkbox,
   ConfirmDialog,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
   Switch,
   Table,
@@ -35,7 +39,11 @@ import {
   updateStorageSettings,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import type { StorageOverview } from '@/lib/storage';
+import {
+  rackCategoryLabel,
+  type StorageOverview,
+  type StorageRackCategory,
+} from '@/lib/storage';
 import { rackCategoryAppearance } from './storage-rack-appearance';
 
 export function StorageSettings({
@@ -48,8 +56,11 @@ export function StorageSettings({
   onSaved: () => Promise<unknown>;
 }) {
   return (
-    <section aria-label="Paramètres du rangement" className="space-y-5">
-      <div className="flex items-center gap-3">
+    <section
+      aria-label="Paramètres du rangement"
+      className="flex shrink-0 flex-col gap-5 lg:min-h-0 lg:flex-1 lg:shrink"
+    >
+      <div className="flex shrink-0 items-center gap-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
           <Warehouse className="size-6" aria-hidden />
         </span>
@@ -68,6 +79,78 @@ export function StorageSettings({
     </section>
   );
 }
+
+function StorageRackTypeSelect({
+  label,
+  value,
+  disabled,
+  title,
+  onChange,
+}: {
+  label: string;
+  value: StorageRackCategory;
+  disabled: boolean;
+  title?: string;
+  onChange: (value: StorageRackCategory) => void;
+}) {
+  const appearance = rackCategoryAppearance(value);
+  const Icon = appearance.Icon;
+  return (
+    <Select
+      value={value}
+      disabled={disabled}
+      onValueChange={(next) => {
+        if (next === 'ATELIER' || next === 'HIVERNAGE') onChange(next);
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        aria-label={label}
+        title={title}
+        className={`w-26 gap-1 px-2 text-xs disabled:opacity-100 sm:w-36 sm:gap-2 sm:text-sm ${appearance.foreground}`}
+      >
+        <Icon className="hidden size-4 sm:block" aria-hidden />
+        <SelectValue className="min-w-0">
+          {() => rackCategoryLabel(value)}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {(['ATELIER', 'HIVERNAGE'] as const).map((category) => {
+          const categoryAppearance = rackCategoryAppearance(category);
+          const CategoryIcon = categoryAppearance.Icon;
+          return (
+            <SelectItem
+              key={category}
+              value={category}
+              label={rackCategoryLabel(category)}
+            >
+              <CategoryIcon
+                className={`size-4 ${categoryAppearance.foreground}`}
+                aria-hidden
+              />
+              {rackCategoryLabel(category)}
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function StorageRackStatus({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-xs font-medium sm:px-2 ${active ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200' : 'bg-muted text-muted-foreground'}`}
+    >
+      <span
+        className={`hidden size-1.5 rounded-full sm:block ${active ? 'bg-emerald-700 dark:bg-emerald-300' : 'bg-muted-foreground'}`}
+        aria-hidden
+      />
+      {active ? 'Activé' : 'Désactivé'}
+    </span>
+  );
+}
+
 function SettingsForm({
   data,
   token,
@@ -88,7 +171,8 @@ function SettingsForm({
     maxRacksValue !== null &&
     (!Number.isInteger(maxRacksValue) || maxRacksValue <= 0);
   const [busy, setBusy] = useState(false);
-  const [newWinter, setNewWinter] = useState(false);
+  const [newRackCategory, setNewRackCategory] =
+    useState<StorageRackCategory>('ATELIER');
   const [error, setError] = useState('');
   const [deactivate, setDeactivate] = useState<number | null>(null);
   const running = useRef(false);
@@ -109,34 +193,30 @@ function SettingsForm({
     }
   }
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5 lg:min-h-0 lg:flex-1">
       {error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)]">
+      <div className="grid min-w-0 items-start gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
         <section
-          className="min-w-0 rounded-2xl border bg-card shadow-sm"
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm"
           aria-label="Configuration du rangement"
         >
-          <div className="flex items-center gap-2 border-b px-5 py-4">
+          <div className="flex shrink-0 items-center gap-2 border-b px-5 py-3">
             <Settings2 className="size-4 text-primary" aria-hidden />
             <h3 className="font-semibold">Configuration</h3>
           </div>
-          <div className="space-y-5 p-5">
-            <div className="space-y-4">
-              <label className="flex cursor-pointer items-start justify-between gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-3">
+            <div className="shrink-0 space-y-3">
+              <label className="flex cursor-pointer items-center justify-between gap-4">
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
                     Activer le rangement
                   </span>
-                  <span className="mt-1 block text-sm text-muted-foreground">
-                    Autoriser les nouveaux dépôts.
-                  </span>
                 </span>
                 <Switch
-                  className="mt-1"
                   checked={settings.enabled}
                   disabled={busy}
                   onCheckedChange={(checked) =>
@@ -144,7 +224,7 @@ function SettingsForm({
                   }
                 />
               </label>
-              <label className="flex cursor-pointer items-start justify-between gap-4 border-t pt-4">
+              <label className="flex cursor-pointer items-start justify-between gap-4 border-t pt-3">
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">
                     Dépôts sans emplacement
@@ -163,7 +243,7 @@ function SettingsForm({
                 />
               </label>
             </div>
-            <div className="space-y-2 border-t pt-5">
+            <div className="shrink-0 space-y-2 border-t pt-4">
               <label htmlFor={maxRacksId} className="block text-sm font-medium">
                 Nombre maximum de racks
               </label>
@@ -194,12 +274,15 @@ function SettingsForm({
                 </p>
               )}
             </div>
-            <fieldset className="min-w-0 border-t pt-5">
-              <legend className="flex items-center gap-2 pr-2 text-sm font-semibold">
+            <fieldset className="flex min-h-20 min-w-0 flex-1 flex-col border-t pt-3">
+              <legend className="flex shrink-0 items-center gap-2 pr-2 text-sm font-semibold">
                 <Bot className="size-4 text-primary" aria-hidden />
                 Machines à ranger
               </legend>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div
+                className="mt-2 grid max-h-56 min-h-0 content-start gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:max-h-none lg:flex-1"
+                aria-label="Liste des machines à ranger"
+              >
                 {types.map((type) => (
                   <label
                     key={type.name}
@@ -229,7 +312,7 @@ function SettingsForm({
               )}
             </fieldset>
           </div>
-          <div className="border-t p-4 sm:px-5">
+          <div className="shrink-0 border-t px-4 py-3 sm:px-5">
             <Button
               className="h-auto min-h-10 w-full whitespace-normal"
               disabled={busy || maxRacksInvalid}
@@ -250,10 +333,10 @@ function SettingsForm({
           </div>
         </section>
         <section
-          className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-sm"
+          className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm"
           aria-label="Gestion des racks"
         >
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b p-4 sm:px-5">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b p-4 sm:px-5">
             <div>
               <h3 className="font-semibold">Racks</h3>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -261,25 +344,17 @@ function SettingsForm({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <Checkbox
-                  checked={newWinter}
-                  disabled={busy}
-                  onCheckedChange={(checked) => setNewWinter(checked === true)}
-                />
-                <Snowflake
-                  className="size-4 text-sky-800 dark:text-sky-200"
-                  aria-hidden
-                />
-                Hivernage
-              </label>
+              <StorageRackTypeSelect
+                label="Type du nouveau rack"
+                value={newRackCategory}
+                disabled={busy}
+                onChange={setNewRackCategory}
+              />
               <Button
                 variant="outline"
                 disabled={busy}
                 onClick={() =>
-                  void mutate(() =>
-                    addStorageRack(token, newWinter ? 'HIVERNAGE' : 'ATELIER'),
-                  )
+                  void mutate(() => addStorageRack(token, newRackCategory))
                 }
               >
                 <Plus className="size-4" aria-hidden />
@@ -287,19 +362,19 @@ function SettingsForm({
               </Button>
             </div>
           </div>
-          <Table aria-label="Racks" className="text-xs sm:text-sm">
-            <TableHeader className="bg-muted/30">
+          <Table
+            aria-label="Racks"
+            className="text-xs sm:text-sm"
+            containerClassName="max-h-[32rem] overflow-auto lg:max-h-none lg:min-h-0 lg:flex-1"
+          >
+            <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-                <TableHead className="px-1.5 sm:px-5">Numéro</TableHead>
-                <TableHead className="px-1.5 text-center sm:px-3">
-                  <span className="sr-only sm:not-sr-only">Hivernage</span>
-                  <Snowflake
-                    className="mx-auto size-4 text-sky-800 sm:hidden dark:text-sky-200"
-                    aria-hidden
-                  />
+                <TableHead className="px-1 sm:px-5">Numéro</TableHead>
+                <TableHead className="px-1 sm:px-3">Type de rack</TableHead>
+                <TableHead className="hidden px-1 sm:table-cell sm:px-3">
+                  Statut
                 </TableHead>
-                <TableHead className="px-1.5 sm:px-3">Statut</TableHead>
-                <TableHead className="px-1.5 text-right sm:px-5">
+                <TableHead className="px-1 text-right sm:px-5">
                   Action
                 </TableHead>
               </TableRow>
@@ -311,52 +386,44 @@ function SettingsForm({
                 const Icon = appearance.Icon;
                 return (
                   <TableRow key={rack.id}>
-                    <TableCell className="px-1.5 py-2 font-semibold sm:px-5">
+                    <TableCell className="px-1 py-2 font-semibold sm:px-5">
                       <span className="flex items-center gap-2.5">
                         <span
                           className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${appearance.axis} ${appearance.foreground}`}
                         >
                           <Icon className="size-4" aria-hidden />
                         </span>
-                        <span className={appearance.foreground}>
-                          R{rack.number}
+                        <span className="flex flex-col items-start gap-1">
+                          <span className={appearance.foreground}>
+                            R{rack.number}
+                          </span>
+                          <span className="sm:hidden">
+                            <StorageRackStatus active={rack.active} />
+                          </span>
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="px-1.5 py-2 text-center sm:px-3">
-                      <Checkbox
-                        className="mx-auto"
-                        aria-label={`Hivernage du rack ${rack.number}`}
-                        checked={rack.category === 'HIVERNAGE'}
+                    <TableCell className="px-1 py-2 sm:px-3">
+                      <StorageRackTypeSelect
+                        label={`Type du rack ${rack.number}`}
+                        value={rack.category ?? 'ATELIER'}
                         disabled={busy || occupied}
                         title={
                           occupied
                             ? 'Videz le rack avant de changer son usage.'
                             : undefined
                         }
-                        onCheckedChange={(checked) =>
+                        onChange={(category) =>
                           void mutate(() =>
-                            changeStorageRackCategory(
-                              token,
-                              rack.id,
-                              checked === true ? 'HIVERNAGE' : 'ATELIER',
-                            ),
+                            changeStorageRackCategory(token, rack.id, category),
                           )
                         }
                       />
                     </TableCell>
-                    <TableCell className="px-1.5 py-2 sm:px-3">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium sm:px-2 ${rack.active ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200' : 'bg-muted text-muted-foreground'}`}
-                      >
-                        <span
-                          className={`hidden size-1.5 rounded-full sm:block ${rack.active ? 'bg-emerald-700 dark:bg-emerald-300' : 'bg-muted-foreground'}`}
-                          aria-hidden
-                        />
-                        {rack.active ? 'Activé' : 'Désactivé'}
-                      </span>
+                    <TableCell className="hidden px-1 py-2 sm:table-cell sm:px-3">
+                      <StorageRackStatus active={rack.active} />
                     </TableCell>
-                    <TableCell className="px-1.5 py-2 text-right sm:px-5">
+                    <TableCell className="px-1 py-2 text-right sm:px-5">
                       <Button
                         size="sm"
                         variant="outline"
@@ -394,7 +461,7 @@ function SettingsForm({
               )}
             </TableBody>
           </Table>
-          <p className="flex items-start gap-2 border-t bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:px-5">
+          <p className="flex shrink-0 items-start gap-2 border-t bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:px-5">
             <LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden />
             Videz un rack avant de changer sa catégorie ou de le désactiver.
           </p>
