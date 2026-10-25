@@ -48,6 +48,7 @@ import {
   rackCategoryLabel,
   storageRepairLabel,
   storageRobotLabel,
+  repairStorageCategory,
   type RepairStorage,
   type StorageCommand,
   type StorageOverview,
@@ -255,11 +256,10 @@ export function StoragePage() {
       const target = data.racks.find((r) =>
         r.slots.some((s) => s.id === slot.id),
       );
-      const category =
-        selected.repair.state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER';
+      const category = repairStorageCategory(selected.repair.hivernage);
       if (target && (target.category ?? 'ATELIER') !== category) {
         setError(
-          'Cette place ne correspond pas au statut du robot. Changez son statut depuis sa fiche pour changer de zone.',
+          'Cette place ne correspond pas à la case Hivernage du robot. Modifiez cette case depuis sa fiche pour changer de zone.',
         );
         return false;
       }
@@ -386,10 +386,10 @@ export function StoragePage() {
     if (
       target &&
       (target.category ?? 'ATELIER') !==
-        (source.repair.state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER')
+        repairStorageCategory(source.repair.hivernage)
     ) {
       setError(
-        'Changez le statut depuis la fiche pour déplacer le robot vers cette zone.',
+        'Modifiez la case Hivernage depuis la fiche pour déplacer le robot vers cette zone.',
       );
       return;
     }
@@ -801,10 +801,9 @@ export function StoragePage() {
                                     slot.repair ||
                                     (dragged.current &&
                                       (rack.category ?? 'ATELIER') !==
-                                        (dragged.current.repair.state ===
-                                        'Hivernage'
-                                          ? 'HIVERNAGE'
-                                          : 'ATELIER'))
+                                        repairStorageCategory(
+                                          dragged.current.repair.hivernage,
+                                        ))
                                   )
                                     return;
                                   event.preventDefault();
@@ -821,9 +820,9 @@ export function StoragePage() {
                                   (moving &&
                                     !!selected &&
                                     (rack.category ?? 'ATELIER') !==
-                                      (selected.repair.state === 'Hivernage'
-                                        ? 'HIVERNAGE'
-                                        : 'ATELIER')) ||
+                                      repairStorageCategory(
+                                        selected.repair.hivernage,
+                                      )) ||
                                   busy ||
                                   (moving
                                     ? !!slot.repair && !isSource
