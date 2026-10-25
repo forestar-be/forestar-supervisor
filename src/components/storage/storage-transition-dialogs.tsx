@@ -24,7 +24,7 @@ export function StorageTransitionDialogs({
       <ConfirmDialog
         open={preview !== null}
         title="Déplacement physique du robot"
-        message={`Le changement de statut affectera le robot de ${preview?.fromCode ?? 'sa position actuelle'} vers ${preview?.toCode ?? ''}. Vous devrez déplacer physiquement le robot vers cette place. Confirmer ce trajet ?`}
+        message={`La modification de la case Hivernage affectera le robot de ${preview?.fromCode ?? 'sa position actuelle'} vers ${preview?.toCode ?? ''}. Vous devrez déplacer physiquement le robot vers cette place. Confirmer ce trajet ?`}
         confirmText="Confirmer le déplacement"
         isLoading={busy}
         onClose={() => {

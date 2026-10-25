@@ -1431,7 +1431,8 @@ export function RepairPageClient() {
                     name="state"
                     value={repair.state || 'Non commencé'}
                     options={Object.keys(colorByState).filter(
-                      (state) => state !== 'Hivernage' || repair.hivernage,
+                      (state) =>
+                        state !== 'Terminé et en hivernage' || repair.hivernage,
                     )}
                     editable={!!editableSections.technicalInfo}
                     onChange={(v) => handleSelectField('state', v)}

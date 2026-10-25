@@ -16,7 +16,7 @@ import {
 import dayjs from '@/lib/dayjs';
 
 /** États qui veulent dire « réparée » : pas d'avertissement en dessous (D-18). */
-const COMPLETED_STATES = new Set(['Terminé', 'Hivernage']);
+const COMPLETED_STATES = new Set(['Terminé', 'Terminé et en hivernage']);
 
 interface HandoverDialogProps {
   open: boolean;
@@ -108,7 +108,12 @@ function HandoverForm({
         />
       </div>
       <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={loading}
+        >
           Annuler
         </Button>
         <Button

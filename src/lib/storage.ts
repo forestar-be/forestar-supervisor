@@ -4,6 +4,7 @@ export interface StorageRepair {
   robot_type_name?: string | null;
   brand_name?: string | null;
   state?: string | null;
+  hivernage?: boolean;
   /** Première photo de la fiche ; affichée via l'optimiseur de vignettes Next. */
   imageUrl?: string | null;
 }
@@ -18,8 +19,8 @@ export type StorageRackCategory = 'ATELIER' | 'HIVERNAGE';
 export const rackCategoryLabel = (category?: StorageRackCategory) =>
   category === 'HIVERNAGE' ? 'Hivernage' : 'Atelier';
 export const repairStorageCategory = (
-  state?: string | null,
-): StorageRackCategory => (state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER');
+  hivernage?: boolean,
+): StorageRackCategory => (hivernage === true ? 'HIVERNAGE' : 'ATELIER');
 export interface StorageTransitionPreview {
   movement: boolean;
   fromCode: string | null;

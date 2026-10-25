@@ -698,3 +698,57 @@ describe('Ajout depuis une place libre', () => {
     ).toBeDisabled();
   });
 });
+
+it.each([false, true])(
+  'les destinations suivent la case hivernage=%s même si le statut et la place historique diffèrent',
+  async (hivernage) => {
+    const data = fixture();
+    data.racks[0].slots[0].repair = {
+      ...data.racks[0].slots[0].repair!,
+      state: hivernage ? 'En cours' : 'Terminé et en hivernage',
+      hivernage,
+    };
+    data.racks[1].category = 'HIVERNAGE';
+    api.getStorage.mockResolvedValue(data);
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
+    const atelier = screen.getByRole('button', { name: 'R1/1/B, libre' });
+    if (hivernage) expect(atelier).toBeDisabled();
+    else expect(atelier).not.toBeDisabled();
+    await changeRack();
+    const winter = screen.getByRole('button', { name: 'R2/1/B, libre' });
+    if (hivernage) expect(winter).not.toBeDisabled();
+    else expect(winter).toBeDisabled();
+    expect(api.commandRepairStorage).not.toHaveBeenCalled();
+  },
+);
+
+it('le glisser-déposer interdit Atelier pour une case Hivernage cochée, même avec statut En cours', async () => {
+  const data = fixture();
+  data.racks[0].slots[0].repair!.hivernage = true;
+  data.racks[0].slots[0].repair!.state = 'En cours';
+  api.getStorage.mockResolvedValue(data);
+  await open();
+  const source = screen.getByRole('button', {
+    name: 'R1/1/A, #10 · Jean Dupont',
+  });
+  const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+  fireEvent.dragStart(source, { dataTransfer });
+  await waitFor(() =>
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'Déplacement en cours',
+    ),
+  );
+  const target = screen.getByRole('button', { name: 'R1/1/B, libre' });
+  expect(target).toBeDisabled();
+  fireEvent.dragOver(target, { dataTransfer });
+  fireEvent.drop(target, { dataTransfer });
+  fireEvent.dragEnd(source, { dataTransfer });
+  expect(
+    screen.queryByRole('button', { name: 'Confirmer R1/1/A → R1/1/B' }),
+  ).not.toBeInTheDocument();
+  expect(api.commandRepairStorage).not.toHaveBeenCalled();
+});

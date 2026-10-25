@@ -30,7 +30,7 @@ vi.mock('@/store/hooks', () => ({
     config: {
       États: JSON.stringify({
         Terminé: 'green',
-        Hivernage: 'purple',
+        'Terminé et en hivernage': 'purple',
         'En cours': 'blue',
       }),
     },
@@ -124,7 +124,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   api.fetchRepairById.mockResolvedValue(fixture);
   api.previewRepairStorageTransition.mockResolvedValue(preview);
-  api.updateRepair.mockResolvedValue({ ...fixture, state: 'Hivernage' });
+  api.updateRepair.mockResolvedValue({
+    ...fixture,
+    state: 'Terminé et en hivernage',
+  });
 });
 afterEach(cleanup);
 it.each([false, true])(
@@ -165,13 +168,12 @@ it.each([false, true])(
   },
 );
 async function edit() {
+  api.fetchRepairById.mockResolvedValueOnce({ ...fixture, hivernage: false });
   render(<RepairPageClient />);
-  const title = await screen.findByText('Informations techniques');
+  const title = await screen.findByText('Détails');
   const card = title.closest('[data-slot="card"]') as HTMLElement;
   fireEvent.click(within(card).getByRole('button', { name: 'Modifier' }));
-  fireEvent.change(screen.getByLabelText('État'), {
-    target: { value: 'Hivernage' },
-  });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Hivernage' }));
   fireEvent.click(within(card).getByRole('button', { name: 'Enregistrer' }));
   await screen.findByRole('button', { name: 'Confirmer le déplacement' });
 }
@@ -188,13 +190,16 @@ it('cancels without PATCH and restores the persisted state', async () => {
 });
 it('confirms the frozen payload and shows a physical reminder after success', async () => {
   await edit();
-  api.fetchRepairById.mockResolvedValue({ ...fixture, state: 'Hivernage' });
+  api.fetchRepairById.mockResolvedValue({
+    ...fixture,
+    state: 'Terminé et en hivernage',
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Confirmer le déplacement' }),
   );
   await screen.findByText('Robot à déplacer');
   expect(api.updateRepair).toHaveBeenCalledWith('test', '1', {
-    state: 'Hivernage',
+    hivernage: true,
     storageTransition: {
       commandId: expect.any(String),
       token: 'preview-token',
@@ -209,7 +214,7 @@ it('confirms the frozen payload and shows a physical reminder after success', as
 it('retries the exact command after a lost response', async () => {
   api.updateRepair
     .mockRejectedValueOnce(new Error('network'))
-    .mockResolvedValueOnce({ ...fixture, state: 'Hivernage' });
+    .mockResolvedValueOnce({ ...fixture, state: 'Terminé et en hivernage' });
   await edit();
   fireEvent.click(
     screen.getByRole('button', { name: 'Confirmer le déplacement' }),
@@ -228,3 +233,38 @@ it('retries the exact command after a lost response', async () => {
     api.updateRepair.mock.calls[0],
   );
 });
+
+it.each([false, true])(
+  'restores the completed winter status, selectable only when hivernage=%s',
+  async (hivernage) => {
+    api.fetchRepairById.mockResolvedValue({ ...fixture, hivernage });
+    api.previewRepairStorageTransition.mockResolvedValue({ movement: false });
+    render(<RepairPageClient />);
+    const card = (await screen.findByText('Informations techniques')).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'Modifier' }));
+    const select = screen.getByLabelText('État');
+    expect(
+      within(select).queryByRole('option', { name: 'Hivernage' }),
+    ).not.toBeInTheDocument();
+    const winter = within(select).queryByRole('option', {
+      name: 'Terminé et en hivernage',
+    });
+    if (!hivernage) {
+      expect(winter).not.toBeInTheDocument();
+      return;
+    }
+    expect(winter).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: 'Terminé et en hivernage' } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() =>
+      expect(api.updateRepair).toHaveBeenCalledWith('test', '1', {
+        state: 'Terminé et en hivernage',
+      }),
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Confirmer le déplacement' }),
+    ).not.toBeInTheDocument();
+  },
+);

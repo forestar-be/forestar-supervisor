@@ -27,6 +27,7 @@ import { usePersistedState } from '@/lib/use-persisted-state';
 import {
   storageRepairLabel,
   storageRobotLabel,
+  repairStorageCategory,
   type StorageOverview,
   type StorageRack,
   type StorageRepair,
@@ -177,8 +178,7 @@ function PickerBody({
     [...places.values()].find((place) => place.slot.id === slot.id)?.rack
       .category ?? 'ATELIER';
   const compatible = (item: StoragePick) =>
-    (item.repair.state === 'Hivernage' ? 'HIVERNAGE' : 'ATELIER') ===
-    targetCategory;
+    repairStorageCategory(item.repair.hivernage) === targetCategory;
   const current = trimmed && result?.key === requestKey ? result : null;
   const loading = !!trimmed && !current && !error;
   const stored =

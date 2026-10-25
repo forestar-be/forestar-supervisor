@@ -1,6 +1,6 @@
 /**
  * R003-S05 — « Machine rendue au client » (D-18) : la boîte avertit quand
- * l'état n'est ni « Terminé » ni « Hivernage », jamais sinon,
+ * l'état n'est ni « Terminé » ni « Terminé et en hivernage », jamais sinon,
  * et confirme avec la date de sortie du jour par défaut.
  */
 import '@testing-library/jest-dom/vitest';
@@ -10,7 +10,7 @@ import dayjs from '@/lib/dayjs';
 import { HandoverDialog } from './handover-dialog';
 
 describe('HandoverDialog', () => {
-  it('avertit quand la fiche n’est pas « Terminé » ou « Hivernage »', () => {
+  it('avertit quand la fiche n’est pas « Terminé » ou « Terminé et en hivernage »', () => {
     render(
       <HandoverDialog
         open
@@ -46,7 +46,7 @@ describe('HandoverDialog', () => {
     ).toBeInTheDocument();
   });
 
-  it.each(['Terminé', 'Hivernage'])(
+  it.each(['Terminé', 'Terminé et en hivernage'])(
     "n'avertit pas quand l'état est « %s »",
     (state) => {
       render(
