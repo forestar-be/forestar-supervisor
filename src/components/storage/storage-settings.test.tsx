@@ -209,3 +209,104 @@ it('shows compact columns and reactivates a disabled rack after a confirmed deac
     'Activé',
   );
 });
+
+const baseSettings = { enabled: true, allowOverflow: true, maxRacks: null };
+
+it('règle la taille par modèle et n’envoie que les modèles modifiés', async () => {
+  const data = {
+    settings: baseSettings,
+    machineTypes: [{ name: 'Robot', isRobot: true }],
+    robotTypes: [
+      { name: 'Automower 315', storageSize: 'STANDARD' as const },
+      { name: 'Automower 450X', storageSize: 'STANDARD' as const },
+      { name: 'Ambrogio L400', storageSize: 'LARGE' as const },
+    ],
+    racks: [],
+    unlocated: [],
+  };
+  api.updateStorageSettings.mockResolvedValue({});
+  render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
+  const large = screen.getByRole('checkbox', {
+    name: 'Ambrogio L400 Large (2 places)',
+  });
+  expect(large).toBeChecked();
+  expect(
+    screen.getByRole('checkbox', { name: 'Automower 315 Large (2 places)' }),
+  ).not.toBeChecked();
+  // Pas de champ de filtre pour une liste courte.
+  expect(
+    screen.queryByRole('searchbox', { name: 'Filtrer les modèles' }),
+  ).toBeNull();
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: 'Automower 450X Large (2 places)' }),
+  );
+  fireEvent.click(large);
+  fireEvent.click(screen.getByText('Enregistrer les paramètres'));
+  await waitFor(() =>
+    expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
+  );
+  expect(api.updateStorageSettings.mock.calls[0][1].robotTypes).toEqual([
+    { name: 'Automower 450X', storageSize: 'LARGE' },
+    { name: 'Ambrogio L400', storageSize: 'STANDARD' },
+  ]);
+});
+
+it('n’envoie pas robotTypes quand aucun modèle n’a changé', async () => {
+  const data = {
+    settings: baseSettings,
+    machineTypes: [{ name: 'Robot', isRobot: true }],
+    robotTypes: [{ name: 'Automower 315', storageSize: 'STANDARD' as const }],
+    racks: [],
+    unlocated: [],
+  };
+  api.updateStorageSettings.mockResolvedValue({});
+  render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
+  fireEvent.click(screen.getByText('Enregistrer les paramètres'));
+  await waitFor(() =>
+    expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
+  );
+  expect(api.updateStorageSettings.mock.calls[0][1]).not.toHaveProperty(
+    'robotTypes',
+  );
+});
+
+it('filtre une longue liste de modèles sans perdre les réglages hors filtre', async () => {
+  const names = Array.from({ length: 12 }, (_, i) => `Modèle ${i + 1}`);
+  names[11] = 'Husqvarna Ténor';
+  const data = {
+    settings: baseSettings,
+    machineTypes: [{ name: 'Robot', isRobot: true }],
+    robotTypes: names.map((name) => ({
+      name,
+      storageSize: 'STANDARD' as const,
+    })),
+    racks: [],
+    unlocated: [],
+  };
+  api.updateStorageSettings.mockResolvedValue({});
+  render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: 'Modèle 3 Large (2 places)' }),
+  );
+  const filter = screen.getByRole('searchbox', { name: 'Filtrer les modèles' });
+  fireEvent.change(filter, { target: { value: 'tenor' } });
+  expect(
+    screen.getByRole('checkbox', {
+      name: 'Husqvarna Ténor Large (2 places)',
+    }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('checkbox', { name: 'Modèle 3 Large (2 places)' }),
+  ).toBeNull();
+  fireEvent.change(filter, { target: { value: 'zzz' } });
+  expect(
+    screen.getByText('Aucun modèle ne correspond au filtre.'),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Enregistrer les paramètres'));
+  await waitFor(() =>
+    expect(api.updateStorageSettings).toHaveBeenCalledTimes(1),
+  );
+  expect(api.updateStorageSettings.mock.calls[0][1].robotTypes).toEqual([
+    { name: 'Modèle 3', storageSize: 'LARGE' },
+  ]);
+});

@@ -18,12 +18,36 @@ import {
   getRepairStorage,
   getStorage,
   isHttpError,
+  previewRepairStorageResize,
 } from '@/lib/api';
-import type {
-  RepairStorage,
-  StorageCommand,
-  StorageOverview,
+import {
+  storageSizeLabel,
+  type RepairStorage,
+  type StorageCommand,
+  type StorageOverview,
+  type StorageResizePreview,
+  type StorageSize,
 } from '@/lib/storage';
+
+/** Phrase d'aperçu du changement de taille d'un robot rangé. */
+function resizeMessage(preview: StorageResizePreview) {
+  const from = preview.fromCode ?? 'sans place';
+  const to = preview.toCode ?? 'sans place';
+  switch (preview.kind) {
+    case 'extend':
+      return `Extension sur place : ${from} → ${to}. Le robot occupera deux places voisines.`;
+    case 'move':
+      return `Déplacement vers ${to} : ${from} → ${to}. La place voisine n’est pas libre, le robot change de paire.`;
+    case 'reduce':
+      return `Réduction à une place : ${from} → ${to}. La seconde place est libérée.`;
+    case 'refused':
+      return `Refusé : aucune paire libre, place et taille conservées${preview.fromCode ? ` (${preview.fromCode})` : ''}.`;
+    case 'update':
+      return 'Seule la taille de la fiche change ; elle n’a pas de place.';
+    default:
+      return 'Aucun changement.';
+  }
+}
 
 export function RepairStoragePanel({
   id,
@@ -48,6 +72,8 @@ export function RepairStoragePanel({
   const [overflow, setOverflow] = useState(false);
   const [changed, setChanged] = useState(false);
   const pending = useRef<StorageCommand | null>(null);
+  const pendingResize = useRef<StorageCommand | null>(null);
+  const [resize, setResize] = useState<StorageResizePreview | null>(null);
   const running = useRef(false);
   useEffect(() => {
     let active = true;
@@ -105,6 +131,88 @@ export function RepairStoragePanel({
       setBusy(false);
     }
   }
+  async function reload() {
+    try {
+      const [storage, data] = await Promise.all([
+        getRepairStorage(token, id),
+        getStorage(token),
+      ]);
+      setDetail(storage);
+      setOverview(data);
+    } catch {
+      /* L'affichage actuel reste ; un rechargement de la fiche relira tout. */
+    }
+  }
+  /** Fiche sans place : le champ change directement ; robot rangé : aperçu puis confirmation. */
+  async function requestSize(size: StorageSize) {
+    if (running.current || !detail || size === (detail.size ?? 'STANDARD'))
+      return;
+    if (!detail.location) {
+      pendingResize.current = null;
+      await applyResize(size, null);
+      return;
+    }
+    running.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const preview = await previewRepairStorageResize(token, id, size);
+      if (preview.kind === 'none') return;
+      pendingResize.current = null;
+      setResize(preview);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'Aperçu impossible. Réessayez.',
+      );
+    } finally {
+      running.current = false;
+      setBusy(false);
+    }
+  }
+  async function applyResize(
+    size: StorageSize,
+    preview: StorageResizePreview | null,
+  ) {
+    if (running.current) return;
+    running.current = true;
+    setBusy(true);
+    setError('');
+    const location = detail?.location;
+    // Même commande rejouée après une coupure : le serveur la dédoublonne.
+    const command: StorageCommand = pendingResize.current ?? {
+      commandId: crypto.randomUUID(),
+      action: 'resize',
+      size,
+      ...(location
+        ? {
+            expectedSlotId: location.slotId,
+            expectedToCode: preview?.toCode ?? null,
+          }
+        : {}),
+    };
+    pendingResize.current = command;
+    try {
+      setDetail(await commandRepairStorage(token, id, command));
+      pendingResize.current = null;
+      setResize(null);
+      setChanged(true);
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Changement de taille impossible. Réessayez.',
+      );
+      if (isHttpError(e)) {
+        // Le rangement a changé entre l'aperçu et la confirmation : relire avant de reproposer.
+        pendingResize.current = null;
+        setResize(null);
+        await reload();
+      }
+    } finally {
+      running.current = false;
+      setBusy(false);
+    }
+  }
   const eligible = overview?.machineTypes.some(
     (type) => type.name === machineType && type.isRobot,
   );
@@ -134,6 +242,11 @@ export function RepairStoragePanel({
               ? 'Sans emplacement'
               : 'Non déposé')}
       </span>
+      {detail.size === 'LARGE' && (
+        <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
+          Large · 2 places
+        </span>
+      )}
       <div className="flex items-center gap-1">
         <Button
           size="icon-sm"
@@ -183,6 +296,35 @@ export function RepairStoragePanel({
                       ? 'Robot déposé sans emplacement'
                       : 'Robot non déposé')}
               </p>
+              <div
+                role="group"
+                aria-label="Taille du robot"
+                className="mb-3 space-y-2"
+              >
+                <p className="text-sm text-muted-foreground">
+                  Taille : {storageSizeLabel(detail.size)}
+                </p>
+                {!exited && (
+                  <div className="flex flex-wrap gap-2">
+                    {(['STANDARD', 'LARGE'] as const).map((size) => (
+                      <Button
+                        key={size}
+                        size="sm"
+                        variant={
+                          (detail.size ?? 'STANDARD') === size
+                            ? 'default'
+                            : 'outline'
+                        }
+                        aria-pressed={(detail.size ?? 'STANDARD') === size}
+                        disabled={busy}
+                        onClick={() => void requestSize(size)}
+                      >
+                        {size === 'LARGE' ? 'Large (2 places)' : 'Standard'}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {detail.depositedAt && (
                 <p className="mb-3 text-sm text-muted-foreground">
                   Déposé le{' '}
@@ -243,6 +385,7 @@ export function RepairStoragePanel({
                           deposit: 'Dépôt à l’atelier',
                           assign: 'Attribution d’une place',
                           move: 'Déplacement',
+                          resize: 'Changement de taille',
                           state_move: 'Déplacement Atelier / Hivernage',
                           release: 'Libération de la place',
                         } as Record<string, string>
@@ -261,6 +404,36 @@ export function RepairStoragePanel({
             ))}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={resize !== null}
+        title="Changer la taille du robot"
+        message={
+          resize ? (
+            <>
+              <span className="block">{resizeMessage(resize)}</span>
+              {resize.feasible && resize.kind !== 'refused' && (
+                <span className="mt-2 block">
+                  Pensez à réimprimer les tickets ensuite.
+                </span>
+              )}
+            </>
+          ) : (
+            ''
+          )
+        }
+        type={resize?.kind === 'refused' ? 'warning' : 'info'}
+        hideConfirm={!resize || !resize.feasible || resize.kind === 'refused'}
+        confirmText={`Confirmer ${resize?.fromCode ?? 'sans place'} → ${resize?.toCode ?? ''}`}
+        cancelText={resize?.kind === 'refused' ? 'Fermer' : 'Annuler'}
+        isLoading={busy}
+        onClose={() => {
+          if (!busy) {
+            setResize(null);
+            pendingResize.current = null;
+          }
+        }}
+        onConfirm={() => resize && void applyResize(resize.size, resize)}
+      />
       <ConfirmDialog
         open={overflow}
         title="Tous les racks sont complets"
