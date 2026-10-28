@@ -710,6 +710,8 @@ export const updateStorageSettings = (
   token: string,
   data: Partial<import('./storage').StorageOverview['settings']> & {
     machineTypes?: import('./storage').StorageOverview['machineTypes'];
+    /** Seuls les modèles modifiés ; le serveur renvoie le snapshot à jour. */
+    robotTypes?: NonNullable<import('./storage').StorageOverview['robotTypes']>;
   },
 ): Promise<unknown> =>
   apiRequest('/supervisor/storage/settings', 'PATCH', token, data);
@@ -754,6 +756,17 @@ export const getRepairStorage = (
   id: number | string,
 ): Promise<import('./storage').RepairStorage> =>
   apiRequest(`/supervisor/machine-repairs/${id}/storage`, 'GET', token);
+export const previewRepairStorageResize = (
+  token: string,
+  id: number | string,
+  size: import('./storage').StorageSize,
+): Promise<import('./storage').StorageResizePreview> =>
+  apiRequest(
+    `/supervisor/machine-repairs/${id}/storage/resize-preview`,
+    'POST',
+    token,
+    { size },
+  );
 export const commandRepairStorage = (
   token: string,
   id: number | string,
