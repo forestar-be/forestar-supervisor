@@ -73,3 +73,10 @@ src/
 ## Déploiement
 
 Le déploiement passe par Vercel (projet `forestar-supervisor`). Le preset Next.js est déclaré dans `vercel.json`. Variables : `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_AUTH_MODE`, `NPM_RC` (GitHub Packages), et en option `NEXT_PUBLIC_ROBOT_URL`, `NEXT_PUBLIC_SSO_ISSUER` et `NEXT_PUBLIC_SSO_CONSOLE_URL`. Les `NEXT_PUBLIC_*` sont figées au build.
+
+## Mémoire du dépôt (wiki)
+
+Avant un travail non trivial, lire le catalogue `docs/agent-memory/README.md` ; en fin de
+travail, mettre à jour l'entrée concernée ou en créer une (protocole :
+[.agents/guides/memory.md](.agents/guides/memory.md)). Commandes, avec Node ≥ 22.18 :
+`node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tools/agent-memory/check.ts` et `node tools/agent-memory/impact.ts` (ou `pnpm run memory:check` / `memory:impact`).
