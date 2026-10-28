@@ -5,6 +5,7 @@ import { Input } from '@forestar-be/ui';
 import { Search } from 'lucide-react';
 import {
   searchStorage,
+  slotLocationCode,
   storageRepairLabel,
   storageRobotLabel,
   type StorageOverview,
@@ -102,7 +103,7 @@ export function StorageSearch({
                 id={`${id}-${position}`}
                 role="option"
                 aria-selected={active === position}
-                aria-label={`${storageRepairLabel(item.repair)} · ${item.slot?.code ?? 'Sans emplacement'}`}
+                aria-label={`${storageRepairLabel(item.repair)} · ${item.slot ? slotLocationCode(item.slot) : 'Sans emplacement'}`}
                 className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${active === position ? 'bg-accent text-accent-foreground' : 'hover:bg-accent'}`}
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={() => choose(item)}
@@ -113,7 +114,9 @@ export function StorageSearch({
                 <span className="block break-words text-muted-foreground">
                   {[
                     storageRobotLabel(item.repair),
-                    item.slot?.code ?? 'Sans emplacement',
+                    item.slot
+                      ? slotLocationCode(item.slot)
+                      : 'Sans emplacement',
                   ]
                     .filter(Boolean)
                     .join(' · ')}

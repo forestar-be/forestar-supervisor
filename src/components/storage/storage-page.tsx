@@ -44,13 +44,23 @@ import {
   isHttpError,
 } from '@/lib/api';
 import {
+  freePairs,
+  freePairsAround,
+  isLargeRepair,
+  isSlotFree,
+  levelCells,
+  rackCounts,
+  slotLocationCode,
+  storagePairCode,
   searchStorage,
   rackCategoryLabel,
   storageRepairLabel,
   storageRobotLabel,
   repairStorageCategory,
   type RepairStorage,
+  type StorageCell,
   type StorageCommand,
+  type StoragePair,
   type StorageOverview,
   type StorageRack,
   type StorageRepair,
@@ -375,14 +385,39 @@ export function StoragePage() {
     if (dragDropped.current && !dragWasMoving.current) setMoving(false);
     dragDropped.current = false;
   }
+  const rackOfSlot = (slotId: number) =>
+    data?.racks.find((r) => r.slots.some((s) => s.id === slotId));
+  /** Pour un robot large, la destination est l'ancrage d'une paire libre. */
+  function isValidDestination(repair: StorageRepair, slot: StorageSlot) {
+    if (!isSlotFree(slot)) return false;
+    if (!isLargeRepair(repair)) return true;
+    const target = rackOfSlot(slot.id);
+    return (
+      !!target &&
+      freePairsAround(target, slot).some((pair) => pair.anchor.id === slot.id)
+    );
+  }
+  /** Code de la destination : double (A-B ou B-C) pour un robot large. */
+  function destinationCode(slot: StorageSlot) {
+    if (!selected || !isLargeRepair(selected.repair)) return slot.code;
+    const pair = rackOfSlot(slot.id)
+      ? freePairsAround(rackOfSlot(slot.id) as StorageRack, slot).find(
+          (p) => p.anchor.id === slot.id,
+        )
+      : undefined;
+    return pair ? storagePairCode(pair.anchor, pair.second) : slot.code;
+  }
   function dropOn(slot: StorageSlot, event: DragEvent) {
     event.preventDefault();
     const source = dragged.current;
     setDropTargetId(null);
-    if (!source || slot.repair || slot.id === source.slot?.id) return;
-    const target = data?.racks.find((r) =>
-      r.slots.some((s) => s.id === slot.id),
-    );
+    if (
+      !source ||
+      slot.id === source.slot?.id ||
+      !isValidDestination(source.repair, slot)
+    )
+      return;
+    const target = rackOfSlot(slot.id);
     if (
       target &&
       (target.category ?? 'ATELIER') !==
@@ -396,6 +431,164 @@ export function StoragePage() {
     dragDropped.current = true;
     pending.current = null;
     setDestination(slot);
+  }
+  const movingLarge = moving && !!selected && isLargeRepair(selected.repair);
+  /** Destination d'un robot large : une paire libre, désignée par son code double. */
+  function renderPair(pair: StoragePair, placement: string) {
+    const isTarget =
+      destination?.id === pair.anchor.id || dropTargetId === pair.anchor.id;
+    return (
+      <button
+        key={`pair-${pair.anchor.id}`}
+        type="button"
+        data-storage-interactive=""
+        disabled={busy}
+        aria-pressed={destination?.id === pair.anchor.id}
+        aria-label={`${pair.code}, paire libre`}
+        onClick={() => {
+          setDestination(pair.anchor);
+          pending.current = null;
+        }}
+        onDragOver={(event) => {
+          if (!dragging) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          if (dropTargetId !== pair.anchor.id) setDropTargetId(pair.anchor.id);
+        }}
+        onDragLeave={() => {
+          if (dropTargetId === pair.anchor.id) setDropTargetId(null);
+        }}
+        onDrop={(event) => dropOn(pair.anchor, event)}
+        className={`relative flex min-h-16 min-w-0 items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring enabled:cursor-pointer enabled:hover:border-primary/60 sm:text-sm ${placement} ${isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : 'border-primary bg-primary/5'}`}
+      >
+        <Plus
+          className="size-6 shrink-0 rounded-full bg-primary/10 p-1 text-primary"
+          aria-hidden
+        />
+        <span className="min-w-0 break-words">
+          Placer ici
+          <span className="block font-semibold">{pair.code}</span>
+        </span>
+        <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+          2 places
+        </span>
+      </button>
+    );
+  }
+  function renderSlot(
+    rack: StorageRack,
+    cell: Exclude<StorageCell, { kind: 'covered' }>,
+  ) {
+    if (!data) return null;
+    const slot = cell.slot;
+    const wide = cell.kind === 'wide';
+    const free = isSlotFree(slot);
+    const isSource = selected?.slot?.id === slot.id;
+    const isTarget = destination?.id === slot.id || dropTargetId === slot.id;
+    const canDrag =
+      !!slot.repair && !busy && data.settings.enabled && (!moving || isSource);
+    // Un large ne vise que des paires : une place libre isolée n'est pas une cible.
+    const isolated = movingLarge && free;
+    return (
+      <button
+        key={slot.id}
+        type="button"
+        data-storage-interactive=""
+        draggable={canDrag}
+        onDragStart={(event) =>
+          slot.repair && startDrag({ repair: slot.repair, slot, rack }, event)
+        }
+        onDragEnd={endDrag}
+        onDragOver={(event) => {
+          if (
+            !dragging ||
+            !dragged.current ||
+            !free ||
+            isLargeRepair(dragged.current.repair) ||
+            (rack.category ?? 'ATELIER') !==
+              repairStorageCategory(dragged.current.repair.hivernage)
+          )
+            return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          if (dropTargetId !== slot.id) setDropTargetId(slot.id);
+        }}
+        onDragLeave={() => {
+          if (dropTargetId === slot.id) setDropTargetId(null);
+        }}
+        onDrop={(event) => dropOn(slot, event)}
+        disabled={
+          (moving &&
+            !!selected &&
+            (rack.category ?? 'ATELIER') !==
+              repairStorageCategory(selected.repair.hivernage)) ||
+          busy ||
+          isolated ||
+          (moving ? !free && !isSource : free && !data.settings.enabled)
+        }
+        aria-pressed={
+          selected?.slot?.id === slot.id || destination?.id === slot.id
+        }
+        aria-label={`${slotLocationCode(slot)}, ${slot.repair ? storageRepairLabel(slot.repair) : isolated ? 'libre, sans voisine libre' : moving || !data.settings.enabled ? 'libre' : 'libre, ajouter un robot'}`}
+        onClick={() => {
+          if (moving) {
+            if (!free) return;
+            setDestination(slot);
+            pending.current = null;
+          } else if (slot.repair) choose({ repair: slot.repair, slot, rack });
+          else setPickerSlot(slot);
+        }}
+        className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${wide ? 'col-span-2 pt-7 sm:pt-8 xl:pt-1.5' : ''} ${canDrag ? 'enabled:cursor-grab enabled:active:cursor-grabbing' : ''} ${!moving || !slot.repair ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair && !isSource ? 'opacity-50' : ''} ${isSource || isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && isSource ? 'motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''} ${moving && !slot.repair && !isolated ? 'border-primary bg-primary/5' : ''}`}
+      >
+        {wide && (
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+            2 places
+          </span>
+        )}
+        {slot.repair ? (
+          <>
+            <StorageRobotPhoto src={slot.repair.imageUrl} />
+            <span className="min-w-0 w-full max-w-full sm:w-auto sm:break-words xl:border-l xl:pl-3">
+              <strong
+                className="block truncate font-semibold leading-snug sm:whitespace-normal"
+                title={storageRobotLabel(slot.repair) || 'Robot'}
+              >
+                {storageRobotLabel(slot.repair) || 'Robot'}
+              </strong>
+              <span className="mt-1 block truncate text-muted-foreground sm:whitespace-normal">
+                {slot.repair.client.firstName} {slot.repair.client.lastName}
+              </span>
+              <span className="mt-0.5 block text-muted-foreground">
+                #{slot.repair.id}
+              </span>
+            </span>
+            {selected?.slot?.id === slot.id && (
+              <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Check className="size-3.5" aria-hidden />
+              </span>
+            )}
+          </>
+        ) : isolated ? (
+          <span className="text-muted-foreground">Place seule</span>
+        ) : moving ? (
+          <>
+            <Plus
+              className="size-6 rounded-full bg-primary/10 p-1 text-primary"
+              aria-hidden
+            />
+            <span>Placer ici</span>
+          </>
+        ) : (
+          <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
+            <Plus className="size-6 rounded-full bg-muted p-1" aria-hidden />
+            Libre
+            {data.settings.enabled && (
+              <span className="text-xs">Ajouter un robot</span>
+            )}
+          </span>
+        )}
+      </button>
+    );
   }
   return (
     <div className="flex w-full flex-col gap-5">
@@ -550,9 +743,18 @@ export function StoragePage() {
                     </span>
                     <div className="min-w-0 break-words">
                       <p className="text-xl font-semibold sm:text-2xl">
-                        {selected.slot?.code ?? 'Sans emplacement'}
-                        {destination ? ` → ${destination.code}` : ''}
+                        {selected.slot
+                          ? slotLocationCode(selected.slot)
+                          : 'Sans emplacement'}
+                        {destination
+                          ? ` → ${destinationCode(destination)}`
+                          : ''}
                       </p>
+                      {isLargeRepair(selected.repair) && (
+                        <p className="mt-1 text-sm font-medium text-primary">
+                          Robot large · 2 places
+                        </p>
+                      )}
                       <p className="mt-1 text-sm text-muted-foreground">
                         {storageRepairLabel(selected.repair)}
                       </p>
@@ -720,7 +922,9 @@ export function StoragePage() {
                   </div>
                   {moving && (
                     <p className="mt-3 text-sm">
-                      Choisissez une place libre ou glissez le robot dessus.
+                      {isLargeRepair(selected.repair)
+                        ? 'Ce robot est large : choisissez une paire de places libres voisines (A-B ou B-C) ou glissez-le dessus.'
+                        : 'Choisissez une place libre ou glissez le robot dessus.'}{' '}
                       Vous pouvez changer de rack en conservant ce robot.
                     </p>
                   )}
@@ -757,157 +961,51 @@ export function StoragePage() {
                         </span>
                       ))}
                     </div>
-                    {[4, 3, 2, 1].map((level) => (
-                      <div
-                        key={level}
-                        className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
-                      >
-                        <span
-                          className={`flex items-center justify-center rounded-l-lg text-sm font-semibold sm:text-base ${rackAppearance.axis}`}
-                          aria-label={`Étage ${level}`}
+                    {[4, 3, 2, 1].map((level) => {
+                      const levelSlots = rack.slots.filter(
+                        (slot) => slot.level === level,
+                      );
+                      const pairs =
+                        moving &&
+                        selected &&
+                        isLargeRepair(selected.repair) &&
+                        (rack.category ?? 'ATELIER') ===
+                          repairStorageCategory(selected.repair.hivernage)
+                          ? freePairs(levelSlots)
+                          : [];
+                      const staggered = pairs.length === 2;
+                      return (
+                        <div
+                          key={level}
+                          className="grid grid-cols-[24px_repeat(3,minmax(0,1fr))] gap-1.5 sm:grid-cols-[40px_repeat(3,minmax(0,1fr))] sm:gap-2.5"
                         >
-                          {level}
-                        </span>
-                        {rack.slots
-                          .filter((slot) => slot.level === level)
-                          .sort((a, b) => a.position.localeCompare(b.position))
-                          .map((slot) => {
-                            const isSource = selected?.slot?.id === slot.id;
-                            const isTarget =
-                              destination?.id === slot.id ||
-                              dropTargetId === slot.id;
-                            const canDrag =
-                              !!slot.repair &&
-                              !busy &&
-                              data.settings.enabled &&
-                              (!moving || isSource);
-                            return (
-                              <button
-                                key={slot.id}
-                                type="button"
-                                data-storage-interactive=""
-                                draggable={canDrag}
-                                onDragStart={(event) =>
-                                  slot.repair &&
-                                  startDrag(
-                                    { repair: slot.repair, slot, rack },
-                                    event,
-                                  )
-                                }
-                                onDragEnd={endDrag}
-                                onDragOver={(event) => {
-                                  if (
-                                    !dragging ||
-                                    slot.repair ||
-                                    (dragged.current &&
-                                      (rack.category ?? 'ATELIER') !==
-                                        repairStorageCategory(
-                                          dragged.current.repair.hivernage,
-                                        ))
-                                  )
-                                    return;
-                                  event.preventDefault();
-                                  event.dataTransfer.dropEffect = 'move';
-                                  if (dropTargetId !== slot.id)
-                                    setDropTargetId(slot.id);
-                                }}
-                                onDragLeave={() => {
-                                  if (dropTargetId === slot.id)
-                                    setDropTargetId(null);
-                                }}
-                                onDrop={(event) => dropOn(slot, event)}
-                                disabled={
-                                  (moving &&
-                                    !!selected &&
-                                    (rack.category ?? 'ATELIER') !==
-                                      repairStorageCategory(
-                                        selected.repair.hivernage,
-                                      )) ||
-                                  busy ||
-                                  (moving
-                                    ? !!slot.repair && !isSource
-                                    : !slot.repair && !data.settings.enabled)
-                                }
-                                aria-pressed={
-                                  selected?.slot?.id === slot.id ||
-                                  destination?.id === slot.id
-                                }
-                                aria-label={`${slot.code}, ${slot.repair ? storageRepairLabel(slot.repair) : moving || !data.settings.enabled ? 'libre' : 'libre, ajouter un robot'}`}
-                                onClick={() => {
-                                  if (moving) {
-                                    if (slot.repair) return;
-                                    setDestination(slot);
-                                    pending.current = null;
-                                  } else if (slot.repair)
-                                    choose({
-                                      repair: slot.repair,
-                                      slot,
-                                      rack,
-                                    });
-                                  else setPickerSlot(slot);
-                                }}
-                                className={`relative flex min-h-28 min-w-0 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default sm:p-3 sm:text-sm xl:min-h-[clamp(112px,15dvh,144px)] xl:flex-row xl:gap-3 xl:py-1.5 xl:text-left ${canDrag ? 'enabled:cursor-grab enabled:active:cursor-grabbing' : ''} ${!moving || !slot.repair ? 'enabled:cursor-pointer enabled:hover:border-primary/60' : ''} ${moving && slot.repair && !isSource ? 'opacity-50' : ''} ${isSource || isTarget ? 'border-2 border-primary bg-primary/8 ring-1 ring-primary/10' : slot.repair ? 'border-border bg-muted/50' : 'border-dashed border-foreground/20 bg-muted/20'} ${moving && isSource ? 'motion-safe:animate-[storage-moving-blink_1.6s_ease-in-out_infinite]' : ''} ${moving && !slot.repair ? 'border-primary bg-primary/5' : ''}`}
-                              >
-                                {slot.repair ? (
-                                  <>
-                                    <StorageRobotPhoto
-                                      src={slot.repair.imageUrl}
-                                    />
-                                    <span className="min-w-0 w-full max-w-full sm:w-auto sm:break-words xl:border-l xl:pl-3">
-                                      <strong
-                                        className="block truncate font-semibold leading-snug sm:whitespace-normal"
-                                        title={
-                                          storageRobotLabel(slot.repair) ||
-                                          'Robot'
-                                        }
-                                      >
-                                        {storageRobotLabel(slot.repair) ||
-                                          'Robot'}
-                                      </strong>
-                                      <span className="mt-1 block truncate text-muted-foreground sm:whitespace-normal">
-                                        {slot.repair.client.firstName}{' '}
-                                        {slot.repair.client.lastName}
-                                      </span>
-                                      <span className="mt-0.5 block text-muted-foreground">
-                                        #{slot.repair.id}
-                                      </span>
-                                    </span>
-                                    {selected?.slot?.id === slot.id && (
-                                      <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                        <Check
-                                          className="size-3.5"
-                                          aria-hidden
-                                        />
-                                      </span>
-                                    )}
-                                  </>
-                                ) : moving ? (
-                                  <>
-                                    <Plus
-                                      className="size-6 rounded-full bg-primary/10 p-1 text-primary"
-                                      aria-hidden
-                                    />
-                                    <span>Placer ici</span>
-                                  </>
-                                ) : (
-                                  <span className="flex flex-col items-center gap-1.5 text-muted-foreground">
-                                    <Plus
-                                      className="size-6 rounded-full bg-muted p-1"
-                                      aria-hidden
-                                    />
-                                    Libre
-                                    {data.settings.enabled && (
-                                      <span className="text-xs">
-                                        Ajouter un robot
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                      </div>
-                    ))}
+                          <span
+                            className={`flex items-center justify-center rounded-l-lg text-sm font-semibold sm:text-base ${staggered ? 'row-span-2 ' : ''}${rackAppearance.axis}`}
+                            aria-label={`Étage ${level}`}
+                          >
+                            {level}
+                          </span>
+                          {staggered
+                            ? pairs.map((pair, i) =>
+                                renderPair(
+                                  pair,
+                                  i === 0
+                                    ? 'col-span-2 col-start-2'
+                                    : 'col-span-2 col-start-3',
+                                ),
+                              )
+                            : levelCells(levelSlots).map((cell) => {
+                                if (cell.kind === 'covered') return null;
+                                const pair = pairs[0];
+                                if (pair && cell.slot.id === pair.anchor.id)
+                                  return renderPair(pair, 'col-span-2');
+                                if (pair && cell.slot.id === pair.second.id)
+                                  return null;
+                                return renderSlot(rack, cell);
+                              })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
@@ -931,10 +1029,10 @@ export function StoragePage() {
         title="Déplacer le robot"
         message={
           selected && destination
-            ? `${storageRepairLabel(selected.repair)} : ${selected.slot?.code ?? 'sans emplacement'} → ${destination.code}. Pensez à réimprimer les tickets depuis la fiche.`
+            ? `${storageRepairLabel(selected.repair)} : ${selected.slot ? slotLocationCode(selected.slot) : 'sans emplacement'} → ${destinationCode(destination)}. Pensez à réimprimer les tickets depuis la fiche.`
             : ''
         }
-        confirmText={`Confirmer ${selected?.slot?.code ?? 'Sans emplacement'} → ${destination?.code ?? ''}`}
+        confirmText={`Confirmer ${selected?.slot ? slotLocationCode(selected.slot) : 'Sans emplacement'} → ${destination ? destinationCode(destination) : ''}`}
         cancelText="Annuler"
         isLoading={busy}
         onConfirm={() => {
@@ -946,15 +1044,15 @@ export function StoragePage() {
   );
 }
 function rackLabel(rack: StorageRack) {
-  const free = rack.slots.filter((slot) => !slot.repair).length;
+  const { free } = rackCounts(rack);
   return `Rack ${rack.number} · ${free ? `${free} libre${free > 1 ? 's' : ''}` : 'Complet'}`;
 }
 
 function StorageRackHeader({ rack }: { rack: StorageRack }) {
   const appearance = rackCategoryAppearance(rack.category);
   const Icon = appearance.Icon;
-  const total = rack.slots.length;
-  const occupied = rack.slots.filter((slot) => slot.repair).length;
+  // Une seconde place couverte par un robot large compte comme occupée.
+  const { total, occupied } = rackCounts(rack);
   const percentage = total ? Math.round((occupied / total) * 100) : 0;
   return (
     <header
