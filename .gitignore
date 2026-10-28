@@ -10,6 +10,7 @@ next-env.d.ts
 .DS_Store
 .env
 .env*.local
+.env*.old
 .vercel
 npm-debug.log*
 pnpm-debug.log*
