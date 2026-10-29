@@ -2,6 +2,9 @@
 export type StorageSize = 'STANDARD' | 'LARGE';
 export const storageSizeLabel = (size?: StorageSize | null) =>
   size === 'LARGE' ? 'Large (2 places)' : 'Standard (1 place)';
+/** Libellé court des paramètres : nombre de places occupées. */
+export const storageSizeSlots = (size?: StorageSize | null) =>
+  size === 'LARGE' ? '2 places' : '1 place';
 export interface StorageRepair {
   id: number;
   client: { firstName: string; lastName: string };

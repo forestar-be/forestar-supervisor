@@ -26,6 +26,8 @@ interface EditEntityProps {
   fetchEntities: (token: string) => Promise<Entity[]>;
   addEntity: (token: string, entity: Entity) => Promise<unknown>;
   deleteEntity: (token: string, entity: Entity) => Promise<unknown>;
+  /** Colonnes propres à un référentiel, insérées avant les actions. */
+  extraColumns?: ColumnDef<Entity>[];
 }
 
 /**
@@ -39,6 +41,7 @@ export default function EditEntity({
   fetchEntities,
   addEntity,
   deleteEntity,
+  extraColumns = [],
 }: EditEntityProps) {
   const { token } = useAuth();
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -117,6 +120,7 @@ export default function EditEntity({
       header: entityName,
       accessorFn: (row) => row,
     },
+    ...extraColumns,
     {
       id: 'actions',
       header: 'Actions',
