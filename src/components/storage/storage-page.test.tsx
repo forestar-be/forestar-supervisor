@@ -752,3 +752,269 @@ it('le glisser-déposer interdit Atelier pour une case Hivernage cochée, même 
   ).not.toBeInTheDocument();
   expect(api.commandRepairStorage).not.toHaveBeenCalled();
 });
+
+/** Rack 1 avec un robot large #55 sur l'étage 2 (A+B) ; la place B est sa seconde place. */
+function withLargeRobot(rackIndex = 0): StorageOverview {
+  const data = fixture();
+  const slots = data.racks[rackIndex].slots;
+  const anchor = slots.find((s) => s.level === 2 && s.position === 'A')!;
+  const second = slots.find((s) => s.level === 2 && s.position === 'B')!;
+  anchor.repair = {
+    id: 55,
+    client: { firstName: 'Luc', lastName: 'Martin' },
+    storageSize: 'LARGE',
+    storageSecondSlotId: second.id,
+  };
+  anchor.span = 2;
+  anchor.secondSlotId = second.id;
+  anchor.locationCode = `R${rackIndex + 1}/2/A-B`;
+  second.coveredBy = { repairId: 55, anchorSlotId: anchor.id };
+  return data;
+}
+const LARGE = 'R1/2/A-B, #55 · Luc Martin';
+
+describe('Robots larges (deux places)', () => {
+  beforeEach(() => api.getStorage.mockResolvedValue(withLargeRobot()));
+
+  it('dessine une seule case fusionnée sur deux colonnes, sans case fantôme', async () => {
+    await open();
+    const wide = screen.getByRole('button', { name: LARGE });
+    expect(wide.className).toContain('col-span-2');
+    expect(wide).toHaveTextContent('2 places');
+    expect(wide).toHaveTextContent('#55');
+    // La seconde place n'est ni libre ni dessinée.
+    expect(screen.queryByRole('button', { name: /^R1\/2\/B/ })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'R1/2/C, libre, ajouter un robot' }),
+    ).toBeInTheDocument();
+    // Un robot standard garde une case simple.
+    expect(
+      screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' })
+        .className,
+    ).not.toContain('col-span-2');
+    const rackGrid = screen.getByLabelText('Rack de face');
+    expect(
+      within(rackGrid)
+        .getAllByRole('button')
+        .filter((b) => /^R\d+\//.test(b.getAttribute('aria-label') ?? '')),
+    ).toHaveLength(11);
+  });
+
+  it('compte les deux places du large comme occupées', async () => {
+    await open();
+    const header = screen.getByLabelText('En-tête du rack');
+    expect(header).toHaveTextContent('3 / 12 emplacements occupés');
+    expect(within(header).getByRole('meter')).toHaveAttribute(
+      'aria-valuenow',
+      '3',
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Rack affiché' }));
+    expect(
+      await screen.findByRole('option', { name: 'Rack 1 · 9 libres' }),
+    ).toBeInTheDocument();
+  });
+
+  it('affiche le code double et la taille dans le panneau, et le retrouve par la recherche', async () => {
+    await open();
+    const search = screen.getByRole('combobox', { name: 'Retrouver un robot' });
+    fireEvent.change(search, { target: { value: 'R1/2/A-B' } });
+    const option = screen.getByRole('option', {
+      name: `#55 · Luc Martin · R1/2/A-B`,
+    });
+    fireEvent.click(option);
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'R1/2/A-B',
+    );
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'Robot large · 2 places',
+    );
+    expect(screen.getByRole('button', { name: LARGE })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('ouvre le rack du large retrouvé et met en évidence la case fusionnée', async () => {
+    api.getStorage.mockResolvedValue(withLargeRobot(1));
+    window.history.replaceState(null, '', '/rangement?fiche=55');
+    render(<StoragePage />);
+    const wide = await screen.findByRole('button', {
+      name: 'R2/2/A-B, #55 · Luc Martin',
+    });
+    expect(wide).toHaveAttribute('aria-pressed', 'true');
+    expect(wide.className).toContain('col-span-2');
+    expect(screen.getByLabelText('En-tête du rack')).toHaveTextContent(
+      'Rack 2',
+    );
+  });
+
+  it('un robot standard ne peut viser ni la seconde place ni la case du large', async () => {
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
+    expect(screen.queryByRole('button', { name: /^R1\/2\/B/ })).toBeNull();
+    expect(screen.getByRole('button', { name: LARGE })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'R1/2/C, libre' }));
+    expect(
+      screen.getByRole('button', { name: 'Confirmer R1/1/A → R1/2/C' }),
+    ).toBeInTheDocument();
+  });
+
+  it('déplace un large : seules les paires libres sont des cibles, A-B et B-C distinctes', async () => {
+    api.commandRepairStorage.mockResolvedValue({
+      location: { code: 'R1/3/B-C' },
+    });
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: LARGE }));
+    fireEvent.click(screen.getByRole('button', { name: 'Déplacer le robot' }));
+    // Étage 3 entièrement libre : deux paires distinctes, jamais une place B ambiguë.
+    expect(
+      screen.getByRole('button', { name: 'R1/3/A-B, paire libre' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'R1/3/B-C, paire libre' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'R1/3/B, libre' })).toBeNull();
+    // Étage 1 : A occupée, une seule paire B-C ; la place A reste une case non cible.
+    expect(
+      screen.getByRole('button', { name: 'R1/1/B-C, paire libre' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'R1/1/A, #10 · Jean Dupont' }),
+    ).toBeDisabled();
+    // Étage 2 : sa propre paire, et C seule, qui n'est pas une cible.
+    expect(
+      screen.getByRole('button', { name: 'R1/2/C, libre, sans voisine libre' }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole('button', { name: /^R1\/2\/.*paire libre/ }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/3/B-C, paire libre' }),
+    );
+    expect(screen.getByLabelText('Robot sélectionné')).toHaveTextContent(
+      'R1/2/A-B → R1/3/B-C',
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Confirmer R1/2/A-B → R1/3/B-C' }),
+    );
+    await waitFor(() =>
+      expect(api.commandRepairStorage).toHaveBeenCalledWith(
+        'test',
+        55,
+        expect.objectContaining({
+          action: 'move',
+          // L'ancrage de la paire B-C de l'étage 3 est la place B.
+          slotId: 131,
+          expectedSlotId: 120,
+        }),
+      ),
+    );
+  });
+
+  it('déplace un large par glisser-déposer sur une paire libre', async () => {
+    await open();
+    const source = screen.getByRole('button', { name: LARGE });
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+    };
+    fireEvent.dragStart(source, { dataTransfer });
+    const pair = await screen.findByRole('button', {
+      name: 'R1/3/A-B, paire libre',
+    });
+    fireEvent.dragOver(pair, { dataTransfer });
+    fireEvent.drop(pair, { dataTransfer });
+    fireEvent.dragEnd(source, { dataTransfer });
+    expect(
+      await screen.findByRole('button', {
+        name: 'Confirmer R1/2/A-B → R1/3/A-B',
+      }),
+    ).toBeInTheDocument();
+    expect(api.commandRepairStorage).not.toHaveBeenCalled();
+  });
+
+  it('refuse un dépôt de large sur une place sans voisine libre dans le sélecteur', async () => {
+    api.searchStorageRepairs.mockResolvedValue({
+      truncated: false,
+      items: [
+        {
+          repair: {
+            id: 77,
+            client: { firstName: 'Eva', lastName: 'Large' },
+            storageSize: 'LARGE',
+          },
+          depositedAt: null,
+          slot: null,
+        },
+      ],
+    });
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/2/C, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Rechercher un robot'), {
+      target: { value: '77' },
+    });
+    fireEvent.click(await within(dialog).findByRole('button', { name: /#77/ }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'aucune paire libre',
+    );
+    expect(
+      within(dialog).getByRole('button', { name: /Placer #77/ }),
+    ).toBeDisabled();
+  });
+
+  it('demande la paire quand la place B ouvre deux possibilités, puis envoie l’ancrage', async () => {
+    api.searchStorageRepairs.mockResolvedValue({
+      truncated: false,
+      items: [
+        {
+          repair: {
+            id: 77,
+            client: { firstName: 'Eva', lastName: 'Large' },
+            storageSize: 'LARGE',
+          },
+          depositedAt: null,
+          slot: null,
+        },
+      ],
+    });
+    api.commandRepairStorage.mockResolvedValue({
+      location: { code: 'R1/3/B-C' },
+    });
+    await open();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'R1/3/B, libre, ajouter un robot' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Rechercher un robot'), {
+      target: { value: '77' },
+    });
+    fireEvent.click(await within(dialog).findByRole('button', { name: /#77/ }));
+    const confirm = within(dialog).getByRole('button', { name: /Placer #77/ });
+    expect(confirm).toBeDisabled();
+    expect(
+      within(dialog)
+        .getAllByRole('radio')
+        .map((r) => r.textContent),
+    ).toEqual(['R1/3/A-B', 'R1/3/B-C']);
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'R1/3/B-C' }));
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Placer #77 : non déposé → R1/3/B-C',
+      }),
+    );
+    await waitFor(() =>
+      expect(api.commandRepairStorage).toHaveBeenCalledWith(
+        'test',
+        77,
+        expect.objectContaining({ action: 'deposit', slotId: 131 }),
+      ),
+    );
+  });
+});

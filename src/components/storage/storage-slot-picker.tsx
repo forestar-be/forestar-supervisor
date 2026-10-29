@@ -25,10 +25,14 @@ import { searchStorageRepairs } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { usePersistedState } from '@/lib/use-persisted-state';
 import {
+  freePairsAround,
+  isLargeRepair,
+  slotLocationCode,
   storageRepairLabel,
   storageRobotLabel,
   repairStorageCategory,
   type StorageOverview,
+  type StoragePair,
   type StorageRack,
   type StorageRepair,
   type StorageSlot,
@@ -123,7 +127,12 @@ function PickerBody({
     truncated: boolean;
   } | null>(null);
   const [error, setError] = useState('');
-  const [choice, setChoice] = useState<StoragePick | null>(null);
+  const [choice, setChoiceState] = useState<StoragePick | null>(null);
+  const [pairAnchorId, setPairAnchorId] = useState<number | null>(null);
+  const setChoice = (item: StoragePick | null) => {
+    setChoiceState(item);
+    setPairAnchorId(null);
+  };
   const trimmed = query.trim();
   const requestKey = `${trimmed}|${period}`;
   // Les places viennent du rangement chargé, pour garder le rack et le code à jour.
@@ -156,6 +165,7 @@ function PickerBody({
                       level: 0,
                       position: '',
                       repair: null,
+                      locationCode: item.slot.code,
                     })
                   : null,
               };
@@ -186,8 +196,29 @@ function PickerBody({
   const toStore =
     current?.items.filter((item) => !item.slot && compatible(item)) ?? [];
   const isChosen = (item: StoragePick) => choice?.repair.id === item.repair.id;
+  // Robot large : la place cliquée appartient à une ou deux paires libres (A-B, B-C).
+  const targetRack = [...places.values()].find(
+    (place) => place.slot.id === slot.id,
+  )?.rack;
+  const pairsFor = (item: StoragePick): StoragePair[] =>
+    isLargeRepair(item.repair) && targetRack
+      ? freePairsAround(targetRack, slot)
+      : [];
+  const pairs = choice ? pairsFor(choice) : [];
+  const largeChoice = !!choice && isLargeRepair(choice.repair);
+  // Une seule paire possible : retenue d'office ; deux (place B) : choix explicite.
+  const pair =
+    pairs.length === 1
+      ? pairs[0]
+      : (pairs.find((p) => p.anchor.id === pairAnchorId) ?? null);
+  /** Place à envoyer au serveur : l'ancrage de la paire pour un large, la place cliquée sinon. */
+  function target(item: StoragePick): StorageSlot | null {
+    if (!isLargeRepair(item.repair)) return slot;
+    const options = pairsFor(item);
+    return options.length === 1 ? options[0].anchor : null;
+  }
   const placeLabel = (item: StoragePick) =>
-    item.slot?.code ??
+    (item.slot ? slotLocationCode(item.slot) : null) ??
     (item.deposited === false ? 'Non déposé' : 'Sans emplacement');
 
   function row(item: StoragePick) {
@@ -199,7 +230,10 @@ function PickerBody({
           aria-pressed={chosen}
           disabled={busy}
           onClick={() => setChoice(item)}
-          onDoubleClick={() => onConfirm(item, slot)}
+          onDoubleClick={() => {
+            const place = target(item);
+            if (place) onConfirm(item, place);
+          }}
           className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${chosen ? 'border-2 border-primary bg-primary/8' : 'hover:border-primary/60 hover:bg-accent'}`}
         >
           <span className="min-w-0">
@@ -225,7 +259,7 @@ function PickerBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Ajouter un robot en {slot.code}</DialogTitle>
+        <DialogTitle>Ajouter un robot en {slotLocationCode(slot)}</DialogTitle>
         <DialogDescription>
           Recherchez la fiche du robot à ranger ici, ou d’un robot déjà rangé
           pour le déplacer.
@@ -324,6 +358,46 @@ function PickerBody({
           )}
         </div>
       </ScrollArea>
+      {largeChoice && (
+        <div
+          className="rounded-lg border bg-card p-3 text-sm"
+          aria-label="Paire de places du robot large"
+        >
+          {pairs.length === 0 ? (
+            <p role="alert" className="text-destructive">
+              Ce robot est large : il lui faut deux places libres voisines sur
+              le même étage, et aucune paire libre ne contient{' '}
+              {slotLocationCode(slot)}. Choisissez une autre place.
+            </p>
+          ) : pairs.length === 1 ? (
+            <p>
+              Robot large : il occupera <strong>{pairs[0].code}</strong> (2
+              places).
+            </p>
+          ) : (
+            <div role="radiogroup" aria-label="Paire de places">
+              <p className="mb-2">
+                Robot large : choisissez les deux places à occuper.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {pairs.map((option) => (
+                  <button
+                    key={option.anchor.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={pairAnchorId === option.anchor.id}
+                    disabled={busy}
+                    onClick={() => setPairAnchorId(option.anchor.id)}
+                    className={`rounded-lg border px-3 py-2 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${pairAnchorId === option.anchor.id ? 'border-2 border-primary bg-primary/8' : 'hover:border-primary/60 hover:bg-accent'}`}
+                  >
+                    {option.code}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <DialogFooter className="-mx-6 -mb-6 flex-wrap rounded-b-2xl px-6 py-4">
         {/* Action à part : couleur distincte du vert des boutons de la page. */}
         <a
@@ -342,11 +416,15 @@ function PickerBody({
           Annuler
         </Button>
         <Button
-          disabled={!choice || busy}
-          onClick={() => choice && onConfirm(choice, slot)}
+          disabled={!choice || busy || (largeChoice && !pair)}
+          onClick={() =>
+            choice && pair && largeChoice
+              ? onConfirm(choice, pair.anchor)
+              : choice && onConfirm(choice, slot)
+          }
         >
           {choice
-            ? `${choice.slot ? 'Déplacer' : 'Placer'} #${choice.repair.id} : ${choice.slot ? choice.slot.code : placeLabel(choice).toLowerCase()} → ${slot.code}`
+            ? `${choice.slot ? 'Déplacer' : 'Placer'} #${choice.repair.id} : ${choice.slot ? slotLocationCode(choice.slot) : placeLabel(choice).toLowerCase()} → ${largeChoice ? (pair?.code ?? 'choisir la paire') : slotLocationCode(slot)}`
             : 'Choisir un robot'}
         </Button>
       </DialogFooter>

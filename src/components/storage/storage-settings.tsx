@@ -33,10 +33,15 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import {
+  normalizeStorageText,
   rackCategoryLabel,
   type StorageOverview,
   type StorageRackCategory,
+  type StorageSize,
 } from '@/lib/storage';
+
+/** Au-delà, la liste des modèles reçoit un champ de filtre. */
+const ROBOT_TYPES_FILTER_THRESHOLD = 8;
 import { rackCategoryAppearance } from './storage-rack-appearance';
 
 export function StorageSettings({
@@ -57,6 +62,7 @@ export function StorageSettings({
         key={JSON.stringify([
           data.settings,
           data.machineTypes,
+          data.robotTypes,
           data.racks.map((r) => [r.id, r.active, r.category]),
         ])}
         data={data}
@@ -149,6 +155,23 @@ function SettingsForm({
 }) {
   const [settings, setSettings] = useState(data.settings);
   const [types, setTypes] = useState(data.machineTypes);
+  const robotTypes = data.robotTypes ?? [];
+  const [sizes, setSizes] = useState<Record<string, StorageSize>>(() =>
+    Object.fromEntries(robotTypes.map((t) => [t.name, t.storageSize])),
+  );
+  const [modelFilter, setModelFilter] = useState('');
+  const modelFilterId = useId();
+  // Seuls les modèles modifiés partent au serveur.
+  const changedRobotTypes = robotTypes
+    .filter((t) => sizes[t.name] !== t.storageSize)
+    .map((t) => ({ name: t.name, storageSize: sizes[t.name] }));
+  const filterTerms = normalizeStorageText(modelFilter)
+    .split(/\s+/)
+    .filter(Boolean);
+  const visibleRobotTypes = robotTypes.filter((t) => {
+    const name = normalizeStorageText(t.name);
+    return filterTerms.every((term) => name.includes(term));
+  });
   const maxRacksId = useId();
   const [maxRacks, setMaxRacks] = useState(
     data.settings.maxRacks === null ? '' : String(data.settings.maxRacks),
@@ -298,6 +321,70 @@ function SettingsForm({
                 </p>
               )}
             </fieldset>
+            <fieldset className="flex min-h-20 min-w-0 shrink-0 flex-col border-t pt-3">
+              <legend className="flex shrink-0 items-center gap-2 pr-2 text-sm font-semibold">
+                <Bot className="size-4 text-primary" aria-hidden />
+                Taille des modèles de robots
+              </legend>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Un modèle large occupe deux places voisines. C’est la taille
+                proposée au dépôt ; elle reste modifiable sur chaque fiche.
+              </p>
+              {robotTypes.length > ROBOT_TYPES_FILTER_THRESHOLD && (
+                <Input
+                  id={modelFilterId}
+                  type="search"
+                  className="mt-2 w-full"
+                  aria-label="Filtrer les modèles"
+                  placeholder="Filtrer les modèles"
+                  autoComplete="off"
+                  value={modelFilter}
+                  onChange={(e) => setModelFilter(e.target.value)}
+                />
+              )}
+              <div
+                className="mt-2 grid max-h-56 content-start gap-2 overflow-y-auto pr-1"
+                aria-label="Taille par modèle"
+              >
+                {visibleRobotTypes.map((type) => {
+                  const large = sizes[type.name] === 'LARGE';
+                  return (
+                    <label
+                      key={type.name}
+                      className={`flex min-w-0 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-sm transition-colors ${large ? 'border-primary/25 bg-primary/5' : 'border-border bg-muted/15 hover:bg-muted/40'}`}
+                    >
+                      <Checkbox
+                        checked={large}
+                        disabled={busy}
+                        onCheckedChange={(checked) =>
+                          setSizes({
+                            ...sizes,
+                            [type.name]:
+                              checked === true ? 'LARGE' : 'STANDARD',
+                          })
+                        }
+                      />
+                      <span className="min-w-0 flex-1 break-words">
+                        {type.name}
+                      </span>{' '}
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        Large (2 places)
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {!robotTypes.length && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Aucun modèle de robot connu.
+                </p>
+              )}
+              {!!robotTypes.length && !visibleRobotTypes.length && (
+                <p role="status" className="mt-3 text-sm text-muted-foreground">
+                  Aucun modèle ne correspond au filtre.
+                </p>
+              )}
+            </fieldset>
           </div>
           <div className="shrink-0 border-t px-4 py-3 sm:px-5">
             <Button
@@ -310,6 +397,9 @@ function SettingsForm({
                     allowOverflow: settings.allowOverflow,
                     maxRacks: maxRacksValue,
                     machineTypes: types,
+                    ...(changedRobotTypes.length
+                      ? { robotTypes: changedRobotTypes }
+                      : {}),
                   }),
                 )
               }
