@@ -17,15 +17,15 @@
     "format:fix": "prettier \"src/**/*.{ts,tsx,css}\" --write"
   },
   "dependencies": {
-    "@forestar-be/core": "^0.7.2",
-    "@forestar-be/ui": "^0.10.0",
+    "@forestar-be/core": "^0.7.3",
+    "@forestar-be/ui": "^0.11.1",
     "@react-pdf/renderer": "^4.9.0",
     "@reduxjs/toolkit": "^2.12.0",
     "browser-image-compression": "^2.0.2",
     "date-fns": "^4.4.0",
     "dayjs": "^1.11.23",
     "lucide-react": "^1.47.0",
-    "next": "^16.3.4",
+    "next": "^16.4.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-redux": "^9.3.0",
