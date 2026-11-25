@@ -720,6 +720,26 @@ export const addStorageRack = (
   category: import('./storage').StorageRackCategory = 'ATELIER',
 ): Promise<unknown> =>
   apiRequest('/supervisor/storage/racks', 'POST', token, { category });
+/** `level` est l'étage visé (le haut + 1) : un double clic n'en ajoute pas deux. */
+export const addStorageRackLevel = (
+  token: string,
+  id: number,
+  level: number,
+): Promise<unknown> =>
+  apiRequest(`/supervisor/storage/racks/${id}/levels`, 'POST', token, {
+    level,
+  });
+/** Seul l'étage du haut se retire ; le serveur refuse un étage occupé. */
+export const removeStorageRackLevel = (
+  token: string,
+  id: number,
+  level: number,
+): Promise<unknown> =>
+  apiRequest(
+    `/supervisor/storage/racks/${id}/levels/${level}`,
+    'DELETE',
+    token,
+  );
 export const changeStorageRackCategory = (
   token: string,
   id: number,

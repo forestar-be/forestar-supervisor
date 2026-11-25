@@ -14,6 +14,8 @@ const api = vi.hoisted(() => ({
   deactivateStorageRack: vi.fn(),
   activateStorageRack: vi.fn(),
   changeStorageRackCategory: vi.fn(),
+  addStorageRackLevel: vi.fn(),
+  removeStorageRackLevel: vi.fn(),
 }));
 vi.mock('@/lib/api', () => api);
 vi.mock('@/lib/auth', () => ({ useAuth: () => ({ token: 'test' }) }));
@@ -181,7 +183,7 @@ it('shows compact columns and reactivates a disabled rack after a confirmed deac
     within(screen.getByRole('table', { name: 'Racks' }))
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent),
-  ).toEqual(['Numéro', 'Type de rack', 'Statut', 'Action']);
+  ).toEqual(['Numéro', 'Type de rack', 'Étages', 'Statut', 'Action']);
   expect(screen.queryByText(/Catégorie du rack/)).not.toBeInTheDocument();
   api.deactivateStorageRack.mockImplementation(async () => {
     data = { ...data, racks: [{ ...data.racks[0], active: false }] };
@@ -208,4 +210,106 @@ it('shows compact columns and reactivates a disabled rack after a confirmed deac
   expect(screen.getByRole('table', { name: 'Racks' })).toHaveTextContent(
     'Activé',
   );
+});
+
+function levelsRack(
+  levels: number,
+  occupied?: { level: number; position: string; covered?: boolean },
+) {
+  return {
+    id: 3,
+    number: 3,
+    active: true,
+    category: 'ATELIER' as const,
+    slots: Array.from({ length: levels }, (_, i) => i + 1).flatMap((level) =>
+      ['A', 'B', 'C'].map((position, i) => {
+        const hit = occupied?.level === level && occupied.position === position;
+        return {
+          id: level * 10 + i,
+          level,
+          position,
+          code: `R3/${level}/${position}`,
+          repair:
+            hit && !occupied?.covered
+              ? { id: 99, client: { firstName: 'Jean', lastName: 'Dupont' } }
+              : null,
+          coveredBy:
+            hit && occupied?.covered
+              ? { repairId: 99, anchorSlotId: level * 10 }
+              : null,
+        };
+      }),
+    ),
+  };
+}
+function renderRack(rack: ReturnType<typeof levelsRack>) {
+  const data = {
+    settings: { enabled: true, allowOverflow: true, maxRacks: null },
+    machineTypes: [],
+    unlocated: [],
+    racks: [rack],
+  };
+  render(<StorageSettings data={data} token="test" onSaved={async () => {}} />);
+}
+
+it('FORESTAR-244 : ajoute un étage en visant le haut + 1, et retire le haut après confirmation', async () => {
+  api.addStorageRackLevel.mockResolvedValue({});
+  api.removeStorageRackLevel.mockResolvedValue({});
+  renderRack(levelsRack(5));
+  expect(screen.getByLabelText('5 étages')).toHaveTextContent('5');
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Ajouter un étage au rack 3' }),
+  );
+  await waitFor(() =>
+    expect(api.addStorageRackLevel).toHaveBeenCalledWith('test', 3, 6),
+  );
+  const remove = await screen.findByRole('button', {
+    name: 'Retirer l’étage 5 du rack 3',
+  });
+  await waitFor(() => expect(remove).toBeEnabled());
+  fireEvent.click(remove);
+  expect(api.removeStorageRackLevel).not.toHaveBeenCalled();
+  const dialog = screen.getByRole('dialog');
+  expect(dialog).toHaveTextContent('Retirer l’étage 5 du rack 3 ?');
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: 'Retirer l’étage' }),
+  );
+  await waitFor(() =>
+    expect(api.removeStorageRackLevel).toHaveBeenCalledWith('test', 3, 5),
+  );
+});
+
+it.each([
+  ['une ancre', { level: 5, position: 'B' }],
+  ['la seconde place d’un large', { level: 5, position: 'C', covered: true }],
+])(
+  'FORESTAR-244 : bloque le retrait quand l’étage du haut porte %s',
+  (_label, occupied) => {
+    renderRack(levelsRack(5, occupied));
+    const remove = screen.getByRole('button', {
+      name: 'Retirer l’étage 5 du rack 3',
+    });
+    expect(remove).toBeDisabled();
+    expect(remove).toHaveAttribute(
+      'title',
+      'Videz l’étage 5 avant de le retirer.',
+    );
+  },
+);
+
+it('FORESTAR-244 : un étage occupé plus bas ne bloque pas le retrait du haut ; bornes 1 et 8', () => {
+  renderRack(levelsRack(5, { level: 4, position: 'A' }));
+  expect(
+    screen.getByRole('button', { name: 'Retirer l’étage 5 du rack 3' }),
+  ).toBeEnabled();
+  cleanup();
+  renderRack(levelsRack(1));
+  expect(
+    screen.getByRole('button', { name: 'Retirer l’étage 1 du rack 3' }),
+  ).toBeDisabled();
+  cleanup();
+  renderRack(levelsRack(8));
+  expect(
+    screen.getByRole('button', { name: 'Ajouter un étage au rack 3' }),
+  ).toBeDisabled();
 });

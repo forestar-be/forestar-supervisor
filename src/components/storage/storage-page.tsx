@@ -50,6 +50,7 @@ import {
   isSlotFree,
   levelCells,
   rackCounts,
+  rackLevels,
   slotLocationCode,
   storagePairCode,
   searchStorage,
@@ -961,7 +962,7 @@ export function StoragePage() {
                         </span>
                       ))}
                     </div>
-                    {[4, 3, 2, 1].map((level) => {
+                    {rackLevels(rack.slots).map((level) => {
                       const levelSlots = rack.slots.filter(
                         (slot) => slot.level === level,
                       );
