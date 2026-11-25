@@ -97,7 +97,7 @@ function StorageRackTypeSelect({
         size="sm"
         aria-label={label}
         title={title}
-        className={`w-26 gap-1 px-2 text-xs disabled:opacity-100 sm:w-36 sm:gap-2 sm:text-sm ${appearance.foreground}`}
+        className={`w-24 gap-1 px-2 text-xs disabled:opacity-100 sm:w-32 sm:gap-2 xl:w-36 sm:text-sm ${appearance.foreground}`}
       >
         <Icon className="hidden size-4 sm:block" aria-hidden />
         <SelectValue className="min-w-0">
@@ -368,15 +368,15 @@ function SettingsForm({
           >
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-                <TableHead className="px-1 sm:px-5">Numéro</TableHead>
+                <TableHead className="px-1 sm:px-3 xl:px-5">Rack</TableHead>
                 <TableHead className="px-1 sm:px-3">Type de rack</TableHead>
                 <TableHead className="px-1 text-center sm:px-3">
                   Étages
                 </TableHead>
-                <TableHead className="hidden px-1 sm:table-cell sm:px-3">
+                <TableHead className="hidden px-1 sm:px-3 xl:table-cell">
                   Statut
                 </TableHead>
-                <TableHead className="px-1 text-right sm:px-5">
+                <TableHead className="px-1 text-right sm:px-3 xl:px-5">
                   Action
                 </TableHead>
               </TableRow>
@@ -400,7 +400,7 @@ function SettingsForm({
                 const Icon = appearance.Icon;
                 return (
                   <TableRow key={rack.id}>
-                    <TableCell className="px-1 py-2 font-semibold sm:px-5">
+                    <TableCell className="px-1 py-2 font-semibold sm:px-3 xl:px-5">
                       <span className="flex items-center gap-2.5">
                         <span
                           className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${appearance.axis} ${appearance.foreground}`}
@@ -411,7 +411,7 @@ function SettingsForm({
                           <span className={appearance.foreground}>
                             R{rack.number}
                           </span>
-                          <span className="sm:hidden">
+                          <span className="xl:hidden">
                             <StorageRackStatus active={rack.active} />
                           </span>
                         </span>
@@ -435,11 +435,11 @@ function SettingsForm({
                       />
                     </TableCell>
                     <TableCell className="px-1 py-2 sm:px-3">
-                      <span className="flex items-center justify-center gap-1">
+                      <span className="flex items-center justify-center gap-0.5 sm:gap-1">
                         <Button
                           size="icon"
                           variant="outline"
-                          className="size-8"
+                          className="size-7 sm:size-8"
                           aria-label={`Retirer l’étage ${levels} du rack ${rack.number}`}
                           disabled={busy || !!removeHint}
                           title={removeHint}
@@ -454,7 +454,7 @@ function SettingsForm({
                           <Minus className="size-4" aria-hidden />
                         </Button>
                         <span
-                          className="min-w-6 text-center font-semibold tabular-nums"
+                          className="min-w-4 text-center font-semibold tabular-nums sm:min-w-6"
                           aria-label={`${levels} étages`}
                         >
                           {levels}
@@ -462,7 +462,7 @@ function SettingsForm({
                         <Button
                           size="icon"
                           variant="outline"
-                          className="size-8"
+                          className="size-7 sm:size-8"
                           aria-label={`Ajouter un étage au rack ${rack.number}`}
                           disabled={busy || levels >= MAX_RACK_LEVELS}
                           title={
@@ -480,10 +480,10 @@ function SettingsForm({
                         </Button>
                       </span>
                     </TableCell>
-                    <TableCell className="hidden px-1 py-2 sm:table-cell sm:px-3">
+                    <TableCell className="hidden px-1 py-2 sm:px-3 xl:table-cell">
                       <StorageRackStatus active={rack.active} />
                     </TableCell>
-                    <TableCell className="px-1 py-2 text-right sm:px-5">
+                    <TableCell className="px-1 py-2 text-right sm:px-3 xl:px-5">
                       <Button
                         size="sm"
                         variant="outline"

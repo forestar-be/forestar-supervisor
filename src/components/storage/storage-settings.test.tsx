@@ -183,7 +183,7 @@ it('shows compact columns and reactivates a disabled rack after a confirmed deac
     within(screen.getByRole('table', { name: 'Racks' }))
       .getAllByRole('columnheader')
       .map((cell) => cell.textContent),
-  ).toEqual(['Numéro', 'Type de rack', 'Étages', 'Statut', 'Action']);
+  ).toEqual(['Rack', 'Type de rack', 'Étages', 'Statut', 'Action']);
   expect(screen.queryByText(/Catégorie du rack/)).not.toBeInTheDocument();
   api.deactivateStorageRack.mockImplementation(async () => {
     data = { ...data, racks: [{ ...data.racks[0], active: false }] };
