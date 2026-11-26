@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Bot, LockKeyhole, Plus, Save, Settings2 } from 'lucide-react';
+import { Bot, LockKeyhole, Minus, Plus, Save, Settings2 } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -26,6 +26,8 @@ import {
 import {
   getStorage,
   addStorageRack,
+  addStorageRackLevel,
+  removeStorageRackLevel,
   deactivateStorageRack,
   activateStorageRack,
   changeStorageRackCategory,
@@ -58,7 +60,7 @@ export function StorageSettings({
         key={JSON.stringify([
           data.settings,
           data.machineTypes,
-          data.racks.map((r) => [r.id, r.active, r.category]),
+          data.racks.map((r) => [r.id, r.active, r.category, r.slots.length]),
         ])}
         data={data}
         token={token}
@@ -95,7 +97,7 @@ function StorageRackTypeSelect({
         size="sm"
         aria-label={label}
         title={title}
-        className={`w-26 gap-1 px-2 text-xs disabled:opacity-100 sm:w-36 sm:gap-2 sm:text-sm ${appearance.foreground}`}
+        className={`w-24 gap-1 px-2 text-xs disabled:opacity-100 sm:w-32 sm:gap-2 xl:w-36 sm:text-sm ${appearance.foreground}`}
       >
         <Icon className="hidden size-4 sm:block" aria-hidden />
         <SelectValue className="min-w-0">
@@ -139,6 +141,9 @@ function StorageRackStatus({ active }: { active: boolean }) {
   );
 }
 
+/** Même borne que le serveur (FORESTAR-244). */
+const MAX_RACK_LEVELS = 8;
+
 function SettingsForm({
   data,
   token,
@@ -163,6 +168,11 @@ function SettingsForm({
     useState<StorageRackCategory>('ATELIER');
   const [error, setError] = useState('');
   const [deactivate, setDeactivate] = useState<number | null>(null);
+  const [removeLevel, setRemoveLevel] = useState<{
+    rackId: number;
+    rackNumber: number;
+    level: number;
+  } | null>(null);
   const running = useRef(false);
   async function mutate(action: () => Promise<unknown>) {
     if (running.current) return;
@@ -172,6 +182,7 @@ function SettingsForm({
     try {
       await action();
       setDeactivate(null);
+      setRemoveLevel(null);
       await onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Modification impossible.');
@@ -328,7 +339,7 @@ function SettingsForm({
             <div>
               <h3 className="font-semibold">Racks</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                12 places · 4 étages × 3 positions
+                Nouveau rack : 4 étages × 3 positions
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -357,12 +368,15 @@ function SettingsForm({
           >
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-                <TableHead className="px-1 sm:px-5">Numéro</TableHead>
+                <TableHead className="px-1 sm:px-3 xl:px-5">Rack</TableHead>
                 <TableHead className="px-1 sm:px-3">Type de rack</TableHead>
-                <TableHead className="hidden px-1 sm:table-cell sm:px-3">
+                <TableHead className="px-1 text-center sm:px-3">
+                  Étages
+                </TableHead>
+                <TableHead className="hidden px-1 sm:px-3 xl:table-cell">
                   Statut
                 </TableHead>
-                <TableHead className="px-1 text-right sm:px-5">
+                <TableHead className="px-1 text-right sm:px-3 xl:px-5">
                   Action
                 </TableHead>
               </TableRow>
@@ -370,11 +384,23 @@ function SettingsForm({
             <TableBody>
               {data.racks.map((rack) => {
                 const occupied = rack.slots.some((slot) => !!slot.repair);
+                const levels = Math.max(0, ...rack.slots.map((s) => s.level));
+                const topOccupied = rack.slots.some(
+                  (slot) =>
+                    slot.level === levels &&
+                    (!!slot.repair || !!slot.coveredBy),
+                );
+                const removeHint =
+                  levels <= 1
+                    ? 'Un rack garde au moins un étage.'
+                    : topOccupied
+                      ? `Videz l’étage ${levels} avant de le retirer.`
+                      : undefined;
                 const appearance = rackCategoryAppearance(rack.category);
                 const Icon = appearance.Icon;
                 return (
                   <TableRow key={rack.id}>
-                    <TableCell className="px-1 py-2 font-semibold sm:px-5">
+                    <TableCell className="px-1 py-2 font-semibold sm:px-3 xl:px-5">
                       <span className="flex items-center gap-2.5">
                         <span
                           className={`hidden size-8 shrink-0 items-center justify-center rounded-lg sm:flex ${appearance.axis} ${appearance.foreground}`}
@@ -385,7 +411,7 @@ function SettingsForm({
                           <span className={appearance.foreground}>
                             R{rack.number}
                           </span>
-                          <span className="sm:hidden">
+                          <span className="xl:hidden">
                             <StorageRackStatus active={rack.active} />
                           </span>
                         </span>
@@ -408,10 +434,56 @@ function SettingsForm({
                         }
                       />
                     </TableCell>
-                    <TableCell className="hidden px-1 py-2 sm:table-cell sm:px-3">
+                    <TableCell className="px-1 py-2 sm:px-3">
+                      <span className="flex items-center justify-center gap-0.5 sm:gap-1">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="size-7 sm:size-8"
+                          aria-label={`Retirer l’étage ${levels} du rack ${rack.number}`}
+                          disabled={busy || !!removeHint}
+                          title={removeHint}
+                          onClick={() =>
+                            setRemoveLevel({
+                              rackId: rack.id,
+                              rackNumber: rack.number,
+                              level: levels,
+                            })
+                          }
+                        >
+                          <Minus className="size-4" aria-hidden />
+                        </Button>
+                        <span
+                          className="min-w-4 text-center font-semibold tabular-nums sm:min-w-6"
+                          aria-label={`${levels} étages`}
+                        >
+                          {levels}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="size-7 sm:size-8"
+                          aria-label={`Ajouter un étage au rack ${rack.number}`}
+                          disabled={busy || levels >= MAX_RACK_LEVELS}
+                          title={
+                            levels >= MAX_RACK_LEVELS
+                              ? `Un rack compte au plus ${MAX_RACK_LEVELS} étages.`
+                              : undefined
+                          }
+                          onClick={() =>
+                            void mutate(() =>
+                              addStorageRackLevel(token, rack.id, levels + 1),
+                            )
+                          }
+                        >
+                          <Plus className="size-4" aria-hidden />
+                        </Button>
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden px-1 py-2 sm:px-3 xl:table-cell">
                       <StorageRackStatus active={rack.active} />
                     </TableCell>
-                    <TableCell className="px-1 py-2 text-right sm:px-5">
+                    <TableCell className="px-1 py-2 text-right sm:px-3 xl:px-5">
                       <Button
                         size="sm"
                         variant="outline"
@@ -440,7 +512,7 @@ function SettingsForm({
               {!data.racks.length && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="px-5 py-10 text-center text-sm text-muted-foreground"
                   >
                     Aucun rack créé. Ajoutez le premier ci-dessus.
@@ -451,10 +523,35 @@ function SettingsForm({
           </Table>
           <p className="flex shrink-0 items-start gap-2 border-t bg-muted/20 px-4 py-3 text-sm text-muted-foreground sm:px-5">
             <LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden />
-            Videz un rack avant de changer sa catégorie ou de le désactiver.
+            Videz un rack avant de changer sa catégorie ou de le désactiver. Les
+            étages s’ajoutent et se retirent par le haut.
           </p>
         </section>
       </div>
+      <ConfirmDialog
+        open={removeLevel !== null}
+        title={
+          removeLevel
+            ? `Retirer l’étage ${removeLevel.level} du rack ${removeLevel.rackNumber} ?`
+            : ''
+        }
+        message="Ses trois places vides sont supprimées. Les autres étages gardent leur numéro et l’historique est conservé."
+        isLoading={busy}
+        confirmText="Retirer l’étage"
+        onClose={() => {
+          if (!busy) setRemoveLevel(null);
+        }}
+        onConfirm={() => {
+          if (removeLevel)
+            void mutate(() =>
+              removeStorageRackLevel(
+                token,
+                removeLevel.rackId,
+                removeLevel.level,
+              ),
+            );
+        }}
+      />
       <ConfirmDialog
         open={deactivate !== null}
         title="Désactiver ce rack vide ?"

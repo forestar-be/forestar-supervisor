@@ -773,6 +773,32 @@ function withLargeRobot(rackIndex = 0): StorageOverview {
 }
 const LARGE = 'R1/2/A-B, #55 · Luc Martin';
 
+it('FORESTAR-244 : affiche un 5e étage ajouté, du haut vers le bas', async () => {
+  const data = fixture();
+  data.racks[0].slots.push(
+    ...['A', 'B', 'C'].map((position, i) => ({
+      id: 150 + i,
+      level: 5,
+      position,
+      code: `R1/5/${position}`,
+      repair: null,
+    })),
+  );
+  api.getStorage.mockResolvedValue(data);
+  await open();
+  const front = screen.getByLabelText('Rack de face');
+  const levels = within(front)
+    .getAllByLabelText(/^Étage \d$/)
+    .map((el) => el.getAttribute('aria-label'));
+  expect(levels).toEqual([
+    'Étage 5',
+    'Étage 4',
+    'Étage 3',
+    'Étage 2',
+    'Étage 1',
+  ]);
+});
+
 describe('Robots larges (deux places)', () => {
   beforeEach(() => api.getStorage.mockResolvedValue(withLargeRobot()));
 

@@ -175,6 +175,10 @@ export type StorageCell =
   | { kind: 'covered'; slot: StorageSlot };
 const byPosition = (a: StorageSlot, b: StorageSlot) =>
   a.position.localeCompare(b.position);
+/** Étages d'un rack, du plus haut au plus bas (leur nombre varie, FORESTAR-244). */
+export function rackLevels(slots: StorageSlot[]): number[] {
+  return [...new Set(slots.map((slot) => slot.level))].sort((a, b) => b - a);
+}
 /** Regroupe les places d'un même étage en cellules, de gauche à droite. */
 export function levelCells(slots: StorageSlot[]): StorageCell[] {
   const sorted = [...slots].sort(byPosition);
